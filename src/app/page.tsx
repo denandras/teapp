@@ -7,6 +7,7 @@ import { Tea, TEA_TYPE_COLORS, TEA_TYPE_LABELS, ALL_TEA_TYPES } from "@/lib/type
 import { useTeaStore } from "@/lib/store";
 import TeaDetailModal from "@/components/TeaDetailModal";
 import { Search, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function DashboardPage() {
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
@@ -36,8 +37,8 @@ export default function DashboardPage() {
 
   const chartData = useMemo(() =>
     filteredTeas.map(t => ({
-      x: t.oxidation_level,
-      y: t.roast_level,
+      x: t.flavor_x ?? 50,
+      y: t.flavor_y ?? 50,
       z: teaStates[t.slug] === "have" ? 400 : teaStates[t.slug] === "tried" ? 250 : 120,
       tea: t,
       color: t.color_hex,
@@ -118,60 +119,76 @@ export default function DashboardPage() {
       </div>
 
       {/* Chart */}
-      <div className="rounded-2xl border p-6" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+      <div className="rounded-2xl border p-6 paper-card" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
         <div className="mb-4">
-          <h2 className="text-sm font-semibold text-muted uppercase tracking-wide">Oxidation vs Roast Level</h2>
+          <h2 className="text-sm font-semibold text-muted uppercase tracking-wide">Flavor Chart</h2>
           <p className="text-xs text-muted mt-1">Click a dot to see tea details · Dot size reflects collection status</p>
         </div>
         <ResponsiveContainer width="100%" height={500}>
-          <ScatterChart margin={{ top: 20, right: 30, bottom: 50, left: 20 }}>
+          <ScatterChart margin={{ top: 20, right: 30, bottom: 60, left: 40 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
             <XAxis
               type="number"
               dataKey="x"
-              name="Oxidation"
+              name="Roast Aroma"
               domain={[0, 100]}
               tick={{ fill: "var(--muted)", fontSize: 12 }}
-              tickFormatter={(v) => `${v}%`}
-              label={{ value: "Oxidation Level →", position: "bottom", offset: 15, fill: "var(--muted)", fontSize: 12 }}
+              tickFormatter={(v) => `${v}`}
+              label={{ value: "Fresh / Green ←  Roasted Aroma  →", position: "bottom", offset: 20, fill: "var(--muted)", fontSize: 12 }}
             />
             <YAxis
               type="number"
               dataKey="y"
-              name="Roast"
+              name="Bitterness"
               domain={[0, 100]}
               tick={{ fill: "var(--muted)", fontSize: 12 }}
-              tickFormatter={(v) => `${v}%`}
-              label={{ value: "Roast Level →", angle: -90, position: "insideLeft", offset: 10, fill: "var(--muted)", fontSize: 12 }}
+              tickFormatter={(v) => `${v}`}
+              label={{ value: "Sweet / Umami ←  Bitter / Astringent →", angle: -90, position: "insideLeft", offset: 15, fill: "var(--muted)", fontSize: 12 }}
             />
             <ZAxis type="number" dataKey="z" range={[60, 400]} />
             <Tooltip
               cursor={{ strokeDasharray: "3 3", stroke: "var(--accent)" }}
-              content={({ payload }) => {
+              content={({ payload, active }) => {
                 if (!payload || !payload.length) return null;
                 const d = payload[0].payload;
                 const tea = d.tea;
                 return (
-                  <div className="rounded-lg p-3 border shadow-xl text-sm" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
-                      <span className="font-bold">{tea.name}</span>
-                    </div>
-                    {tea.chinese_name && <p className="text-muted text-xs mt-1">{tea.chinese_name}</p>}
-                    <p className="text-muted text-xs mt-1">{TEA_TYPE_LABELS[tea.tea_type]}</p>
-                    {d.status !== "empty" && (
-                      <p className="text-xs mt-1 text-accent">
-                        {d.status === "have" ? "✓ In collection" : "✓ Tried"}
-                      </p>
+                  <AnimatePresence>
+                    {active && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8, y: 5 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="rounded-lg p-3 border shadow-xl text-sm"
+                        style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
+                          <span className="font-bold">{tea.name}</span>
+                        </div>
+                        {tea.chinese_name && <p className="text-muted text-xs mt-1">{tea.chinese_name}</p>}
+                        <p className="text-muted text-xs mt-1">{TEA_TYPE_LABELS[tea.tea_type]}</p>
+                        {d.status !== "empty" && (
+                          <p className="text-xs mt-1 text-accent">
+                            {d.status === "have" ? "✓ In collection" : "✓ Tried"}
+                          </p>
+                        )}
+                      </motion.div>
                     )}
-                  </div>
+                  </AnimatePresence>
                 );
               }}
             />
             <Scatter
               data={chartData}
-              onClick={(data) => {
-                if (data && data.payload) setSelectedTea(data.payload.tea);
+              onClick={(data: any) => {
+                // recharts passes an array of clicked points
+                if (Array.isArray(data) && data.length > 0 && data[0]?.payload?.tea) {
+                  setSelectedTea(data[0].payload.tea);
+                } else if (data?.payload?.tea) {
+                  setSelectedTea(data.payload.tea);
+                }
               }}
             >
               {chartData.map((entry, i) => (
