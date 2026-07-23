@@ -13,7 +13,7 @@ export default function DashboardPage() {
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
-  const [showOnlyCollection, setShowOnlyCollection] = useState(false);
+  const [showOnlyCollection, setShowOnlyCollection] = useState(true);
   const teaStates = useTeaStore((s) => s.teaStates);
 
   const filteredTeas = useMemo(() => {
@@ -125,6 +125,12 @@ export default function DashboardPage() {
           <h2 className="text-sm font-semibold text-muted uppercase tracking-wide">Flavor Chart</h2>
           <p className="text-xs text-muted mt-1">Click a dot to see tea details · Dot size reflects collection status</p>
         </div>
+        {showOnlyCollection && filteredTeas.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center py-12" style={{ minHeight: 300 }}>
+            <p className="text-muted text-sm mb-2">No teas in your collection yet</p>
+            <p className="text-muted text-xs">Mark teas as "have" or "tried" in the Database to see them here</p>
+          </div>
+        ) : (
         <ResponsiveContainer width="100%" height={400} minHeight={300}>
           <ScatterChart margin={{ top: 20, right: 20, bottom: 60, left: 20 }}>
             {/* Quadrant background colors */}
@@ -232,6 +238,7 @@ export default function DashboardPage() {
             </Scatter>
           </ScatterChart>
         </ResponsiveContainer>
+        )}
       </div>
 
       {/* Legend */}
