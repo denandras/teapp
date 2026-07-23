@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Coffee, LayoutGrid, Database, Settings, Plus } from "lucide-react";
+import { Coffee, LayoutGrid, Database, Settings, Plus, BookOpen } from "lucide-react";
 
 export default function NavBar() {
   const pathname = usePathname();
@@ -10,6 +10,7 @@ export default function NavBar() {
   const links = [
     { href: "/", label: "Dashboard", icon: LayoutGrid },
     { href: "/database", label: "Database", icon: Database },
+    { href: "/wiki", label: "Wiki", icon: BookOpen },
     { href: "/add", label: "Add Tea", icon: Plus },
     { href: "/settings", label: "Settings", icon: Settings },
   ];
