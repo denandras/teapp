@@ -86,7 +86,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-    return <LoginForm />;
+    return (
+      <AuthContext.Provider value={value}>
+        <LoginForm />
+      </AuthContext.Provider>
+    );
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
