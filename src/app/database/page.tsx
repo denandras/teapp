@@ -109,7 +109,7 @@ export default function DatabasePage() {
       <div>
         <h1 className="text-3xl font-serif font-bold">Tea Database</h1>
         <p className="text-muted text-sm mt-1">
-          {filteredTeas.length} of {allTeas.length} teas · Click checkbox to cycle: none → have → tried → none
+          {filteredTeas.length} of {allTeas.length} teas · Click checkbox to cycle status
         </p>
       </div>
 
