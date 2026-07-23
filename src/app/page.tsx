@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine, ReferenceArea } from "recharts";
 import { TEAS } from "@/data/teas";
 import { Tea, TEA_TYPE_COLORS, TEA_TYPE_LABELS, ALL_TEA_TYPES } from "@/lib/types";
 import { useTeaStore } from "@/lib/store";
@@ -35,10 +35,11 @@ export default function DashboardPage() {
     return teas;
   }, [search, activeTypes, showOnlyCollection, teaStates]);
 
+  // Convert 0-100 flavor coordinates to centered -50..+50 range
   const chartData = useMemo(() =>
     filteredTeas.map(t => ({
-      x: t.flavor_x ?? 50,
-      y: t.flavor_y ?? 50,
+      x: (t.flavor_x ?? 50) - 50,
+      y: -((t.flavor_y ?? 50) - 50), // flip Y so positive = up
       z: teaStates[t.slug] === "have" ? 400 : teaStates[t.slug] === "tried" ? 250 : 120,
       tea: t,
       color: t.color_hex,
@@ -124,28 +125,46 @@ export default function DashboardPage() {
           <h2 className="text-sm font-semibold text-muted uppercase tracking-wide">Flavor Chart</h2>
           <p className="text-xs text-muted mt-1">Click a dot to see tea details · Dot size reflects collection status</p>
         </div>
-        <ResponsiveContainer width="100%" height={500}>
-          <ScatterChart margin={{ top: 20, right: 30, bottom: 60, left: 40 }}>
+        <ResponsiveContainer width="100%" height={560}>
+          <ScatterChart margin={{ top: 20, right: 40, bottom: 60, left: 50 }}>
+            {/* Quadrant background colors */}
+            <ReferenceArea x1={0} x2={50} y1={0} y2={50} fill="var(--accent)" fillOpacity={0.02} />
+            <ReferenceArea x1={-50} x2={0} y1={0} y2={50} fill="var(--accent)" fillOpacity={0.01} />
+            <ReferenceArea x1={-50} x2={0} y1={-50} y2={0} fill="var(--accent)" fillOpacity={0.03} />
+            <ReferenceArea x1={0} x2={50} y1={-50} y2={0} fill="var(--accent)" fillOpacity={0.015} />
+            {/* Grid */}
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+            {/* X axis — centered at 0, range -50..+50 */}
             <XAxis
               type="number"
               dataKey="x"
-              name="Roast Aroma"
-              domain={[0, 100]}
-              tick={{ fill: "var(--muted)", fontSize: 12 }}
+              name="Roast"
+              domain={[-50, 50]}
+              ticks={[-50, -25, 0, 25, 50]}
+              tick={{ fill: "var(--muted)", fontSize: 11 }}
               tickFormatter={(v) => `${v}`}
-              label={{ value: "Fresh / Green ←  Roasted Aroma  →", position: "bottom", offset: 20, fill: "var(--muted)", fontSize: 12 }}
+              label={{ value: "← Fresh / Green          Roasted Aroma →", position: "bottom", offset: 25, fill: "var(--muted)", fontSize: 12 }}
             />
+            {/* Y axis — centered at 0, range -50..+50 */}
             <YAxis
               type="number"
               dataKey="y"
-              name="Bitterness"
-              domain={[0, 100]}
-              tick={{ fill: "var(--muted)", fontSize: 12 }}
+              name="Sweetness"
+              domain={[-50, 50]}
+              ticks={[-50, -25, 0, 25, 50]}
+              tick={{ fill: "var(--muted)", fontSize: 11 }}
               tickFormatter={(v) => `${v}`}
-              label={{ value: "Sweet / Umami ←  Bitter / Astringent →", angle: -90, position: "insideLeft", offset: 15, fill: "var(--muted)", fontSize: 12 }}
+              label={{ value: "↑ Sweet / Umami    Bitter / Astringent ↓", angle: -90, position: "insideLeft", offset: 10, fill: "var(--muted)", fontSize: 12 }}
             />
             <ZAxis type="number" dataKey="z" range={[60, 400]} />
+            {/* Zero lines (axes through origin) */}
+            <ReferenceLine x={0} stroke="var(--muted)" strokeOpacity={0.5} strokeWidth={1.5} />
+            <ReferenceLine y={0} stroke="var(--muted)" strokeOpacity={0.5} strokeWidth={1.5} />
+            {/* Quadrant labels */}
+            <text x={390} y={225} textAnchor="middle" fill="var(--muted)" fontSize={10} opacity={0.4}>Roasted & Sweet</text>
+            <text x={140} y={225} textAnchor="middle" fill="var(--muted)" fontSize={10} opacity={0.4}>Fresh & Sweet</text>
+            <text x={140} y={355} textAnchor="middle" fill="var(--muted)" fontSize={10} opacity={0.4}>Fresh & Bitter</text>
+            <text x={390} y={355} textAnchor="middle" fill="var(--muted)" fontSize={10} opacity={0.4}>Roasted & Bitter</text>
             <Tooltip
               cursor={{ strokeDasharray: "3 3", stroke: "var(--accent)" }}
               content={({ payload, active }) => {
@@ -169,6 +188,7 @@ export default function DashboardPage() {
                         </div>
                         {tea.chinese_name && <p className="text-muted text-xs mt-1">{tea.chinese_name}</p>}
                         <p className="text-muted text-xs mt-1">{TEA_TYPE_LABELS[tea.tea_type]}</p>
+                        <p className="text-muted text-xs mt-0.5">({d.x}, {d.y})</p>
                         {d.status !== "empty" && (
                           <p className="text-xs mt-1 text-accent">
                             {d.status === "have" ? "✓ In collection" : "✓ Tried"}
@@ -183,7 +203,6 @@ export default function DashboardPage() {
             <Scatter
               data={chartData}
               onClick={(data: any) => {
-                // recharts passes an array of clicked points
                 if (Array.isArray(data) && data.length > 0 && data[0]?.payload?.tea) {
                   setSelectedTea(data[0].payload.tea);
                 } else if (data?.payload?.tea) {
