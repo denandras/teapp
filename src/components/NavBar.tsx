@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Coffee, LayoutGrid, Database, Settings, Plus, BookOpen } from "lucide-react";
+import { Coffee, LayoutGrid, Database, Settings, Plus, BookOpen, LogOut } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function NavBar() {
   const pathname = usePathname();
+  const { user, signOut } = useAuth();
 
   const links = [
     { href: "/", label: "Dashboard", icon: LayoutGrid },
@@ -43,6 +45,21 @@ export default function NavBar() {
           );
         })}
       </div>
+      {user && (
+        <div className="flex items-center gap-3 ml-auto pl-4">
+          <span className="text-xs text-muted hidden sm:inline truncate max-w-[160px]">
+            {user.email}
+          </span>
+          <button
+            onClick={() => signOut()}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-colors hover:bg-red-500/10 text-muted hover:text-red-400"
+            title="Sign out"
+          >
+            <LogOut size={15} />
+            <span className="hidden sm:inline">Sign out</span>
+          </button>
+        </div>
+      )}
     </nav>
   );
 }
