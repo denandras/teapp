@@ -12,6 +12,8 @@ interface Props {
   onClose: () => void;
 }
 
+const EMPTY_LOGS: TeaLog[] = [];
+
 function StarRating({ rating, onChange, size = 18, interactive = true }: {
   rating: number;
   onChange?: (r: number) => void;
@@ -84,7 +86,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
 
   const teaStatus = useTeaStore((s) => s.teaStates[tea.slug] || "empty");
   const cycleTeaStatus = useTeaStore((s) => s.cycleTeaStatus);
-  const teaLogs = useTeaStore((s) => s.teaLogs[tea.slug] || []);
+  const teaLogs = useTeaStore((s) => s.teaLogs[tea.slug]) || EMPTY_LOGS;
   const addTeaLog = useTeaStore((s) => s.addTeaLog);
   const editTeaLog = useTeaStore((s) => s.editTeaLog);
   const deleteTeaLog = useTeaStore((s) => s.deleteTeaLog);
