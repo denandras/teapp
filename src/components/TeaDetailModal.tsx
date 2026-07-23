@@ -164,8 +164,8 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-        className="max-w-2xl w-full max-h-[85vh] overflow-y-auto rounded-2xl border shadow-2xl paper-card"
-        style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
+        className="max-w-2xl w-full max-h-[85vh] overflow-y-auto overflow-x-hidden rounded-2xl border shadow-2xl paper-card"
+        style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", maxWidth: "calc(100vw - 2rem)" }}
         onClick={(e) => e.stopPropagation()}
       >
           {/* Delete confirmation dialog */}
@@ -213,7 +213,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
           </AnimatePresence>
 
           {/* Header */}
-          <div className="sticky top-0 z-10 flex items-start justify-between p-6 border-b paper-header"
+          <div className="sticky top-0 z-10 flex items-start justify-between p-4 sm:p-6 border-b paper-header"
             style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
           >
             <div className="flex items-start gap-4 flex-1 min-w-0">
@@ -354,7 +354,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
           </div>
 
           {/* Body */}
-          <div className="p-6 space-y-4">
+          <div className="p-4 sm:p-6 space-y-4">
             {/* Status */}
             <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: "var(--bg)" }}>
               <span className="text-sm text-muted">Your collection:</span>

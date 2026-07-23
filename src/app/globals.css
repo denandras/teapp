@@ -47,6 +47,7 @@ body {
   color: var(--text);
   transition: background-color 0.3s, color 0.3s;
   position: relative;
+  overflow-x: hidden;
 }
 
 /* Paper texture overlay - subtle noise/grain across the whole app */

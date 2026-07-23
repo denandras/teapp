@@ -16,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <StoreInit />
           <NavBar />
-          <main className="min-h-[calc(100vh-64px)] px-4 sm:px-6 lg:px-8 py-6">
+          <main className="min-h-[calc(100vh-64px)] px-4 sm:px-6 lg:px-8 py-6 overflow-x-hidden">
             {children}
           </main>
         </ThemeProvider>

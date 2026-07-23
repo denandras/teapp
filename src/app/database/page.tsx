@@ -135,14 +135,14 @@ export default function DatabasePage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap overflow-x-auto pb-1">
         {ALL_TEA_TYPES.map(type => {
           const active = activeTypes.includes(type);
           return (
             <button
               key={type}
               onClick={() => toggleType(type)}
-              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
+              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex-shrink-0"
               style={{
                 backgroundColor: active ? TEA_TYPE_COLORS[type] : "transparent",
                 color: active ? "#fff" : "var(--muted)",

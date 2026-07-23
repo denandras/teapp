@@ -99,7 +99,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Type filters */}
-      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap overflow-x-auto pb-1">
+      <div className="flex items-center gap-2 flex-wrap overflow-x-auto pb-1">
         {ALL_TEA_TYPES.map(type => {
           const active = activeTypes.includes(type);
           return (

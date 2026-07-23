@@ -42,7 +42,7 @@ export default function WikiPage() {
       </div>
 
       {/* Style selector tabs */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap overflow-x-auto pb-1">
         {BREWING_STYLES.map((style) => {
           const Icon = iconMap[style.icon] || CupSoda;
           const active = selectedSlug === style.slug;
@@ -53,7 +53,7 @@ export default function WikiPage() {
                 setSelectedSlug(style.slug);
                 setExpandedStep(null);
               }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border flex-shrink-0"
               style={{
                 backgroundColor: active ? "var(--accent)" : "transparent",
                 color: active ? "#fff" : "var(--muted)",
