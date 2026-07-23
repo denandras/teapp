@@ -31,6 +31,15 @@ const themes = [
     text: "#f0d8b8",
     accent: "#e8a040",
   },
+  {
+    id: "dark-green" as const,
+    name: "Dark Green",
+    description: "Deep forest tones with warm gold accents",
+    bg: "#1a2420",
+    card: "#1f2e28",
+    text: "#e8dcc8",
+    accent: "#c4a050",
+  },
 ];
 
 export default function SettingsPage() {
@@ -40,7 +49,7 @@ export default function SettingsPage() {
   const customTeas = useTeaStore((s) => s.customTeas);
 
   const collectionCount = Object.values(teaStates).filter(s => s && s !== "empty").length;
-  const haveCount = Object.values(teaStates).filter(s => s === "have").length;
+  const haveCount = Object.values(teaStates).filter(s => s === "have" || s === "tried").length;
   const triedCount = Object.values(teaStates).filter(s => s === "tried").length;
 
   return (
@@ -101,7 +110,7 @@ export default function SettingsPage() {
           </div>
           <div className="rounded-xl border p-4 text-center" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
             <p className="text-3xl font-bold" style={{ color: "#7BA05B" }}>{haveCount}</p>
-            <p className="text-xs text-muted mt-1">Currently have</p>
+            <p className="text-xs text-muted mt-1">Have it</p>
           </div>
           <div className="rounded-xl border p-4 text-center" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
             <p className="text-3xl font-bold" style={{ color: "#c4853f" }}>{triedCount}</p>

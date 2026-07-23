@@ -8,7 +8,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const body = document.body;
-    body.classList.remove("theme-cozy-dark", "theme-cozy-light", "theme-warm");
+    body.classList.remove("theme-cozy-dark", "theme-cozy-light", "theme-warm", "theme-dark-green");
     body.classList.add(`theme-${theme}`);
   }, [theme]);
 

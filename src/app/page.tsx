@@ -56,23 +56,23 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="space-y-4">
         <div>
-          <h1 className="text-3xl font-serif font-bold">Tea Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold">Tea Dashboard</h1>
           <p className="text-muted text-sm mt-1">
             {filteredTeas.length} teas · {collectionCount} in your collection
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           {/* Search */}
-          <div className="relative">
+          <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
             <input
               type="text"
               placeholder="Search teas..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-9 py-2 rounded-lg text-sm border outline-none w-48 sm:w-64"
+              className="pl-9 pr-9 py-2 rounded-lg text-sm border outline-none w-full"
               style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", color: "var(--text)" }}
             />
             {search && (
@@ -86,7 +86,7 @@ export default function DashboardPage() {
           </div>
           <button
             onClick={() => setShowOnlyCollection(!showOnlyCollection)}
-            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors border"
+            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors border whitespace-nowrap"
             style={{
               backgroundColor: showOnlyCollection ? "var(--accent)" : "transparent",
               color: showOnlyCollection ? "#fff" : "var(--muted)",
@@ -99,7 +99,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Type filters */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap overflow-x-auto pb-1">
         {ALL_TEA_TYPES.map(type => {
           const active = activeTypes.includes(type);
           return (
@@ -120,13 +120,13 @@ export default function DashboardPage() {
       </div>
 
       {/* Chart */}
-      <div className="rounded-2xl border p-6 paper-card" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+      <div className="rounded-2xl border p-3 sm:p-6 paper-card" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
         <div className="mb-4">
           <h2 className="text-sm font-semibold text-muted uppercase tracking-wide">Flavor Chart</h2>
           <p className="text-xs text-muted mt-1">Click a dot to see tea details · Dot size reflects collection status</p>
         </div>
-        <ResponsiveContainer width="100%" height={560}>
-          <ScatterChart margin={{ top: 20, right: 40, bottom: 60, left: 50 }}>
+        <ResponsiveContainer width="100%" height={400} minHeight={300}>
+          <ScatterChart margin={{ top: 20, right: 20, bottom: 60, left: 20 }}>
             {/* Quadrant background colors */}
             <ReferenceArea x1={0} x2={50} y1={0} y2={50} fill="var(--accent)" fillOpacity={0.02} />
             <ReferenceArea x1={-50} x2={0} y1={0} y2={50} fill="var(--accent)" fillOpacity={0.01} />
@@ -160,11 +160,27 @@ export default function DashboardPage() {
             {/* Zero lines (axes through origin) */}
             <ReferenceLine x={0} stroke="var(--muted)" strokeOpacity={0.5} strokeWidth={1.5} />
             <ReferenceLine y={0} stroke="var(--muted)" strokeOpacity={0.5} strokeWidth={1.5} />
-            {/* Quadrant labels */}
-            <text x={390} y={225} textAnchor="middle" fill="var(--muted)" fontSize={10} opacity={0.4}>Roasted & Sweet</text>
-            <text x={140} y={225} textAnchor="middle" fill="var(--muted)" fontSize={10} opacity={0.4}>Fresh & Sweet</text>
-            <text x={140} y={355} textAnchor="middle" fill="var(--muted)" fontSize={10} opacity={0.4}>Fresh & Bitter</text>
-            <text x={390} y={355} textAnchor="middle" fill="var(--muted)" fontSize={10} opacity={0.4}>Roasted & Bitter</text>
+            {/* Quadrant labels positioned in data coordinate space */}
+            <ReferenceLine
+              x={25}
+              stroke="none"
+              label={{ value: "Roasted & Sweet", position: "insideTopRight", fill: "var(--muted)", fontSize: 10, opacity: 0.4 }}
+            />
+            <ReferenceLine
+              x={-25}
+              stroke="none"
+              label={{ value: "Fresh & Sweet", position: "insideTopLeft", fill: "var(--muted)", fontSize: 10, opacity: 0.4 }}
+            />
+            <ReferenceLine
+              x={-25}
+              stroke="none"
+              label={{ value: "Fresh & Bitter", position: "insideBottomLeft", fill: "var(--muted)", fontSize: 10, opacity: 0.4 }}
+            />
+            <ReferenceLine
+              x={25}
+              stroke="none"
+              label={{ value: "Roasted & Bitter", position: "insideBottomRight", fill: "var(--muted)", fontSize: 10, opacity: 0.4 }}
+            />
             <Tooltip
               cursor={{ strokeDasharray: "3 3", stroke: "var(--accent)" }}
               content={({ payload, active }) => {
@@ -219,14 +235,14 @@ export default function DashboardPage() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 flex-wrap justify-center">
+      <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-center">
         {ALL_TEA_TYPES.map(type => (
           <div key={type} className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full" style={{ backgroundColor: TEA_TYPE_COLORS[type] }} />
             <span className="text-xs text-muted">{TEA_TYPE_LABELS[type]}</span>
           </div>
         ))}
-        <div className="flex items-center gap-2 ml-4">
+        <div className="flex items-center gap-2 sm:ml-4">
           <span className="text-xs text-muted">●</span>
           <span className="text-xs text-muted">Small = not in collection</span>
           <span className="text-xs text-accent">●</span>

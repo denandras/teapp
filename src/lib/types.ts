@@ -41,8 +41,8 @@ export const TEA_TYPE_COLORS: Record<string, string> = {
   oolong: "#D4852A",
   "pu-erh": "#6B4226",
   yellow: "#E6C84E",
-  tisane: "#9B7EBD",
-  blend: "#5B9E9E",
+  tisane: "#C0856A",
+  blend: "#B07D56",
 };
 
 export const TEA_TYPE_LABELS: Record<string, string> = {

@@ -22,6 +22,16 @@
   --accent-hover: #b37434;
 }
 
+.theme-dark-green {
+  --bg: #1a2420;
+  --card: #1f2e28;
+  --border: #2d4338;
+  --text: #e8dcc8;
+  --muted: #8a9b85;
+  --accent: #c4a050;
+  --accent-hover: #d4b060;
+}
+
 .theme-warm {
   --bg: #2a1f17;
   --card: #34291e;

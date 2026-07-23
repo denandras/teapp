@@ -41,8 +41,8 @@ interface TeaStore {
   hiddenTeas: string[];
   hideTea: (slug: string) => void;
   unhideTea: (slug: string) => void;
-  theme: "cozy-dark" | "cozy-light" | "warm";
-  setTheme: (theme: "cozy-dark" | "cozy-light" | "warm") => void;
+  theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green";
+  setTheme: (theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green") => void;
 }
 
 const STATUS_CYCLE: TeaStatus[] = ["empty", "have", "tried"];
