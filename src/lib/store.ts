@@ -4,6 +4,8 @@ import { create } from "zustand";
 import type { TeaStatus, TeaLog } from "./types";
 import { supabase } from "./supabaseClient";
 
+const SINGLE_USER_ID = "00000000-0000-0000-0000-000000000001";
+
 interface TeaStateMap {
   [teaSlug: string]: TeaStatus;
 }
@@ -43,10 +45,8 @@ interface TeaStore {
   unhideTea: (slug: string) => void;
   theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green";
   setTheme: (theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green") => void;
-  // New fields for Supabase sync:
-  isSynced: boolean;
-  syncFromSupabase: (userId: string) => Promise<void>;
-  migrateFromLocalStorage: (userId: string) => Promise<void>;
+  syncFromSupabase: () => Promise<void>;
+  migrateFromLocalStorage: () => Promise<void>;
 }
 
 const STATUS_CYCLE: TeaStatus[] = ["empty", "have", "tried"];
@@ -78,11 +78,9 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
   setTeaStatus: (slug, status) => {
     set((state) => ({ teaStates: { ...state.teaStates, [slug]: status } }));
     // Fire and forget — don't block UI
-    const userId = getCurrentUserId();
-    if (!userId) return;
     const isCurrentlyHidden = get().hiddenTeas.includes(slug);
     getTeaIdBySlug(slug).then((teaId) => {
-      if (teaId) upsertUserTea(userId, teaId, status, isCurrentlyHidden);
+      if (teaId) upsertUserTea(SINGLE_USER_ID, teaId, status, isCurrentlyHidden);
     });
   },
   cycleTeaStatus: (slug) => {
@@ -100,12 +98,10 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
     set((state) => ({
       customTeas: [...state.customTeas, { ...tea, id, created_at }],
     }));
-    const userId = getCurrentUserId();
-    if (!userId) return;
     supabase
       .from("custom_teas")
       .insert({
-        user_id: userId,
+        user_id: SINGLE_USER_ID,
         name: tea.name,
         slug: `custom-${id}`,
         description: tea.description,
@@ -122,12 +118,10 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
   },
   removeCustomTea: (id) => {
     set((state) => ({ customTeas: state.customTeas.filter((t) => t.id !== id) }));
-    const userId = getCurrentUserId();
-    if (!userId) return;
     supabase
       .from("custom_teas")
       .delete()
-      .eq("user_id", userId)
+      .eq("user_id", SINGLE_USER_ID)
       .eq("slug", `custom-${id}`)
       .then(({ error }) => {
         if (error) console.error("Failed to delete custom_teas:", error.message);
@@ -148,13 +142,11 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         [slug]: [log, ...(state.teaLogs[slug] || [])],
       },
     }));
-    const userId = getCurrentUserId();
-    if (!userId) return;
     getTeaIdBySlug(slug).then((teaId) => {
       if (!teaId) return;
       supabase
         .from("tea_logs")
-        .insert({ user_id: userId, tea_id: teaId, rating, note })
+        .insert({ user_id: SINGLE_USER_ID, tea_id: teaId, rating, note })
         .then(({ error }) => {
           if (error) console.error("Failed to insert tea_logs:", error.message);
         });
@@ -169,14 +161,12 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         ),
       },
     }));
-    const userId = getCurrentUserId();
-    if (!userId) return;
     getTeaIdBySlug(slug).then((teaId) => {
       if (!teaId) return;
       supabase
         .from("tea_logs")
         .update({ rating, note })
-        .eq("user_id", userId)
+        .eq("user_id", SINGLE_USER_ID)
         .eq("tea_id", teaId)
         .eq("id", logId)
         .then(({ error }) => {
@@ -191,14 +181,12 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         [slug]: (state.teaLogs[slug] || []).filter((log) => log.id !== logId),
       },
     }));
-    const userId = getCurrentUserId();
-    if (!userId) return;
     getTeaIdBySlug(slug).then((teaId) => {
       if (!teaId) return;
       supabase
         .from("tea_logs")
         .delete()
-        .eq("user_id", userId)
+        .eq("user_id", SINGLE_USER_ID)
         .eq("tea_id", teaId)
         .eq("id", logId)
         .then(({ error }) => {
@@ -220,41 +208,35 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         ? {}
         : { hiddenTeas: [...state.hiddenTeas, slug] }
     );
-    const userId = getCurrentUserId();
-    if (!userId) return;
     const status = get().teaStates[slug] || "empty";
     getTeaIdBySlug(slug).then((teaId) => {
-      if (teaId) upsertUserTea(userId, teaId, status, true);
+      if (teaId) upsertUserTea(SINGLE_USER_ID, teaId, status, true);
     });
   },
   unhideTea: (slug) => {
     set((state) => ({ hiddenTeas: state.hiddenTeas.filter((s) => s !== slug) }));
-    const userId = getCurrentUserId();
-    if (!userId) return;
     const status = get().teaStates[slug] || "empty";
     getTeaIdBySlug(slug).then((teaId) => {
-      if (teaId) upsertUserTea(userId, teaId, status, false);
+      if (teaId) upsertUserTea(SINGLE_USER_ID, teaId, status, false);
     });
   },
 
   theme: "cozy-dark",
   setTheme: (theme) => {
     set({ theme });
-    const userId = getCurrentUserId();
-    if (!userId) return;
     supabase
       .from("user_preferences")
-      .upsert({ user_id: userId, theme }, { onConflict: "user_id" })
+      .upsert({ user_id: SINGLE_USER_ID, theme }, { onConflict: "user_id" })
       .then(({ error }) => {
         if (error) console.error("Failed to upsert user_preferences:", error.message);
       });
   },
 
   // --- Supabase sync ---
-  isSynced: false,
 
-  syncFromSupabase: async (userId) => {
+  syncFromSupabase: async () => {
     try {
+      const userId = SINGLE_USER_ID;
       // 1. Load user_teas (join teas to get slug + status + hidden)
       const { data: userTeas, error: utErr } = await supabase
         .from("user_teas")
@@ -329,22 +311,15 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         theme = prefs.theme as typeof theme;
       }
 
-      set({
-        teaStates,
-        teaLogs,
-        customTeas,
-        hiddenTeas,
-        theme,
-        isSynced: true,
-      });
+      set({ teaStates, teaLogs, customTeas, hiddenTeas, theme });
     } catch (err) {
       console.error("syncFromSupabase error:", err);
-      set({ isSynced: true });
     }
   },
 
-  migrateFromLocalStorage: async (userId) => {
+  migrateFromLocalStorage: async () => {
     try {
+      const userId = SINGLE_USER_ID;
       const raw = localStorage.getItem("teapp-storage");
       if (!raw) return;
       const parsed = JSON.parse(raw);
@@ -408,7 +383,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         .upsert({ user_id: userId, theme: oldTheme }, { onConflict: "user_id" });
 
       // 5. Reload from Supabase to reflect migrated data
-      await get().syncFromSupabase(userId);
+      await get().syncFromSupabase();
 
       // 6. Clear old localStorage data to avoid re-migrating
       localStorage.removeItem("teapp-storage");
@@ -417,16 +392,3 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
     }
   },
 }));
-
-// --- Current user tracking ---
-// We keep the current user's id in a module-level variable so store actions
-// can fire Supabase writes without threading the userId through every call.
-let _currentUserId: string | null = null;
-
-export function setCurrentUserId(userId: string | null) {
-  _currentUserId = userId;
-}
-
-export function getCurrentUserId(): string | null {
-  return _currentUserId;
-}

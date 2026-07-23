@@ -1,8 +1,7 @@
 "use client";
 
 import { useTeaStore } from "@/lib/store";
-import { useAuth } from "@/components/AuthProvider";
-import { Check, Palette, Trash2, Coffee, LogOut } from "lucide-react";
+import { Check, Palette, Trash2, Coffee } from "lucide-react";
 
 const themes = [
   {
@@ -48,7 +47,6 @@ export default function SettingsPage() {
   const setTheme = useTeaStore((s) => s.setTheme);
   const teaStates = useTeaStore((s) => s.teaStates);
   const customTeas = useTeaStore((s) => s.customTeas);
-  const { user, signOut } = useAuth();
 
   const collectionCount = Object.values(teaStates).filter(s => s && s !== "empty").length;
   const haveCount = Object.values(teaStates).filter(s => s === "have" || s === "tried").length;
@@ -151,29 +149,8 @@ export default function SettingsPage() {
         <h2 className="text-sm font-semibold text-muted uppercase tracking-wide mb-2">About</h2>
         <p className="text-sm text-muted leading-relaxed">
           Teapp v1.0 — A cozy tea management webapp. Data sourced from Wikidata (277 entries) and TheTeaAPI (26 enriched entries).
-          Your data is synced to your account. Add custom teas for anything not in the database.
+          Your data is synced to Supabase. Add custom teas for anything not in the database.
         </p>
-      </div>
-
-      {/* Account */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg font-semibold">Account</h2>
-        </div>
-        <div className="rounded-xl border p-4 flex items-center justify-between" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
-          <div>
-            <p className="text-sm font-medium">{user?.email}</p>
-            <p className="text-xs text-muted mt-1">Your data is synced to your account.</p>
-          </div>
-          <button
-            onClick={() => signOut()}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors hover:bg-red-500/10 text-muted hover:text-red-400"
-            style={{ borderColor: "var(--border)" }}
-          >
-            <LogOut size={16} />
-            Sign out
-          </button>
-        </div>
       </div>
     </div>
   );
