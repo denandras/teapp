@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #1a1410;
+  --card: #241c16;
+  --border: #3d2f25;
+  --text: #e8d5c4;
+  --muted: #a08878;
+  --accent: #c4853f;
+  --accent-hover: #d49950;
+}
+
+.theme-cozy-light {
+  --bg: #f5efe6;
+  --card: #ffffff;
+  --border: #e0d5c8;
+  --text: #3d2f25;
+  --muted: #8a7563;
+  --accent: #c4853f;
+  --accent-hover: #b37434;
+}
+
+.theme-warm {
+  --bg: #2a1f17;
+  --card: #34291e;
+  --border: #5d4636;
+  --text: #f0d8b8;
+  --muted: #b89870;
+  --accent: #e8a040;
+  --accent-hover: #f0b050;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.card-bg {
+  background-color: var(--card);
+}
+
+.border-custom {
+  border-color: var(--border);
+}
+
+.text-muted {
+  color: var(--muted);
+}
+
+.text-accent {
+  color: var(--accent);
+}
+
+.bg-accent {
+  background-color: var(--accent);
+}
+
+.hover-accent:hover {
+  color: var(--accent-hover);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Smooth dot transitions */
+.tea-dot {
+  transition: transform 0.2s, opacity 0.2s;
+  cursor: pointer;
+}
+.tea-dot:hover {
+  transform: scale(1.5);
+}
+
+input, select, textarea {
+  font-size: 16px;
+}
