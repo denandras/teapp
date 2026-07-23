@@ -4,7 +4,16 @@ import { create } from "zustand";
 import type { TeaStatus, TeaLog } from "./types";
 import { supabase } from "./supabaseClient";
 
-const SINGLE_USER_ID = "00000000-0000-0000-0000-000000000001";
+// Dynamic user ID — set by AuthProvider when auth state changes
+let currentUserId: string | null = null;
+
+export function setCurrentUserId(id: string | null) {
+  currentUserId = id;
+}
+
+export function getCurrentUserId() {
+  return currentUserId;
+}
 
 interface TeaStateMap {
   [teaSlug: string]: TeaStatus;
@@ -45,8 +54,8 @@ interface TeaStore {
   unhideTea: (slug: string) => void;
   theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green";
   setTheme: (theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green") => void;
-  syncFromSupabase: () => Promise<void>;
-  migrateFromLocalStorage: () => Promise<void>;
+  syncFromSupabase: (userId: string) => Promise<void>;
+  migrateFromLocalStorage: (userId: string) => Promise<void>;
 }
 
 const STATUS_CYCLE: TeaStatus[] = ["empty", "have", "tried"];
@@ -73,14 +82,23 @@ async function upsertUserTea(userId: string, teaId: string, status: TeaStatus, h
   if (error) console.error("Failed to upsert user_teas:", error.message);
 }
 
+function getUserId(): string {
+  if (!currentUserId) {
+    console.error("No user ID set — auth not ready");
+    return "";
+  }
+  return currentUserId;
+}
+
 export const useTeaStore = create<TeaStore>()((set, get) => ({
   teaStates: {},
   setTeaStatus: (slug, status) => {
     set((state) => ({ teaStates: { ...state.teaStates, [slug]: status } }));
-    // Fire and forget — don't block UI
+    const userId = getUserId();
+    if (!userId) return;
     const isCurrentlyHidden = get().hiddenTeas.includes(slug);
     getTeaIdBySlug(slug).then((teaId) => {
-      if (teaId) upsertUserTea(SINGLE_USER_ID, teaId, status, isCurrentlyHidden);
+      if (teaId) upsertUserTea(userId, teaId, status, isCurrentlyHidden);
     });
   },
   cycleTeaStatus: (slug) => {
@@ -98,10 +116,12 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
     set((state) => ({
       customTeas: [...state.customTeas, { ...tea, id, created_at }],
     }));
+    const userId = getUserId();
+    if (!userId) return;
     supabase
       .from("custom_teas")
       .insert({
-        user_id: SINGLE_USER_ID,
+        user_id: userId,
         name: tea.name,
         slug: `custom-${id}`,
         description: tea.description,
@@ -118,10 +138,12 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
   },
   removeCustomTea: (id) => {
     set((state) => ({ customTeas: state.customTeas.filter((t) => t.id !== id) }));
+    const userId = getUserId();
+    if (!userId) return;
     supabase
       .from("custom_teas")
       .delete()
-      .eq("user_id", SINGLE_USER_ID)
+      .eq("user_id", userId)
       .eq("slug", `custom-${id}`)
       .then(({ error }) => {
         if (error) console.error("Failed to delete custom_teas:", error.message);
@@ -142,11 +164,16 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         [slug]: [log, ...(state.teaLogs[slug] || [])],
       },
     }));
+    const userId = getUserId();
+    if (!userId) return;
     getTeaIdBySlug(slug).then((teaId) => {
       if (!teaId) return;
       supabase
         .from("tea_logs")
-        .insert({ user_id: SINGLE_USER_ID, tea_id: teaId, rating, note })
+        .upsert(
+          { user_id: userId, tea_id: teaId, rating, note },
+          { onConflict: "user_id,tea_id" }
+        )
         .then(({ error }) => {
           if (error) console.error("Failed to insert tea_logs:", error.message);
         });
@@ -161,12 +188,14 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         ),
       },
     }));
+    const userId = getUserId();
+    if (!userId) return;
     getTeaIdBySlug(slug).then((teaId) => {
       if (!teaId) return;
       supabase
         .from("tea_logs")
         .update({ rating, note })
-        .eq("user_id", SINGLE_USER_ID)
+        .eq("user_id", userId)
         .eq("tea_id", teaId)
         .eq("id", logId)
         .then(({ error }) => {
@@ -181,12 +210,14 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         [slug]: (state.teaLogs[slug] || []).filter((log) => log.id !== logId),
       },
     }));
+    const userId = getUserId();
+    if (!userId) return;
     getTeaIdBySlug(slug).then((teaId) => {
       if (!teaId) return;
       supabase
         .from("tea_logs")
         .delete()
-        .eq("user_id", SINGLE_USER_ID)
+        .eq("user_id", userId)
         .eq("tea_id", teaId)
         .eq("id", logId)
         .then(({ error }) => {
@@ -208,25 +239,31 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         ? {}
         : { hiddenTeas: [...state.hiddenTeas, slug] }
     );
+    const userId = getUserId();
+    if (!userId) return;
     const status = get().teaStates[slug] || "empty";
     getTeaIdBySlug(slug).then((teaId) => {
-      if (teaId) upsertUserTea(SINGLE_USER_ID, teaId, status, true);
+      if (teaId) upsertUserTea(userId, teaId, status, true);
     });
   },
   unhideTea: (slug) => {
     set((state) => ({ hiddenTeas: state.hiddenTeas.filter((s) => s !== slug) }));
+    const userId = getUserId();
+    if (!userId) return;
     const status = get().teaStates[slug] || "empty";
     getTeaIdBySlug(slug).then((teaId) => {
-      if (teaId) upsertUserTea(SINGLE_USER_ID, teaId, status, false);
+      if (teaId) upsertUserTea(userId, teaId, status, false);
     });
   },
 
   theme: "cozy-dark",
   setTheme: (theme) => {
     set({ theme });
+    const userId = getUserId();
+    if (!userId) return;
     supabase
       .from("user_preferences")
-      .upsert({ user_id: SINGLE_USER_ID, theme }, { onConflict: "user_id" })
+      .upsert({ user_id: userId, theme }, { onConflict: "user_id" })
       .then(({ error }) => {
         if (error) console.error("Failed to upsert user_preferences:", error.message);
       });
@@ -234,9 +271,8 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
 
   // --- Supabase sync ---
 
-  syncFromSupabase: async () => {
+  syncFromSupabase: async (userId: string) => {
     try {
-      const userId = SINGLE_USER_ID;
       // 1. Load user_teas (join teas to get slug + status + hidden)
       const { data: userTeas, error: utErr } = await supabase
         .from("user_teas")
@@ -283,7 +319,6 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       const customTeas: CustomTea[] = [];
       if (!customErr && custom) {
         for (const row of custom) {
-          // Extract the id from the slug (custom-<uuid>)
           const id = row.slug?.startsWith("custom-") ? row.slug.slice(7) : String(row.id);
           customTeas.push({
             id,
@@ -317,13 +352,11 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
     }
   },
 
-  migrateFromLocalStorage: async () => {
+  migrateFromLocalStorage: async (userId: string) => {
     try {
-      const userId = SINGLE_USER_ID;
       const raw = localStorage.getItem("teapp-storage");
       if (!raw) return;
       const parsed = JSON.parse(raw);
-      // Zustand persist stores state under a `state` key
       const oldState = parsed.state || parsed;
       const oldTeaStates: TeaStateMap = oldState.teaStates || {};
       const oldTeaLogs: TeaLogsMap = oldState.teaLogs || {};
@@ -339,9 +372,8 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         const hidden = oldHiddenTeas.includes(slug);
         await upsertUserTea(userId, teaId, status, hidden);
       }
-      // Also ensure hidden-only teas (status empty but hidden) are recorded
       for (const slug of oldHiddenTeas) {
-        if (oldTeaStates[slug] && oldTeaStates[slug] !== "empty") continue; // already handled
+        if (oldTeaStates[slug] && oldTeaStates[slug] !== "empty") continue;
         const teaId = await getTeaIdBySlug(slug);
         if (!teaId) continue;
         await upsertUserTea(userId, teaId, "empty", true);
@@ -352,12 +384,12 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         const teaId = await getTeaIdBySlug(slug);
         if (!teaId) continue;
         for (const log of logs) {
-          await supabase.from("tea_logs").insert({
+          await supabase.from("tea_logs").upsert({
             user_id: userId,
             tea_id: teaId,
             rating: log.rating,
             note: log.note,
-          });
+          }, { onConflict: "user_id,tea_id" });
         }
       }
 
@@ -382,10 +414,10 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         .from("user_preferences")
         .upsert({ user_id: userId, theme: oldTheme }, { onConflict: "user_id" });
 
-      // 5. Reload from Supabase to reflect migrated data
-      await get().syncFromSupabase();
+      // 5. Reload from Supabase
+      await get().syncFromSupabase(userId);
 
-      // 6. Clear old localStorage data to avoid re-migrating
+      // 6. Clear old localStorage data
       localStorage.removeItem("teapp-storage");
     } catch (err) {
       console.error("migrateFromLocalStorage error:", err);
