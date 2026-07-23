@@ -524,26 +524,28 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
               <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-3">Drinking Log</h3>
 
               {/* Add new log form */}
-              <div className="rounded-xl p-3 mb-3" style={{ backgroundColor: "var(--bg)" }}>
-                <div className="flex items-center gap-3 mb-2">
+              <div className="rounded-xl p-3 mb-3 space-y-2" style={{ backgroundColor: "var(--bg)" }}>
+                <div className="flex items-center gap-3 flex-wrap">
                   <StarRating rating={logRating} onChange={setLogRating} />
+                  <button
+                    onClick={handleAddLog}
+                    disabled={logRating === 0}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40 transition-opacity ml-auto"
+                    style={{ backgroundColor: "var(--accent)", color: "#fff" }}
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
                   <input
                     type="text"
                     value={logNote}
                     onChange={(e) => setLogNote(e.target.value)}
                     placeholder="Add a note..."
-                    className="flex-1 bg-transparent border-b text-sm"
+                    className="flex-1 min-w-0 bg-transparent border-b text-sm"
                     style={{ borderColor: "var(--border)" }}
                     onKeyDown={(e) => e.key === "Enter" && handleAddLog()}
                   />
-                  <button
-                    onClick={handleAddLog}
-                    disabled={logRating === 0}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40 transition-opacity"
-                    style={{ backgroundColor: "var(--accent)", color: "#fff" }}
-                  >
-                    Add
-                  </button>
                 </div>
               </div>
 
@@ -563,42 +565,42 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                         style={{ backgroundColor: "var(--bg)" }}
                       >
                         {editingLogId === log.id ? (
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
+                          <div className="flex-1 min-w-0 space-y-2">
+                            <div className="flex items-center gap-3 flex-wrap">
                               <StarRating rating={editLogRating} onChange={setEditLogRating} />
-                              <input
-                                type="text"
-                                value={editLogNote}
-                                onChange={(e) => setEditLogNote(e.target.value)}
-                                className="flex-1 bg-transparent border-b text-sm"
-                                style={{ borderColor: "var(--border)" }}
-                                autoFocus
-                              />
+                              <div className="flex gap-2 ml-auto">
+                                <button
+                                  onClick={() => handleEditLog(log)}
+                                  className="px-2 py-1 rounded text-xs"
+                                  style={{ backgroundColor: "var(--accent)", color: "#fff" }}
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => setEditingLogId(null)}
+                                  className="px-2 py-1 rounded text-xs text-muted"
+                                  style={{ border: "1px solid var(--border)" }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleEditLog(log)}
-                                className="px-2 py-1 rounded text-xs"
-                                style={{ backgroundColor: "var(--accent)", color: "#fff" }}
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={() => setEditingLogId(null)}
-                                className="px-2 py-1 rounded text-xs text-muted"
-                                style={{ border: "1px solid var(--border)" }}
-                              >
-                                Cancel
-                              </button>
-                            </div>
+                            <input
+                              type="text"
+                              value={editLogNote}
+                              onChange={(e) => setEditLogNote(e.target.value)}
+                              className="w-full bg-transparent border-b text-sm"
+                              style={{ borderColor: "var(--border)" }}
+                              autoFocus
+                            />
                           </div>
                         ) : (
                           <>
-                            <div className="flex-shrink-0">
+                            <div className="flex-shrink-0 pt-0.5">
                               <StarRating rating={log.rating} interactive={false} size={14} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              {log.note && <p className="text-sm">{log.note}</p>}
+                              {log.note && <p className="text-sm break-words">{log.note}</p>}
                               <p className="text-xs text-muted mt-0.5">{formatDate(log.timestamp)}</p>
                             </div>
                             <div className="flex items-center gap-1 flex-shrink-0">
