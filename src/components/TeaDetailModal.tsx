@@ -154,24 +154,18 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
   };
 
   return (
-    <AnimatePresence>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        className="max-w-2xl w-full max-h-[85vh] overflow-y-auto rounded-2xl border shadow-2xl paper-card"
+        style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          transition={{ type: "spring", stiffness: 300, damping: 25 }}
-          className="max-w-2xl w-full max-h-[85vh] overflow-y-auto rounded-2xl border shadow-2xl paper-card"
-          style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
-          onClick={(e) => e.stopPropagation()}
-        >
           {/* Delete confirmation dialog */}
           <AnimatePresence>
             {showDeleteConfirm && (
@@ -628,8 +622,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
               </div>
             </div>
           </div>
-        </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </div>
   );
 }
