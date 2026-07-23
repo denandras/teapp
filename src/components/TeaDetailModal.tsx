@@ -237,9 +237,9 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                 {editing ? (
                   <div className="mt-1 space-y-1">
                     <input
-                      value={editedTea.chinese_name}
-                      onChange={(e) => setEditedTea({ ...editedTea, chinese_name: e.target.value })}
-                      placeholder="Chinese name"
+                      value={editedTea.original_name}
+                      onChange={(e) => setEditedTea({ ...editedTea, original_name: e.target.value })}
+                      placeholder="Original name"
                       className="font-serif text-lg bg-transparent border-b w-full"
                       style={{ borderColor: "var(--border)" }}
                     />
@@ -252,10 +252,10 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                     />
                   </div>
                 ) : (
-                  (tea.chinese_name || tea.phonetic_name) && (
+                  (tea.original_name || tea.phonetic_name) && (
                     <p className="text-muted text-sm mt-1">
-                      {tea.chinese_name && <span className="font-serif text-lg">{tea.chinese_name}</span>}
-                      {tea.chinese_name && tea.phonetic_name && " · "}
+                      {tea.original_name && <span className="font-serif text-lg">{tea.original_name}</span>}
+                      {tea.original_name && tea.phonetic_name && " · "}
                       {tea.phonetic_name && <span>{tea.phonetic_name}</span>}
                     </p>
                   )

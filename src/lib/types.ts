@@ -3,7 +3,7 @@ export interface Tea {
   name: string;
   slug: string;
   phonetic_name: string;
-  chinese_name: string;
+  original_name: string;
   description: string;
   origin: string;
   tea_type: string;

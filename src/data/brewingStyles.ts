@@ -1,7 +1,7 @@
 export interface BrewingStyle {
   slug: string;
   name: string;
-  chinese_name: string;
+  original_name: string;
   description: string;
   parameters: {
     leaf_to_water: string;
@@ -20,7 +20,7 @@ export const BREWING_STYLES: BrewingStyle[] = [
   {
     slug: "gongfu",
     name: "Gongfu Cha",
-    chinese_name: "功夫茶",
+    original_name: "功夫茶",
     description:
       "Gongfu cha (literally 'skill/effort tea') is a traditional Chinese brewing method that uses a high leaf-to-water ratio with short, repeated infusions in a small vessel. Each infusion reveals a different layer of the tea's flavor profile, making it the preferred method for appreciating fine teas — especially oolong, pu-erh, and white tea.",
     parameters: {
@@ -53,7 +53,7 @@ export const BREWING_STYLES: BrewingStyle[] = [
   {
     slug: "western",
     name: "Western Style",
-    chinese_name: "西式泡法",
+    original_name: "西式泡法",
     description:
       "The Western brewing method uses a lower leaf-to-water ratio with longer steep times in a larger vessel. It produces a single, larger portion of tea — ideal for casual drinking, tea bags, or when serving multiple people. This is the most common method in Europe and North America.",
     parameters: {
@@ -84,7 +84,7 @@ export const BREWING_STYLES: BrewingStyle[] = [
   {
     slug: "grandpa",
     name: "Grandpa Style",
-    chinese_name: "爷爷泡法",
+    original_name: "爷爷泡法",
     description:
       "Grandpa style is the simplest of all brewing methods: leaves are placed directly in a glass or mug, hot water is added, and you drink as the leaves slowly settle. It's how many people in China casually drink tea at home or at work. No strainer, no special equipment — just a glass and leaves.",
     parameters: {
@@ -115,7 +115,7 @@ export const BREWING_STYLES: BrewingStyle[] = [
   {
     slug: "cold-brew",
     name: "Cold Brew",
-    chinese_name: "冷泡",
+    original_name: "冷泡",
     description:
       "Cold brewing steeps tea leaves in cold or room-temperature water for an extended period (several hours to overnight). The slow, gentle extraction produces a naturally sweet, smooth, and low-astringency tea with almost no bitterness. Perfect for summer and for teas that are easily over-steeped in hot water.",
     parameters: {

@@ -87,8 +87,8 @@ export default function WikiPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-3 flex-wrap">
                   <h2 className="text-xl sm:text-2xl font-serif font-bold">{selected.name}</h2>
-                  {selected.chinese_name && (
-                    <span className="font-serif text-lg text-muted">{selected.chinese_name}</span>
+                  {selected.original_name && (
+                    <span className="font-serif text-lg text-muted">{selected.original_name}</span>
                   )}
                 </div>
               </div>

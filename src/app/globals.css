@@ -147,6 +147,17 @@ input, select, textarea {
   font-size: 16px;
 }
 
+/* Warm placeholder color matching theme */
+input::placeholder, textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+/* Inputs inherit text color from theme */
+input, select, textarea {
+  color: var(--text);
+}
+
 /* Cozy badge styles for brewing data */
 .brew-badge {
   display: inline-flex;

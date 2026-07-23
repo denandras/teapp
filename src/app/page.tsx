@@ -22,7 +22,7 @@ export default function DashboardPage() {
       const q = search.toLowerCase();
       teas = teas.filter(t =>
         t.name.toLowerCase().includes(q) ||
-        t.chinese_name?.toLowerCase().includes(q) ||
+        t.original_name?.toLowerCase().includes(q) ||
         t.phonetic_name?.toLowerCase().includes(q)
       );
     }
@@ -202,7 +202,7 @@ export default function DashboardPage() {
                           <span className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
                           <span className="font-bold">{tea.name}</span>
                         </div>
-                        {tea.chinese_name && <p className="text-muted text-xs mt-1">{tea.chinese_name}</p>}
+                        {tea.original_name && <p className="text-muted text-xs mt-1">{tea.original_name}</p>}
                         <p className="text-muted text-xs mt-1">{TEA_TYPE_LABELS[tea.tea_type]}</p>
                         <p className="text-muted text-xs mt-0.5">({d.x}, {d.y})</p>
                         {d.status !== "empty" && (
