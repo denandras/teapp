@@ -1,7 +1,8 @@
 "use client";
 
 import { useTeaStore } from "@/lib/store";
-import { Check, Palette, Trash2, Coffee } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
+import { Check, Palette, Trash2, Coffee, LogOut } from "lucide-react";
 
 const themes = [
   {
@@ -47,6 +48,7 @@ export default function SettingsPage() {
   const setTheme = useTeaStore((s) => s.setTheme);
   const teaStates = useTeaStore((s) => s.teaStates);
   const customTeas = useTeaStore((s) => s.customTeas);
+  const { isDemo, signOut, exitDemo } = useAuth();
 
   const collectionCount = Object.values(teaStates).filter(s => s && s !== "empty").length;
   const haveCount = Object.values(teaStates).filter(s => s === "have" || s === "tried").length;
@@ -144,12 +146,40 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Logout / Exit Demo */}
+      <div className="rounded-xl border p-4 flex items-center justify-between" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+        <div>
+          <h2 className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+            {isDemo ? "Demo Mode" : "Account"}
+          </h2>
+          <p className="text-xs text-muted mt-1">
+            {isDemo
+              ? "Data stored locally in this browser only."
+              : "Sign out to return to the login screen."}
+          </p>
+        </div>
+        <button
+          onClick={isDemo ? exitDemo : () => signOut()}
+          className="ml-4 shrink-0 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 border"
+          style={{
+            backgroundColor: "transparent",
+            borderColor: isDemo ? "var(--accent)" : "var(--border)",
+            color: isDemo ? "var(--accent)" : "var(--muted)",
+          }}
+        >
+          <LogOut size={14} />
+          {isDemo ? "Exit Demo" : "Sign out"}
+        </button>
+      </div>
+
       {/* About */}
       <div className="rounded-xl border p-4" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
         <h2 className="text-sm font-semibold text-muted uppercase tracking-wide mb-2">About</h2>
         <p className="text-sm text-muted leading-relaxed">
           Teapp v1.0 — A cozy tea management webapp. Data sourced from Wikidata (277 entries) and TheTeaAPI (26 enriched entries).
-          Your data is synced to Supabase. Add custom teas for anything not in the database.
+          {isDemo
+            ? " Demo mode: data stored locally in your browser only."
+            : " Your data is synced to Supabase. Add custom teas for anything not in the database."}
         </p>
       </div>
     </div>

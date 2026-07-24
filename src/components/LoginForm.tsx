@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Coffee, Loader2 } from "lucide-react";
+import { Coffee, Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
 export default function LoginForm() {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInDemo } = useAuth();
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -32,6 +32,12 @@ export default function LoginForm() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleDemo = () => {
+    setError(null);
+    setInfo(null);
+    signInDemo();
   };
 
   return (
@@ -122,6 +128,31 @@ export default function LoginForm() {
             )}
           </button>
         </form>
+
+        {/* Demo mode button */}
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t" style={{ borderColor: "var(--border)" }} />
+          </div>
+          <div className="relative flex justify-center">
+            <span className="px-3 text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+              or
+            </span>
+          </div>
+        </div>
+
+        <button
+          onClick={handleDemo}
+          className="w-full py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 border"
+          style={{
+            backgroundColor: "transparent",
+            borderColor: "var(--accent)",
+            color: "var(--accent)",
+          }}
+        >
+          <Sparkles size={18} />
+          Try Demo (no account)
+        </button>
 
         <div className="mt-4 text-center">
           <button

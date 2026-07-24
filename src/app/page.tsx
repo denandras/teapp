@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine, ReferenceArea } from "recharts";
+import { useState, useMemo, useEffect } from "react";
+import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, ResponsiveContainer, Cell, ReferenceLine, ReferenceArea } from "recharts";
 import { TEAS } from "@/data/teas";
 import { Tea, TEA_TYPE_COLORS, TEA_TYPE_LABELS, ALL_TEA_TYPES } from "@/lib/types";
 import { useTeaStore } from "@/lib/store";
@@ -13,8 +13,18 @@ export default function DashboardPage() {
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
-  const [showOnlyCollection, setShowOnlyCollection] = useState(true);
+  const [showOnlyCollection, setShowOnlyCollection] = useState(false);
+  const [hoveredTea, setHoveredTea] = useState<{ tea: Tea; x: number; y: number } | null>(null);
   const teaStates = useTeaStore((s) => s.teaStates);
+
+  const collectionCount = Object.values(teaStates).filter(s => s && s !== "empty").length;
+
+  // Default to "My Collection" view only if user has teas in their collection
+  useEffect(() => {
+    if (collectionCount > 0 && !showOnlyCollection) {
+      setShowOnlyCollection(true);
+    }
+  }, [collectionCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredTeas = useMemo(() => {
     let teas = TEAS.map((t, i) => ({ ...t, id: i + 1 }));
@@ -50,8 +60,6 @@ export default function DashboardPage() {
   const toggleType = (type: string) => {
     setActiveTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
   };
-
-  const collectionCount = Object.values(teaStates).filter(s => s && s !== "empty").length;
 
   return (
     <div className="space-y-6">
@@ -120,10 +128,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Chart */}
-      <div className="rounded-2xl border p-3 sm:p-6 paper-card" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+      <div className="rounded-2xl border p-2 sm:p-6 paper-card" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
         <div className="mb-4">
           <h2 className="text-sm font-semibold text-muted uppercase tracking-wide">Flavor Chart</h2>
-          <p className="text-xs text-muted mt-1">Click a dot to see tea details · Dot size reflects collection status</p>
+          <p className="text-xs text-muted mt-1 hidden sm:block">Click a dot to see tea details · Dot size reflects collection status</p>
         </div>
         {showOnlyCollection && filteredTeas.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center py-12" style={{ minHeight: 300 }}>
@@ -131,113 +139,142 @@ export default function DashboardPage() {
             <p className="text-muted text-xs">Mark teas as "have" or "tried" in the Database to see them here</p>
           </div>
         ) : (
-        <ResponsiveContainer width="100%" height={400} minHeight={300}>
-          <ScatterChart margin={{ top: 20, right: 20, bottom: 60, left: 20 }}>
-            {/* Quadrant background colors */}
-            <ReferenceArea x1={0} x2={50} y1={0} y2={50} fill="var(--accent)" fillOpacity={0.02} />
-            <ReferenceArea x1={-50} x2={0} y1={0} y2={50} fill="var(--accent)" fillOpacity={0.01} />
-            <ReferenceArea x1={-50} x2={0} y1={-50} y2={0} fill="var(--accent)" fillOpacity={0.03} />
-            <ReferenceArea x1={0} x2={50} y1={-50} y2={0} fill="var(--accent)" fillOpacity={0.015} />
-            {/* Grid */}
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-            {/* X axis — centered at 0, range -50..+50 */}
-            <XAxis
-              type="number"
-              dataKey="x"
-              name="Roast"
-              domain={[-50, 50]}
-              ticks={[-50, -25, 0, 25, 50]}
-              tick={{ fill: "var(--muted)", fontSize: 11 }}
-              tickFormatter={(v) => `${v}`}
-              label={{ value: "← Fresh / Green          Roasted Aroma →", position: "bottom", offset: 25, fill: "var(--muted)", fontSize: 12 }}
-            />
-            {/* Y axis — centered at 0, range -50..+50 */}
-            <YAxis
-              type="number"
-              dataKey="y"
-              name="Sweetness"
-              domain={[-50, 50]}
-              ticks={[-50, -25, 0, 25, 50]}
-              tick={{ fill: "var(--muted)", fontSize: 11 }}
-              tickFormatter={(v) => `${v}`}
-              label={{ value: "↑ Sweet / Umami    Bitter / Astringent ↓", angle: -90, position: "insideLeft", offset: 10, fill: "var(--muted)", fontSize: 12 }}
-            />
-            <ZAxis type="number" dataKey="z" range={[60, 400]} />
-            {/* Zero lines (axes through origin) */}
-            <ReferenceLine x={0} stroke="var(--muted)" strokeOpacity={0.5} strokeWidth={1.5} />
-            <ReferenceLine y={0} stroke="var(--muted)" strokeOpacity={0.5} strokeWidth={1.5} />
-            {/* Quadrant labels positioned in data coordinate space */}
-            <ReferenceLine
-              x={25}
-              stroke="none"
-              label={{ value: "Roasted & Sweet", position: "insideTopRight", fill: "var(--muted)", fontSize: 10, opacity: 0.4 }}
-            />
-            <ReferenceLine
-              x={-25}
-              stroke="none"
-              label={{ value: "Fresh & Sweet", position: "insideTopLeft", fill: "var(--muted)", fontSize: 10, opacity: 0.4 }}
-            />
-            <ReferenceLine
-              x={-25}
-              stroke="none"
-              label={{ value: "Fresh & Bitter", position: "insideBottomLeft", fill: "var(--muted)", fontSize: 10, opacity: 0.4 }}
-            />
-            <ReferenceLine
-              x={25}
-              stroke="none"
-              label={{ value: "Roasted & Bitter", position: "insideBottomRight", fill: "var(--muted)", fontSize: 10, opacity: 0.4 }}
-            />
-            <Tooltip
-              cursor={{ strokeDasharray: "3 3", stroke: "var(--accent)" }}
-              content={({ payload, active }) => {
-                if (!payload || !payload.length) return null;
-                const d = payload[0].payload;
-                const tea = d.tea;
-                return (
-                  <AnimatePresence>
-                    {active && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.8, y: 5 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="rounded-lg p-3 border shadow-xl text-sm"
-                        style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
-                          <span className="font-bold">{tea.name}</span>
-                        </div>
-                        {tea.original_name && <p className="text-muted text-xs mt-1">{tea.original_name}</p>}
-                        <p className="text-muted text-xs mt-1">{TEA_TYPE_LABELS[tea.tea_type]}</p>
-                        <p className="text-muted text-xs mt-0.5">({d.x}, {d.y})</p>
-                        {d.status !== "empty" && (
-                          <p className="text-xs mt-1 text-accent">
-                            {d.status === "have" ? "✓ In collection" : "✓ Tried"}
-                          </p>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                );
-              }}
-            />
-            <Scatter
-              data={chartData}
-              onClick={(data: any) => {
-                if (Array.isArray(data) && data.length > 0 && data[0]?.payload?.tea) {
-                  setSelectedTea(data[0].payload.tea);
-                } else if (data?.payload?.tea) {
-                  setSelectedTea(data.payload.tea);
-                }
-              }}
-            >
-              {chartData.map((entry, i) => (
-                <Cell key={i} fill={entry.color} fillOpacity={entry.status === "empty" ? 0.5 : 0.9} stroke={entry.color} strokeWidth={entry.status !== "empty" ? 2 : 0} />
-              ))}
-            </Scatter>
-          </ScatterChart>
-        </ResponsiveContainer>
+        <div className="relative">
+          {/* Y-axis labels — vertical text to save horizontal space */}
+          <div className="absolute left-0 top-0 bottom-8 flex flex-col items-center justify-between pointer-events-none z-10" style={{ width: 20 }}>
+            <span className="text-[10px] sm:text-xs font-medium text-accent leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+              ↑ Sweet / Umami
+            </span>
+            <span className="text-[10px] sm:text-xs font-medium" style={{ color: "var(--muted)", writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+              Sweet ↔ Bitter
+            </span>
+            <span className="text-[10px] sm:text-xs font-medium text-accent leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+              Bitter / Astringent ↓
+            </span>
+          </div>
+          {/* Chart area */}
+          <div className="pl-5 sm:pl-10 relative">
+            <ResponsiveContainer width="100%" height={350} minHeight={280}>
+              <ScatterChart margin={{ top: 10, right: 4, bottom: 10, left: 4 }}>
+                {/* Quadrant background colors */}
+                <ReferenceArea x1={0} x2={50} y1={0} y2={50} fill="var(--accent)" fillOpacity={0.02} />
+                <ReferenceArea x1={-50} x2={0} y1={0} y2={50} fill="var(--accent)" fillOpacity={0.01} />
+                <ReferenceArea x1={-50} x2={0} y1={-50} y2={0} fill="var(--accent)" fillOpacity={0.03} />
+                <ReferenceArea x1={0} x2={50} y1={-50} y2={0} fill="var(--accent)" fillOpacity={0.015} />
+                {/* Grid */}
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                {/* X axis */}
+                <XAxis
+                  type="number"
+                  dataKey="x"
+                  name="Roast"
+                  domain={[-50, 50]}
+                  ticks={[-50, -25, 0, 25, 50]}
+                  tick={{ fill: "var(--muted)", fontSize: 10 }}
+                  tickFormatter={(v) => `${v}`}
+                />
+                {/* Y axis */}
+                <YAxis
+                  type="number"
+                  dataKey="y"
+                  name="Sweetness"
+                  domain={[-50, 50]}
+                  ticks={[-50, -25, 0, 25, 50]}
+                  tick={{ fill: "var(--muted)", fontSize: 10 }}
+                  tickFormatter={(v) => `${v}`}
+                />
+                <ZAxis type="number" dataKey="z" range={[60, 400]} />
+                {/* Zero lines (axes through origin) */}
+                <ReferenceLine x={0} stroke="var(--muted)" strokeOpacity={0.5} strokeWidth={1.5} />
+                <ReferenceLine y={0} stroke="var(--muted)" strokeOpacity={0.5} strokeWidth={1.5} />
+                {/* Quadrant labels — smaller on mobile */}
+                <ReferenceLine
+                  x={25}
+                  stroke="none"
+                  label={{ value: "Roasted & Sweet", position: "insideTopRight", fill: "var(--muted)", fontSize: 9, opacity: 0.4 }}
+                />
+                <ReferenceLine
+                  x={-25}
+                  stroke="none"
+                  label={{ value: "Fresh & Sweet", position: "insideTopLeft", fill: "var(--muted)", fontSize: 9, opacity: 0.4 }}
+                />
+                <ReferenceLine
+                  x={-25}
+                  stroke="none"
+                  label={{ value: "Fresh & Bitter", position: "insideBottomLeft", fill: "var(--muted)", fontSize: 9, opacity: 0.4 }}
+                />
+                <ReferenceLine
+                  x={25}
+                  stroke="none"
+                  label={{ value: "Roasted & Bitter", position: "insideBottomRight", fill: "var(--muted)", fontSize: 9, opacity: 0.4 }}
+                />
+                <Scatter
+                  data={chartData}
+                  onMouseEnter={(data: any) => {
+                    const d = Array.isArray(data) ? data[0]?.payload : data?.payload;
+                    if (d?.tea) setHoveredTea({ tea: d.tea, x: d.x, y: d.y });
+                  }}
+                  onMouseLeave={() => setHoveredTea(null)}
+                  onClick={(data: any) => {
+                    const d = Array.isArray(data) ? data[0]?.payload : data?.payload;
+                    if (d?.tea) {
+                      setHoveredTea({ tea: d.tea, x: d.x, y: d.y });
+                      setSelectedTea(d.tea);
+                    }
+                  }}
+                >
+                  {chartData.map((entry, i) => (
+                    <Cell key={i} fill={entry.color} fillOpacity={entry.status === "empty" ? 0.5 : 0.9} stroke={entry.color} strokeWidth={entry.status !== "empty" ? 2 : 0} />
+                  ))}
+                </Scatter>
+              </ScatterChart>
+            </ResponsiveContainer>
+            {/* Custom tooltip — tappable to dismiss */}
+            <AnimatePresence>
+              {hoveredTea && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute inset-0 z-20"
+                  onClick={() => setHoveredTea(null)}
+                >
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8, y: 5 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="absolute top-2 right-2 rounded-lg p-3 border shadow-xl text-sm"
+                    style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", maxWidth: 180 }}
+                    onClick={(e) => { e.stopPropagation(); setHoveredTea(null); }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: hoveredTea.tea.color_hex }} />
+                      <span className="font-bold">{hoveredTea.tea.name}</span>
+                    </div>
+                    {hoveredTea.tea.original_name && <p className="text-muted text-xs mt-1">{hoveredTea.tea.original_name}</p>}
+                    <p className="text-muted text-xs mt-1">{TEA_TYPE_LABELS[hoveredTea.tea.tea_type]}</p>
+                    <p className="text-muted text-xs mt-0.5">({hoveredTea.x}, {hoveredTea.y})</p>
+                    <p className="text-muted text-[10px] mt-2 italic">Tap to dismiss</p>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          {/* X-axis labels — HTML for responsive control */}
+          <div className="flex justify-between pl-5 sm:pl-10 pr-1 mt-1">
+            <span className="text-[10px] sm:text-xs font-medium text-accent leading-tight">
+              ← Fresh / Green
+            </span>
+            <span className="text-xs font-medium hidden sm:block" style={{ color: "var(--muted)" }}>
+              Fresh ↔ Roasted
+            </span>
+            <span className="text-[10px] sm:text-xs font-medium text-accent leading-tight">
+              Roasted Aroma →
+            </span>
+          </div>
+        </div>
         )}
       </div>
 

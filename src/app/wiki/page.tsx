@@ -13,7 +13,6 @@ import {
   Scale,
   Repeat,
   CupSoda,
-  ChevronDown,
   Lightbulb,
   Check,
 } from "lucide-react";
@@ -27,7 +26,6 @@ const iconMap: Record<string, React.ComponentType<{ size?: number; className?: s
 
 export default function WikiPage() {
   const [selectedSlug, setSelectedSlug] = useState<string>(BREWING_STYLES[0].slug);
-  const [expandedStep, setExpandedStep] = useState<number | null>(null);
 
   const selected = BREWING_STYLES.find((s) => s.slug === selectedSlug)!;
 
@@ -51,7 +49,6 @@ export default function WikiPage() {
               key={style.slug}
               onClick={() => {
                 setSelectedSlug(style.slug);
-                setExpandedStep(null);
               }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border flex-shrink-0"
               style={{
@@ -125,38 +122,22 @@ export default function WikiPage() {
           <div className="rounded-2xl border p-5 sm:p-6 paper-card" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
             <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-4">Step-by-Step</h3>
             <div className="space-y-2">
-              {selected.steps.map((step, i) => {
-                const expanded = expandedStep === i;
-                return (
-                  <div
-                    key={i}
-                    className="rounded-lg border transition-colors"
-                    style={{
-                      backgroundColor: expanded ? "var(--bg)" : "transparent",
-                      borderColor: expanded ? "var(--border)" : "transparent",
-                    }}
+              {selected.steps.map((step, i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-3 p-3 rounded-lg"
+                >
+                  <span
+                    className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                    style={{ backgroundColor: "var(--accent)" + "20", color: "var(--accent)" }}
                   >
-                    <button
-                      onClick={() => setExpandedStep(expanded ? null : i)}
-                      className="w-full flex items-start gap-3 p-3 text-left"
-                    >
-                      <span
-                        className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                        style={{ backgroundColor: "var(--accent)" + "20", color: "var(--accent)" }}
-                      >
-                        {i + 1}
-                      </span>
-                      <span className="text-sm leading-relaxed flex-1 pt-0.5">
-                        {step}
-                      </span>
-                      <ChevronDown
-                        size={16}
-                        className={`text-muted flex-shrink-0 mt-1 transition-transform ${expanded ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                  </div>
-                );
-              })}
+                    {i + 1}
+                  </span>
+                  <span className="text-sm leading-relaxed flex-1 pt-0.5">
+                    {step}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 

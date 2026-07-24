@@ -50,6 +50,21 @@ body {
   overflow-x: hidden;
 }
 
+/* Fill bottom safe area with card color to match navbar — prevents see-thru on iPhone */
+@supports (padding: env(safe-area-inset-bottom)) {
+  body::after {
+    content: "";
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-bottom, 0px);
+    background-color: var(--card);
+    z-index: 49;
+    pointer-events: none;
+  }
+}
+
 /* Paper texture overlay - subtle noise/grain across the whole app */
 body::before {
   content: "";

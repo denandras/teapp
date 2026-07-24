@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Edit, Save, Trash2, Thermometer, Clock, Repeat, MapPin, Star, Heart, Coffee, AlertTriangle } from "lucide-react";
 import { Tea, TeaStatus, TeaLog, CAFFEINE_LABELS } from "@/lib/types";
@@ -84,6 +84,54 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
   const [editLogRating, setEditLogRating] = useState(0);
   const [editLogNote, setEditLogNote] = useState("");
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Lock body scroll while modal is open — prevents the mobile browser
+  // from scrolling the background page when the tab is restored from
+  // background and the viewport recalculates.
+  useEffect(() => {
+    const body = document.body;
+    const scrollY = window.scrollY;
+
+    // Use position: fixed on body so the background page can't scroll at all.
+    // This is the robust mobile pattern — iOS Safari and Android Chrome both
+    // respect this better than overflow: hidden alone.
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+
+    // When the tab returns from background, mobile browsers sometimes
+    // strip inline styles from body. Re-apply the lock to be safe.
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        if (body.style.position !== "fixed") {
+          body.style.position = "fixed";
+          body.style.top = `-${scrollY}px`;
+          body.style.left = "0";
+          body.style.right = "0";
+          body.style.width = "100%";
+          body.style.overflow = "hidden";
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      // Restore body scroll
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.width = "";
+      body.style.overflow = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   const teaStatus = useTeaStore((s) => s.teaStates[tea.slug] || "empty");
   const cycleTeaStatus = useTeaStore((s) => s.cycleTeaStatus);
   const teaLogs = useTeaStore((s) => s.teaLogs[tea.slug]) || EMPTY_LOGS;
@@ -161,11 +209,12 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
       onClick={onClose}
     >
       <motion.div
+        ref={scrollRef}
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-        className="max-w-2xl w-full max-h-[85vh] overflow-y-auto overflow-x-hidden rounded-2xl border shadow-2xl paper-card"
-        style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", maxWidth: "calc(100vw - 2rem)" }}
+        className="max-w-2xl w-full max-h-[85vh] overflow-y-auto overflow-x-hidden rounded-2xl border shadow-2xl paper-card overscroll-contain"
+        style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", maxWidth: "calc(100vw - 2rem)", WebkitOverflowScrolling: "touch" }}
         onClick={(e) => e.stopPropagation()}
       >
           {/* Delete confirmation dialog */}

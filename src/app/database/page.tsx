@@ -78,9 +78,9 @@ export default function DatabasePage() {
       else if (sortBy === "rating") {
         const avgA = teaLogs[a.slug]?.length ? teaLogs[a.slug].reduce((s, l) => s + l.rating, 0) / teaLogs[a.slug].length : 0;
         const avgB = teaLogs[b.slug]?.length ? teaLogs[b.slug].reduce((s, l) => s + l.rating, 0) / teaLogs[b.slug].length : 0;
-        cmp = avgB - avgA; // higher rating first by default
+        cmp = avgA - avgB;
       }
-      return sortDir === "asc" ? (sortBy === "rating" ? cmp : -cmp) : (sortBy === "rating" ? -cmp : cmp);
+      return sortDir === "asc" ? cmp : -cmp;
     });
     return teas;
   }, [allTeas, search, activeTypes, statusFilter, sortBy, sortDir, teaStates, teaLogs]);

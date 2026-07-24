@@ -15,6 +15,58 @@ export function getCurrentUserId() {
   return currentUserId;
 }
 
+// Demo mode — bypasses Supabase, uses localStorage only
+let demoMode = false;
+
+export function setDemoMode(v: boolean) {
+  demoMode = v;
+}
+
+export function isDemoMode() {
+  return demoMode;
+}
+
+const DEMO_STORAGE_KEY = "teapp-demo-data";
+
+interface DemoState {
+  teaStates: Record<string, TeaStatus>;
+  teaLogs: Record<string, TeaLog[]>;
+  customTeas: CustomTea[];
+  hiddenTeas: string[];
+  theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green";
+}
+
+function saveDemoState(state: {
+  teaStates: TeaStateMap;
+  teaLogs: TeaLogsMap;
+  customTeas: CustomTea[];
+  hiddenTeas: string[];
+  theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green";
+}) {
+  try {
+    const data: DemoState = {
+      teaStates: state.teaStates,
+      teaLogs: state.teaLogs,
+      customTeas: state.customTeas,
+      hiddenTeas: state.hiddenTeas,
+      theme: state.theme,
+    };
+    localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.error("Failed to save demo state:", e);
+  }
+}
+
+function loadDemoState(): DemoState | null {
+  try {
+    const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as DemoState;
+  } catch {
+    return null;
+  }
+}
+
 interface TeaStateMap {
   [teaSlug: string]: TeaStatus;
 }
@@ -56,6 +108,7 @@ interface TeaStore {
   setTheme: (theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green") => void;
   syncFromSupabase: (userId: string) => Promise<void>;
   migrateFromLocalStorage: (userId: string) => Promise<void>;
+  loadDemoData: () => void;
 }
 
 const STATUS_CYCLE: TeaStatus[] = ["empty", "have", "tried"];
@@ -94,6 +147,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
   teaStates: {},
   setTeaStatus: (slug, status) => {
     set((state) => ({ teaStates: { ...state.teaStates, [slug]: status } }));
+    if (demoMode) { saveDemoState(get()); return; }
     const userId = getUserId();
     if (!userId) return;
     const isCurrentlyHidden = get().hiddenTeas.includes(slug);
@@ -113,9 +167,8 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
   addCustomTea: (tea) => {
     const id = crypto.randomUUID();
     const created_at = new Date().toISOString();
-    set((state) => ({
-      customTeas: [...state.customTeas, { ...tea, id, created_at }],
-    }));
+    set((state) => ({ customTeas: [...state.customTeas, { ...tea, id, created_at }] }));
+    if (demoMode) { saveDemoState(get()); return; }
     const userId = getUserId();
     if (!userId) return;
     supabase
@@ -138,6 +191,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
   },
   removeCustomTea: (id) => {
     set((state) => ({ customTeas: state.customTeas.filter((t) => t.id !== id) }));
+    if (demoMode) { saveDemoState(get()); return; }
     const userId = getUserId();
     if (!userId) return;
     supabase
@@ -164,6 +218,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         [slug]: [log, ...(state.teaLogs[slug] || [])],
       },
     }));
+    if (demoMode) { saveDemoState(get()); return; }
     const userId = getUserId();
     if (!userId) return;
     getTeaIdBySlug(slug).then((teaId) => {
@@ -188,6 +243,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         ),
       },
     }));
+    if (demoMode) { saveDemoState(get()); return; }
     const userId = getUserId();
     if (!userId) return;
     getTeaIdBySlug(slug).then((teaId) => {
@@ -210,6 +266,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         [slug]: (state.teaLogs[slug] || []).filter((log) => log.id !== logId),
       },
     }));
+    if (demoMode) { saveDemoState(get()); return; }
     const userId = getUserId();
     if (!userId) return;
     getTeaIdBySlug(slug).then((teaId) => {
@@ -239,6 +296,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         ? {}
         : { hiddenTeas: [...state.hiddenTeas, slug] }
     );
+    if (demoMode) { saveDemoState(get()); return; }
     const userId = getUserId();
     if (!userId) return;
     const status = get().teaStates[slug] || "empty";
@@ -248,6 +306,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
   },
   unhideTea: (slug) => {
     set((state) => ({ hiddenTeas: state.hiddenTeas.filter((s) => s !== slug) }));
+    if (demoMode) { saveDemoState(get()); return; }
     const userId = getUserId();
     if (!userId) return;
     const status = get().teaStates[slug] || "empty";
@@ -259,6 +318,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
   theme: "cozy-dark",
   setTheme: (theme) => {
     set({ theme });
+    if (demoMode) { saveDemoState(get()); return; }
     const userId = getUserId();
     if (!userId) return;
     supabase
@@ -267,6 +327,23 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       .then(({ error }) => {
         if (error) console.error("Failed to upsert user_preferences:", error.message);
       });
+  },
+
+  // --- Demo mode: load from localStorage ---
+  loadDemoData: () => {
+    const data = loadDemoState();
+    if (data) {
+      set({
+        teaStates: data.teaStates || {},
+        teaLogs: data.teaLogs || {},
+        customTeas: data.customTeas || [],
+        hiddenTeas: data.hiddenTeas || [],
+        theme: data.theme || "cozy-dark",
+      });
+    } else {
+      // Fresh demo — start empty
+      set({ teaStates: {}, teaLogs: {}, customTeas: [], hiddenTeas: [], theme: "cozy-dark" });
+    }
   },
 
   // --- Supabase sync ---

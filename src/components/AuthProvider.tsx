@@ -3,29 +3,50 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
-import { useTeaStore, setCurrentUserId } from "@/lib/store";
+import { useTeaStore, setCurrentUserId, setDemoMode } from "@/lib/store";
 import LoginForm from "@/components/LoginForm";
 
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isDemo: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
+  signInDemo: () => void;
+  signOut: () => Promise<void>;
+  exitDemo: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+const DEMO_FLAG_KEY = "teapp-demo-mode";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDemo, setIsDemo] = useState(false);
 
   const syncFromSupabase = useTeaStore((s) => s.syncFromSupabase);
+  const loadDemoData = useTeaStore((s) => s.loadDemoData);
 
   useEffect(() => {
     let mounted = true;
+
+    // Check if demo mode was previously activated (e.g. page refresh)
+    const wasDemo = typeof window !== "undefined" && localStorage.getItem(DEMO_FLAG_KEY) === "true";
+
+    if (wasDemo) {
+      // Restore demo mode without hitting Supabase
+      setDemoMode(true);
+      setIsDemo(true);
+      setCurrentUserId(null);
+      loadDemoData();
+      setLoading(false);
+      return;
+    }
 
     // Add a timeout — getSession can hang in some environments
     const sessionTimeout = setTimeout(() => {
@@ -74,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, [syncFromSupabase]);
+  }, [syncFromSupabase, loadDemoData]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -86,7 +107,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
-  const value: AuthContextValue = { user, session, loading, signIn, signUp };
+  const signInDemo = useCallback(() => {
+    localStorage.setItem(DEMO_FLAG_KEY, "true");
+    setDemoMode(true);
+    setIsDemo(true);
+    setCurrentUserId(null);
+    loadDemoData();
+    setLoading(false);
+  }, [loadDemoData]);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setCurrentUserId(null);
+    setUser(null);
+    setSession(null);
+  }, []);
+
+  const exitDemo = useCallback(() => {
+    localStorage.removeItem(DEMO_FLAG_KEY);
+    setDemoMode(false);
+    setIsDemo(false);
+    setCurrentUserId(null);
+    setUser(null);
+    setSession(null);
+  }, []);
+
+  const value: AuthContextValue = { user, session, loading, isDemo, signIn, signUp, signInDemo, signOut, exitDemo };
 
   return (
     <AuthContext.Provider value={value}>
@@ -108,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--bg)" }}>
           <div className="text-muted text-sm">Loading…</div>
         </div>
-      ) : user ? (
+      ) : (user || isDemo) ? (
         children
       ) : (
         <LoginForm />

@@ -38,9 +38,15 @@ export default function NavBar() {
         </div>
       </nav>
 
-      {/* Mobile: bottom nav bar */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 h-16 flex items-center justify-around border-t px-2"
-        style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+      {/* Mobile: bottom nav bar — fills safe area to prevent Safari see-thru */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t px-2"
+        style={{
+          backgroundColor: "var(--card)",
+          borderColor: "var(--border)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          minHeight: "3.5rem",
+          boxSizing: "border-box",
+        }}>
         {links.map((link) => {
           const Icon = link.icon;
           const active = pathname === link.href;
