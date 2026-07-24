@@ -362,17 +362,28 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
 
   syncFromSupabase: async (userId: string) => {
     try {
-      // 1. Load user_teas (join teas to get slug + status + hidden)
+      // 0. Load all teas (id → slug mapping) — no FK join needed since we dropped it
+      const { data: teasData, error: teasErr } = await supabase
+        .from("teas")
+        .select("id, slug");
+      const teaIdToSlug: Record<string, string> = {};
+      if (!teasErr && teasData) {
+        for (const row of teasData) {
+          teaIdToSlug[row.id] = row.slug;
+        }
+      }
+
+      // 1. Load user_teas (flat — no join, resolve slug via mapping)
       const { data: userTeas, error: utErr } = await supabase
         .from("user_teas")
-        .select("status, hidden, teas(slug)")
+        .select("tea_id, status, hidden")
         .eq("user_id", userId);
       const teaStates: TeaStateMap = {};
       const hiddenTeas: string[] = [];
       if (!utErr && userTeas) {
         for (const row of userTeas) {
-          const slug = (row.teas as unknown as { slug: string } | null)?.slug;
-          if (!slug) continue;
+          const slug = teaIdToSlug[row.tea_id];
+          if (!slug) continue; // might be a custom tea — handled below
           teaStates[slug] = row.status as TeaStatus;
           if (row.hidden) hiddenTeas.push(slug);
         }
@@ -405,34 +416,27 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         }
       }
 
-      // 1c. Load user_teas for custom teas (tea_id references custom_teas.id)
-      // We query all user_teas and match against custom_teas IDs
+      // 1c. Resolve custom tea statuses from the same user_teas query
       if (Object.keys(customIdToSlug).length > 0) {
-        const { data: customStatuses, error: csErr } = await supabase
-          .from("user_teas")
-          .select("tea_id, status, hidden")
-          .eq("user_id", userId)
-          .in("tea_id", Object.keys(customIdToSlug));
-        if (!csErr && customStatuses) {
-          for (const row of customStatuses) {
-            const slug = customIdToSlug[row.tea_id];
-            if (!slug) continue;
-            teaStates[slug] = row.status as TeaStatus;
-            if (row.hidden) hiddenTeas.push(slug);
-          }
+        for (const row of userTeas || []) {
+          const slug = customIdToSlug[row.tea_id];
+          if (!slug) continue;
+          teaStates[slug] = row.status as TeaStatus;
+          if (row.hidden) hiddenTeas.push(slug);
         }
       }
 
-      // 2. Load tea_logs (join teas to get slug) — newest first
+      // 2. Load tea_logs (flat — no join, resolve slug via mapping)
       const { data: logs, error: logsErr } = await supabase
         .from("tea_logs")
-        .select("id, rating, note, created_at, teas(slug)")
+        .select("id, tea_id, rating, note, created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
       const teaLogs: TeaLogsMap = {};
       if (!logsErr && logs) {
         for (const row of logs) {
-          const slug = (row.teas as unknown as { slug: string } | null)?.slug;
+          // Check regular teas first, then custom teas
+          const slug = teaIdToSlug[row.tea_id] || customIdToSlug[row.tea_id];
           if (!slug) continue;
           const log: TeaLog = {
             id: String(row.id),
@@ -442,30 +446,6 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
           };
           if (!teaLogs[slug]) teaLogs[slug] = [];
           teaLogs[slug].push(log);
-        }
-      }
-
-      // 2b. Load tea_logs for custom teas
-      if (Object.keys(customIdToSlug).length > 0) {
-        const { data: customLogs, error: clErr } = await supabase
-          .from("tea_logs")
-          .select("id, tea_id, rating, note, created_at")
-          .eq("user_id", userId)
-          .in("tea_id", Object.keys(customIdToSlug))
-          .order("created_at", { ascending: false });
-        if (!clErr && customLogs) {
-          for (const row of customLogs) {
-            const slug = customIdToSlug[row.tea_id];
-            if (!slug) continue;
-            const log: TeaLog = {
-              id: String(row.id),
-              rating: row.rating,
-              note: row.note || "",
-              timestamp: row.created_at,
-            };
-            if (!teaLogs[slug]) teaLogs[slug] = [];
-            teaLogs[slug].push(log);
-          }
         }
       }
 
