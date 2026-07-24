@@ -17,6 +17,14 @@ export default function DatabasePage() {
   const [expandedTea, setExpandedTea] = useState<string | null>(null);
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
 
+  // Reset expanded state when search or filters change to avoid stale state
+  const searchKey = search + activeTypes.join(",") + statusFilter;
+  const [lastSearchKey, setLastSearchKey] = useState(searchKey);
+  if (searchKey !== lastSearchKey) {
+    setLastSearchKey(searchKey);
+    if (expandedTea) setExpandedTea(null);
+  }
+
   const teaStates = useTeaStore((s) => s.teaStates);
   const cycleTeaStatus = useTeaStore((s) => s.cycleTeaStatus);
   const customTeas = useTeaStore((s) => s.customTeas);
@@ -209,7 +217,10 @@ export default function DatabasePage() {
                 return (
                   <motion.div
                     key={tea.slug}
-                    layout
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
                     className="group"
                     style={{ borderColor: "var(--border)" }}
                   >
@@ -217,16 +228,22 @@ export default function DatabasePage() {
                       className="flex items-center gap-3 p-3 hover:bg-accent/5 cursor-pointer transition-colors"
                       onClick={() => setExpandedTea(expanded ? null : tea.slug)}
                     >
-                      {/* Color dot */}
-                      <span
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: tea.color_hex }}
+                      {/* Color dot — click to filter by type */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleType(tea.tea_type); }}
+                        className="w-3 h-3 rounded-full flex-shrink-0 transition-transform hover:scale-125"
+                        style={{ backgroundColor: tea.color_hex, outline: activeTypes.includes(tea.tea_type) ? `2px solid ${tea.color_hex}` : "none", outlineOffset: "2px" }}
+                        title={`Filter: ${TEA_TYPE_LABELS[tea.tea_type]}`}
+                        aria-label={`Filter by ${TEA_TYPE_LABELS[tea.tea_type]}`}
                       />
 
-                      {/* Name */}
-                      <div className="min-w-0 flex-1">
+                      {/* Name — click to open detail modal */}
+                      <div
+                        className="min-w-0 flex-1"
+                        onClick={(e) => { e.stopPropagation(); setSelectedTea(tea); }}
+                      >
                         <div className="flex items-baseline gap-2">
-                          <span className="font-medium truncate">{tea.name || "Unknown Tea"}</span>
+                          <span className="font-medium truncate hover:text-accent transition-colors">{tea.name || "Unknown Tea"}</span>
                           {tea.is_custom && (
                             <span className="text-xs px-1.5 py-0.5 rounded text-accent" style={{ backgroundColor: "var(--accent)" + "20" }}>custom</span>
                           )}
