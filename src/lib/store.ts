@@ -114,7 +114,19 @@ interface TeaStore {
 const STATUS_CYCLE: TeaStatus[] = ["empty", "have", "tried"];
 
 // Helper: look up a tea's UUID in the `teas` table by its slug.
+// For custom teas (slug starts with "custom-"), look up in `custom_teas` instead.
 async function getTeaIdBySlug(slug: string): Promise<string | null> {
+  if (slug.startsWith("custom-")) {
+    // Custom tea — look up by slug in custom_teas table
+    const customSlug = slug; // full slug like "custom-abc-123"
+    const { data, error } = await supabase
+      .from("custom_teas")
+      .select("id")
+      .eq("slug", customSlug)
+      .single();
+    if (error || !data) return null;
+    return data.id as string;
+  }
   const { data, error } = await supabase
     .from("teas")
     .select("id")
@@ -366,6 +378,51 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         }
       }
 
+      // 1b. Load custom_teas first so we can resolve their IDs to slugs
+      const { data: custom, error: customErr } = await supabase
+        .from("custom_teas")
+        .select("*")
+        .eq("user_id", userId);
+      const customTeas: CustomTea[] = [];
+      const customIdToSlug: Record<string, string> = {};
+      if (!customErr && custom) {
+        for (const row of custom) {
+          const id = row.slug?.startsWith("custom-") ? row.slug.slice(7) : String(row.id);
+          const fullSlug = `custom-${id}`;
+          customIdToSlug[row.id] = fullSlug;
+          customTeas.push({
+            id,
+            name: row.name,
+            description: row.description || "",
+            tea_type: row.tea_type || "",
+            origin: row.origin || "",
+            caffeine_level: row.caffeine_level || "",
+            brewing_temp_c: row.brewing_temp_c != null ? String(row.brewing_temp_c) : "",
+            brewing_time_min: row.brewing_time_min != null ? String(row.brewing_time_min) : "",
+            characteristics: row.characteristics || [],
+            created_at: row.created_at || new Date().toISOString(),
+          });
+        }
+      }
+
+      // 1c. Load user_teas for custom teas (tea_id references custom_teas.id)
+      // We query all user_teas and match against custom_teas IDs
+      if (Object.keys(customIdToSlug).length > 0) {
+        const { data: customStatuses, error: csErr } = await supabase
+          .from("user_teas")
+          .select("tea_id, status, hidden")
+          .eq("user_id", userId)
+          .in("tea_id", Object.keys(customIdToSlug));
+        if (!csErr && customStatuses) {
+          for (const row of customStatuses) {
+            const slug = customIdToSlug[row.tea_id];
+            if (!slug) continue;
+            teaStates[slug] = row.status as TeaStatus;
+            if (row.hidden) hiddenTeas.push(slug);
+          }
+        }
+      }
+
       // 2. Load tea_logs (join teas to get slug) — newest first
       const { data: logs, error: logsErr } = await supabase
         .from("tea_logs")
@@ -388,31 +445,31 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         }
       }
 
-      // 3. Load custom_teas
-      const { data: custom, error: customErr } = await supabase
-        .from("custom_teas")
-        .select("*")
-        .eq("user_id", userId);
-      const customTeas: CustomTea[] = [];
-      if (!customErr && custom) {
-        for (const row of custom) {
-          const id = row.slug?.startsWith("custom-") ? row.slug.slice(7) : String(row.id);
-          customTeas.push({
-            id,
-            name: row.name,
-            description: row.description || "",
-            tea_type: row.tea_type || "",
-            origin: row.origin || "",
-            caffeine_level: row.caffeine_level || "",
-            brewing_temp_c: row.brewing_temp_c != null ? String(row.brewing_temp_c) : "",
-            brewing_time_min: row.brewing_time_min != null ? String(row.brewing_time_min) : "",
-            characteristics: row.characteristics || [],
-            created_at: row.created_at || new Date().toISOString(),
-          });
+      // 2b. Load tea_logs for custom teas
+      if (Object.keys(customIdToSlug).length > 0) {
+        const { data: customLogs, error: clErr } = await supabase
+          .from("tea_logs")
+          .select("id, tea_id, rating, note, created_at")
+          .eq("user_id", userId)
+          .in("tea_id", Object.keys(customIdToSlug))
+          .order("created_at", { ascending: false });
+        if (!clErr && customLogs) {
+          for (const row of customLogs) {
+            const slug = customIdToSlug[row.tea_id];
+            if (!slug) continue;
+            const log: TeaLog = {
+              id: String(row.id),
+              rating: row.rating,
+              note: row.note || "",
+              timestamp: row.created_at,
+            };
+            if (!teaLogs[slug]) teaLogs[slug] = [];
+            teaLogs[slug].push(log);
+          }
         }
       }
 
-      // 4. Load user_preferences (theme)
+      // 3. Load user_preferences (theme)
       let theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green" = "cozy-dark";
       const { data: prefs, error: prefsErr } = await supabase
         .from("user_preferences")
