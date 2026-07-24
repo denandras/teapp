@@ -145,7 +145,7 @@ export default function DashboardPage() {
             <span className="text-[10px] sm:text-xs font-medium text-accent leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
               ↑ Sweet / Umami
             </span>
-            <span className="text-[10px] sm:text-xs font-medium" style={{ color: "var(--muted)", writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+            <span className="text-[10px] sm:text-xs font-medium hidden sm:block" style={{ color: "var(--muted)", writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
               Sweet ↔ Bitter
             </span>
             <span className="text-[10px] sm:text-xs font-medium text-accent leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
