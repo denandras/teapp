@@ -182,6 +182,20 @@ export default function SettingsPage() {
             : " Your data is synced to Supabase. Add custom teas for anything not in the database."}
         </p>
       </div>
+
+      {/* Contact */}
+      <div className="text-center pb-4">
+        <p className="text-xs text-muted">
+          Questions or feedback?{" "}
+          <a
+            href="mailto:contact@andrasdenes.com"
+            className="hover:underline"
+            style={{ color: "var(--accent)" }}
+          >
+            contact@andrasdenes.com
+          </a>
+        </p>
+      </div>
     </div>
   );
 }

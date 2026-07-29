@@ -163,6 +163,19 @@ export default function LoginForm() {
             {mode === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
           </button>
         </div>
+
+        <div className="mt-6 pt-4 border-t text-center" style={{ borderColor: "var(--border)" }}>
+          <p className="text-xs" style={{ color: "var(--muted)" }}>
+            Questions or feedback?{" "}
+            <a
+              href="mailto:contact@andrasdenes.com"
+              className="hover:underline"
+              style={{ color: "var(--accent)" }}
+            >
+              contact@andrasdenes.com
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );
