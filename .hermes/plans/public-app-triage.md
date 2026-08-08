@@ -1,4 +1,9 @@
-# Teapp → Public App — Implementation Plan (All Blockers Resolved)
+# Teapp → Public App — COMPLETED ✅
+
+> **Status**: All items implemented, deployed, and live at teapp.denandras.cloud (Aug 2026)
+> Archived for reference. See git history for implementation details.
+
+# Original Plan (All Blockers Resolved)
 
 ## Decisions
 - **B1**: Migrate all 123 static teas from `teas.ts` into Supabase `teas` table. Remove `teas.ts` entirely. No fallback.
