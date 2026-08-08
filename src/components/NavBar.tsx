@@ -46,7 +46,7 @@ export default function NavBar() {
         </div>
       </nav>
 
-      {/* Mobile: bottom nav bar — solid background to prevent see-thru on iPhone */}
+      {/* Mobile: bottom nav bar — solid background covers safe area to prevent see-thru */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t px-2"
         style={{
           backgroundColor: "var(--card)",
@@ -54,8 +54,6 @@ export default function NavBar() {
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
           minHeight: "3.5rem",
           boxSizing: "border-box",
-          /* Extend background into the safe area to prevent any see-thru */
-          backgroundImage: "linear-gradient(var(--card), var(--card))",
         }}>
         {links.map((link) => {
           const Icon = link.icon;

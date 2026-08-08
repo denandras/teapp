@@ -12,33 +12,22 @@
   --accent-hover: #d49950;
 }
 
+html {
+  background-color: var(--bg);
+}
+
 body {
   background-color: var(--bg);
   color: var(--text);
   transition: background-color 0.3s, color 0.3s;
   position: relative;
   overflow-x: hidden;
+  min-height: 100dvh;
 }
 
-/* Fill bottom safe area with bg color — prevents see-thru below the fixed nav.
-   Use a higher z-index so it sits above the body::before paper texture but
-   below the nav bar itself. The nav bar already has safe-area padding built in,
-   so this acts as a solid fill behind the nav bar's transparent safe-area gap. */
-@supports (padding: env(safe-area-inset-bottom)) {
-  body::after {
-    content: "";
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    /* Cover the full bottom area: nav height + safe area inset.
-       The nav bar renders on top of this with its own background. */
-    height: calc(3.5rem + env(safe-area-inset-bottom, 0px));
-    background-color: var(--card);
-    z-index: 48;
-    pointer-events: none;
-  }
-}
+/* Mobile bottom nav: cover the safe area to prevent see-thru.
+   The nav bar itself handles this via padding-bottom + solid bg.
+   No body::after needed — the html background + nav background covers everything. */
 
 /* Paper texture overlay - subtle noise/grain across the whole app */
 body::before {

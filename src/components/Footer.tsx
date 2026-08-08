@@ -13,7 +13,11 @@ export default function Footer() {
   return (
     <footer
       className="border-t py-6 mt-6 pb-24 sm:pb-6"
-      style={{ borderColor: "var(--border)", backgroundColor: "var(--bg)" }}
+      style={{
+        borderColor: "var(--border)",
+        backgroundColor: "var(--bg)",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6rem)",
+      }}
     >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
         <Link href="/" className="flex items-center gap-2">

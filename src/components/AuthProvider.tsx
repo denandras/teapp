@@ -88,8 +88,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(sessionTimeout);
       if (!mounted) return;
       if (err) {
-        console.error("getSession error:", err);
-        setError(err.message);
+        // Session errors (expired token, network issue) should NOT block
+        // the login form. Log and continue — user is just not authenticated.
+        console.warn("getSession error (non-blocking):", err.message);
       }
       setSession(data.session);
       setUser(data.session?.user ?? null);
@@ -101,9 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }).catch((e: unknown) => {
       clearTimeout(sessionTimeout);
-      console.error("getSession exception:", e);
-      const msg = (e as Error)?.message || String(e);
-      setError(msg);
+      // Don't set error state — just log and show login form
+      console.warn("getSession exception (non-blocking):", e);
       setLoading(false);
     });
 
