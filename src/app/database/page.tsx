@@ -2,23 +2,39 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { TEAS } from "@/data/teas";
-import { Tea, TEA_TYPE_COLORS, TEA_TYPE_LABELS, ALL_TEA_TYPES, TeaStatus } from "@/lib/types";
-import { useTeaStore } from "@/lib/store";
+import { Tea, TEA_TYPE_COLORS, TEA_TYPE_LABELS, ALL_TEA_TYPES, TeaStatus, TeaSourceType, SOURCE_LABELS, SOURCE_COLORS } from "@/lib/types";
+import { useTeaStore, getCurrentUserId } from "@/lib/store";
 import { Search, X, ChevronDown, ChevronUp, Star, Thermometer, Clock, Repeat } from "lucide-react";
 import TeaDetailModal from "@/components/TeaDetailModal";
+
+// Small pill badge showing where a tea came from (default / user / teahouse).
+function SourceBadge({ tea }: { tea: Tea }) {
+  const type: TeaSourceType = tea.source_type || "default";
+  const color = SOURCE_COLORS[type];
+  const label = tea.source || SOURCE_LABELS[type] || "Teapp";
+  return (
+    <span
+      className="text-xs px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap"
+      style={{ backgroundColor: type === "default" ? "transparent" : color + "22", color, border: type === "default" ? "1px solid var(--border)" : "1px solid " + color + "55" }}
+      title={`Source: ${SOURCE_LABELS[type]}`}
+    >
+      {label}
+    </span>
+  );
+}
 
 export default function DatabasePage() {
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<TeaStatus | "all">("all");
+  const [sourceFilter, setSourceFilter] = useState<TeaSourceType | "all">("all");
   const [sortBy, setSortBy] = useState<"name" | "type" | "rating">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [expandedTea, setExpandedTea] = useState<string | null>(null);
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
 
   // Reset expanded state when search or filters change to avoid stale state
-  const searchKey = search + activeTypes.join(",") + statusFilter;
+  const searchKey = search + activeTypes.join(",") + statusFilter + sourceFilter;
   const [lastSearchKey, setLastSearchKey] = useState(searchKey);
   if (searchKey !== lastSearchKey) {
     setLastSearchKey(searchKey);
@@ -27,44 +43,18 @@ export default function DatabasePage() {
 
   const teaStates = useTeaStore((s) => s.teaStates);
   const cycleTeaStatus = useTeaStore((s) => s.cycleTeaStatus);
-  const customTeas = useTeaStore((s) => s.customTeas);
+  const allTeas = useTeaStore((s) => s.allTeas);
   const teaLogs = useTeaStore((s) => s.teaLogs);
   const hiddenTeas = useTeaStore((s) => s.hiddenTeas);
 
-  const allTeas = useMemo(() => {
-    const teaList = TEAS.map((t, i) => ({ ...t, id: i + 1 }));
-    // Add custom teas
-    const customMapped = customTeas.map((ct) => ({
-      id: -1,
-      name: ct.name,
-      slug: `custom-${ct.id}`,
-      phonetic_name: "",
-      original_name: "",
-      description: ct.description,
-      origin: ct.origin,
-      tea_type: ct.tea_type,
-      category: "",
-      caffeine_level: ct.caffeine_level,
-      brewing_temp_c: ct.brewing_temp_c ? Number(ct.brewing_temp_c) : null,
-      brewing_time_min: ct.brewing_time_min ? Number(ct.brewing_time_min) : null,
-      brewing_num_brews: 1,
-      brewing_instructions: "",
-      characteristics: ct.characteristics || [],
-      health_benefits: [],
-      color_hex: TEA_TYPE_COLORS[ct.tea_type] || "#999",
-      oxidation_level: 50,
-      roast_level: 50,
-      flavor_x: 50,
-      flavor_y: 50,
-      source: "custom",
-      wikidata_qid: null,
-      is_custom: true,
-    }));
-    return [...teaList, ...customMapped].filter(t => !hiddenTeas.includes(t.slug));
-  }, [customTeas, hiddenTeas]);
+  const currentUserId = getCurrentUserId();
+
+  const visibleTeas = useMemo(() => {
+    return allTeas.filter(t => !hiddenTeas.includes(t.slug));
+  }, [allTeas, hiddenTeas]);
 
   const filteredTeas = useMemo(() => {
-    let teas = [...allTeas];
+    let teas = [...visibleTeas];
     if (search) {
       const q = search.toLowerCase();
       teas = teas.filter(t =>
@@ -79,6 +69,14 @@ export default function DatabasePage() {
     if (statusFilter !== "all") {
       teas = teas.filter(t => (teaStates[t.slug] || "empty") === statusFilter);
     }
+    if (sourceFilter !== "all") {
+      if (sourceFilter === "user") {
+        // 'Mine' — only user teas owned by the current user
+        teas = teas.filter(t => t.source_type === "user" && t.owner_id === currentUserId);
+      } else {
+        teas = teas.filter(t => t.source_type === sourceFilter);
+      }
+    }
     teas.sort((a, b) => {
       let cmp = 0;
       if (sortBy === "name") cmp = a.name.localeCompare(b.name);
@@ -91,7 +89,7 @@ export default function DatabasePage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return teas;
-  }, [allTeas, search, activeTypes, statusFilter, sortBy, sortDir, teaStates, teaLogs]);
+  }, [visibleTeas, search, activeTypes, statusFilter, sourceFilter, sortBy, sortDir, teaStates, teaLogs, currentUserId]);
 
   const toggleType = (type: string) => {
     setActiveTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
@@ -117,7 +115,7 @@ export default function DatabasePage() {
       <div>
         <h1 className="text-3xl font-serif font-bold">Tea Database</h1>
         <p className="text-muted text-sm mt-1">
-          {filteredTeas.length} of {allTeas.length} teas · Click checkbox to cycle status
+          {filteredTeas.length} of {visibleTeas.length} teas · Click checkbox to cycle status
         </p>
       </div>
 
@@ -174,6 +172,21 @@ export default function DatabasePage() {
             }}
           >
             {s === "all" ? "All" : statusConfig[s].label}
+          </button>
+        ))}
+        <div className="w-px h-6 mx-2" style={{ backgroundColor: "var(--border)" }} />
+        {(["all", "default", "teahouse", "user"] as const).map(s => (
+          <button
+            key={s}
+            onClick={() => setSourceFilter(s)}
+            className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
+            style={{
+              backgroundColor: sourceFilter === s ? SOURCE_COLORS[s === "all" ? "default" : s] : "transparent",
+              color: sourceFilter === s ? "#fff" : "var(--muted)",
+              borderColor: sourceFilter === s ? SOURCE_COLORS[s === "all" ? "default" : s] : "var(--border)",
+            }}
+          >
+            {s === "all" ? "All" : s === "default" ? "Default" : s === "teahouse" ? "Tea House" : "Mine"}
           </button>
         ))}
         <div className="w-px h-6 mx-2" style={{ backgroundColor: "var(--border)" }} />
@@ -242,11 +255,9 @@ export default function DatabasePage() {
                         className="min-w-0 flex-1"
                         onClick={(e) => { e.stopPropagation(); setSelectedTea(tea); }}
                       >
-                        <div className="flex items-baseline gap-2">
+                        <div className="flex items-center gap-2">
                           <span className="font-medium truncate hover:text-accent transition-colors">{tea.name || "Unknown Tea"}</span>
-                          {tea.is_custom && (
-                            <span className="text-xs px-1.5 py-0.5 rounded text-accent" style={{ backgroundColor: "var(--accent)" + "20" }}>custom</span>
-                          )}
+                          <SourceBadge tea={tea} />
                         </div>
                         {(tea.original_name || tea.phonetic_name) && (
                           <span className="text-xs text-muted truncate block">

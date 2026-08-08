@@ -2,50 +2,26 @@
 
 import { useTeaStore } from "@/lib/store";
 import { useAuth } from "@/components/AuthProvider";
-import { Check, Palette, Trash2, Coffee, LogOut } from "lucide-react";
+import { Palette, Trash2, Coffee, LogOut } from "lucide-react";
 
-const themes = [
-  {
-    id: "cozy-dark" as const,
-    name: "Cozy Dark",
-    description: "Deep warm browns, perfect for evening tea sessions",
-    bg: "#1a1410",
-    card: "#241c16",
-    text: "#e8d5c4",
-    accent: "#c4853f",
-  },
-  {
-    id: "cozy-light" as const,
-    name: "Cozy Light",
-    description: "Warm cream tones, bright and airy",
-    bg: "#f5efe6",
-    card: "#ffffff",
-    text: "#3d2f25",
-    accent: "#c4853f",
-  },
-  {
-    id: "warm" as const,
-    name: "Warm Amber",
-    description: "Rich amber glow, like a teapot on the stove",
-    bg: "#2a1f17",
-    card: "#34291e",
-    text: "#f0d8b8",
-    accent: "#e8a040",
-  },
-  {
-    id: "dark-green" as const,
-    name: "Dark Green",
-    description: "Deep forest tones with warm gold accents",
-    bg: "#1a2420",
-    card: "#1f2e28",
-    text: "#e8dcc8",
-    accent: "#c4a050",
-  },
+const accentColors = [
+  { id: "amber", name: "Amber", color: "#c4853f" },
+  { id: "green", name: "Green", color: "#7BA05B" },
+  { id: "rose", name: "Rose", color: "#c44a5f" },
+  { id: "blue", name: "Blue", color: "#5b8ac4" },
+  { id: "purple", name: "Purple", color: "#9b6bc4" },
+  { id: "teal", name: "Teal", color: "#4ab8a0" },
+  { id: "gold", name: "Gold", color: "#c4a050" },
+  { id: "coral", name: "Coral", color: "#e8704a" },
+  { id: "lavender", name: "Lavender", color: "#b8a0d4" },
+  { id: "sage", name: "Sage", color: "#8aab6b" },
+  { id: "ocean", name: "Ocean", color: "#4a8ab8" },
+  { id: "ruby", name: "Ruby", color: "#c44a6f" },
 ];
 
 export default function SettingsPage() {
-  const theme = useTeaStore((s) => s.theme);
-  const setTheme = useTeaStore((s) => s.setTheme);
+  const accentColor = useTeaStore((s) => s.accentColor);
+  const setAccentColor = useTeaStore((s) => s.setAccentColor);
   const teaStates = useTeaStore((s) => s.teaStates);
   const customTeas = useTeaStore((s) => s.customTeas);
   const { isDemo, signOut, exitDemo } = useAuth();
@@ -61,41 +37,49 @@ export default function SettingsPage() {
         <p className="text-muted text-sm mt-1">Customize your Teapp experience</p>
       </div>
 
-      {/* Theme selector */}
+      {/* Accent color selector */}
       <div>
         <div className="flex items-center gap-2 mb-4">
           <Palette size={20} className="text-accent" />
-          <h2 className="text-lg font-semibold">Theme</h2>
+          <h2 className="text-lg font-semibold">Accent Color</h2>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {themes.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTheme(t.id)}
-              className="rounded-xl border-2 p-4 text-left transition-all relative"
-              style={{
-                backgroundColor: t.card,
-                borderColor: theme === t.id ? t.accent : "var(--border)",
-                color: t.text,
-              }}
-            >
-              {theme === t.id && (
+        <p className="text-xs text-muted mb-4">
+          Pick an accent color to personalize your Teapp. It colors highlights, buttons, and links.
+        </p>
+        <div className="grid grid-cols-6 gap-3 sm:grid-cols-6">
+          {accentColors.map(c => {
+            const selected = accentColor.toLowerCase() === c.color.toLowerCase();
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setAccentColor(c.color)}
+                title={c.name}
+                aria-label={`Set accent color to ${c.name}`}
+                className="group flex flex-col items-center gap-2 focus:outline-none"
+              >
                 <span
-                  className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: t.accent, color: "#fff" }}
+                  className={`w-10 h-10 rounded-full transition-all duration-150 ${
+                    selected
+                      ? "ring-2 ring-offset-2 ring-offset-[var(--bg)] scale-110"
+                      : "hover:scale-110"
+                  }`}
+                  style={{
+                    backgroundColor: c.color,
+                    borderColor: "var(--border)",
+                    boxShadow: selected
+                      ? `0 0 0 3px ${c.color}33`
+                      : `inset 0 0 0 1px rgba(0,0,0,0.2)`,
+                  }}
+                />
+                <span
+                  className={`text-[11px] ${selected ? "text-accent font-medium" : "text-muted"}`}
                 >
-                  <Check size={12} strokeWidth={3} />
+                  {c.name}
                 </span>
-              )}
-              <div className="flex gap-1.5 mb-3">
-                <span className="w-6 h-6 rounded-full" style={{ backgroundColor: t.bg }} />
-                <span className="w-6 h-6 rounded-full" style={{ backgroundColor: t.accent }} />
-                <span className="w-6 h-6 rounded-full" style={{ backgroundColor: t.card, border: `1px solid ${t.accent}` }} />
-              </div>
-              <h3 className="font-medium text-sm">{t.name}</h3>
-              <p className="text-xs mt-1 opacity-60">{t.description}</p>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       </div>
 

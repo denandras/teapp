@@ -1,15 +1,20 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Coffee, LayoutGrid, Database, Settings, Plus, BookOpen } from "lucide-react";
+import { Coffee, LayoutGrid, Database, Settings, Plus, BookOpen, Shield } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function NavBar() {
   const pathname = usePathname();
+  const { profile } = useAuth();
+  const isAdminUser = !!profile?.is_admin;
+
   const links = [
     { href: "/", label: "Dashboard", icon: LayoutGrid },
     { href: "/database", label: "Database", icon: Database },
     { href: "/wiki", label: "Wiki", icon: BookOpen },
     { href: "/add", label: "Add Tea", icon: Plus },
+    ...(isAdminUser ? [{ href: "/admin", label: "Admin", icon: Shield }] : []),
     { href: "/settings", label: "Settings", icon: Settings },
   ];
 

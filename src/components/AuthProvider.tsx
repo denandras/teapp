@@ -1,9 +1,11 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 import { useTeaStore, setCurrentUserId, setDemoMode } from "@/lib/store";
+import { fetchProfile, type Profile } from "@/lib/profiles";
 import LoginForm from "@/components/LoginForm";
 
 interface AuthContextValue {
@@ -11,11 +13,13 @@ interface AuthContextValue {
   session: Session | null;
   loading: boolean;
   isDemo: boolean;
+  profile: Profile | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signInDemo: () => void;
   signOut: () => Promise<void>;
   exitDemo: () => void;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -28,9 +32,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
+
+  const pathname = usePathname();
+  const router = useRouter();
 
   const syncFromSupabase = useTeaStore((s) => s.syncFromSupabase);
   const loadDemoData = useTeaStore((s) => s.loadDemoData);
+
+  // Load profile for a user. Redirects new users (no profile row) to /onboarding,
+  // unless they're already on the onboarding page.
+  const loadProfileForUser = useCallback(
+    async (userId: string) => {
+      const fetched = await fetchProfile(userId);
+      setProfile(fetched);
+      if (!fetched && pathname !== "/onboarding") {
+        router.replace("/onboarding");
+      }
+    },
+    [pathname, router]
+  );
+
+  const refreshProfile = useCallback(async () => {
+    if (!user?.id) return;
+    const fetched = await fetchProfile(user.id);
+    setProfile(fetched);
+  }, [user]);
 
   useEffect(() => {
     let mounted = true;
@@ -39,10 +66,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const wasDemo = typeof window !== "undefined" && localStorage.getItem(DEMO_FLAG_KEY) === "true";
 
     if (wasDemo) {
-      // Restore demo mode without hitting Supabase
+      // Restore demo mode without hitting Supabase — demo users skip onboarding
       setDemoMode(true);
       setIsDemo(true);
       setCurrentUserId(null);
+      setProfile(null);
       loadDemoData();
       setLoading(false);
       return;
@@ -67,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.session?.user) {
         setCurrentUserId(data.session.user.id);
         syncFromSupabase(data.session.user.id);
+        loadProfileForUser(data.session.user.id);
       }
       setLoading(false);
     }).catch((e: unknown) => {
@@ -84,8 +113,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (newSession?.user) {
           setCurrentUserId(newSession.user.id);
           syncFromSupabase(newSession.user.id);
+          loadProfileForUser(newSession.user.id);
         } else {
           setCurrentUserId(null);
+          setProfile(null);
         }
         setLoading(false);
       }
@@ -95,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, [syncFromSupabase, loadDemoData]);
+  }, [syncFromSupabase, loadDemoData, loadProfileForUser]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -112,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setDemoMode(true);
     setIsDemo(true);
     setCurrentUserId(null);
+    setProfile(null);
     loadDemoData();
     setLoading(false);
   }, [loadDemoData]);
@@ -121,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCurrentUserId(null);
     setUser(null);
     setSession(null);
+    setProfile(null);
   }, []);
 
   const exitDemo = useCallback(() => {
@@ -130,9 +163,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCurrentUserId(null);
     setUser(null);
     setSession(null);
+    setProfile(null);
   }, []);
 
-  const value: AuthContextValue = { user, session, loading, isDemo, signIn, signUp, signInDemo, signOut, exitDemo };
+  const value: AuthContextValue = {
+    user, session, loading, isDemo, profile, signIn, signUp, signInDemo, signOut, exitDemo, refreshProfile,
+  };
 
   return (
     <AuthContext.Provider value={value}>

@@ -2,8 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, ResponsiveContainer, Cell, ReferenceLine, ReferenceArea } from "recharts";
-import { TEAS } from "@/data/teas";
-import { Tea, TEA_TYPE_COLORS, TEA_TYPE_LABELS, ALL_TEA_TYPES } from "@/lib/types";
+import { Tea, TEA_TYPE_COLORS, TEA_TYPE_LABELS, ALL_TEA_TYPES, SOURCE_COLORS, SOURCE_LABELS } from "@/lib/types";
 import { useTeaStore } from "@/lib/store";
 import TeaDetailModal from "@/components/TeaDetailModal";
 import { Search, X } from "lucide-react";
@@ -16,6 +15,7 @@ export default function DashboardPage() {
   const [showOnlyCollection, setShowOnlyCollection] = useState(false);
   const [hoveredTea, setHoveredTea] = useState<{ tea: Tea; x: number; y: number } | null>(null);
   const teaStates = useTeaStore((s) => s.teaStates);
+  const allTeas = useTeaStore((s) => s.allTeas);
 
   const collectionCount = Object.values(teaStates).filter(s => s && s !== "empty").length;
 
@@ -27,7 +27,7 @@ export default function DashboardPage() {
   }, [collectionCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredTeas = useMemo(() => {
-    let teas = TEAS.map((t, i) => ({ ...t, id: i + 1 }));
+    let teas = allTeas.map((t, i) => ({ ...t, id: i + 1 }));
     if (search) {
       const q = search.toLowerCase();
       teas = teas.filter(t =>
@@ -43,7 +43,7 @@ export default function DashboardPage() {
       teas = teas.filter(t => teaStates[t.slug] && teaStates[t.slug] !== "empty");
     }
     return teas;
-  }, [search, activeTypes, showOnlyCollection, teaStates]);
+  }, [search, activeTypes, showOnlyCollection, teaStates, allTeas]);
 
   // Convert 0-100 flavor coordinates to centered -50..+50 range
   const chartData = useMemo(() =>
@@ -255,6 +255,9 @@ export default function DashboardPage() {
                     </div>
                     {hoveredTea.tea.original_name && <p className="text-muted text-xs mt-1">{hoveredTea.tea.original_name}</p>}
                     <p className="text-muted text-xs mt-1">{TEA_TYPE_LABELS[hoveredTea.tea.tea_type]}</p>
+                    <p className="text-xs mt-0.5" style={{ color: SOURCE_COLORS[hoveredTea.tea.source_type || 'default'] }}>
+                      {SOURCE_LABELS[hoveredTea.tea.source_type || 'default']}: {hoveredTea.tea.source}
+                    </p>
                     <p className="text-muted text-xs mt-0.5">({hoveredTea.x}, {hoveredTea.y})</p>
                     <p className="text-muted text-[10px] mt-2 italic">Tap to dismiss</p>
                   </motion.div>

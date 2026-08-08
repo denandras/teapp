@@ -1,8 +1,10 @@
 "use client";
 
 import { create } from "zustand";
-import type { TeaStatus, TeaLog } from "./types";
+import type { Tea, TeaStatus, TeaLog } from "./types";
+import { SOURCE_LABELS, TEA_TYPE_COLORS } from "./types";
 import { supabase } from "./supabaseClient";
+import { TEAS } from "@/data/teas";
 
 // Dynamic user ID — set by AuthProvider when auth state changes
 let currentUserId: string | null = null;
@@ -34,6 +36,7 @@ interface DemoState {
   customTeas: CustomTea[];
   hiddenTeas: string[];
   theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green";
+  accentColor: string;
 }
 
 function saveDemoState(state: {
@@ -42,6 +45,7 @@ function saveDemoState(state: {
   customTeas: CustomTea[];
   hiddenTeas: string[];
   theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green";
+  accentColor: string;
 }) {
   try {
     const data: DemoState = {
@@ -50,6 +54,7 @@ function saveDemoState(state: {
       customTeas: state.customTeas,
       hiddenTeas: state.hiddenTeas,
       theme: state.theme,
+      accentColor: state.accentColor,
     };
     localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(data));
   } catch (e) {
@@ -78,13 +83,31 @@ interface TeaLogsMap {
 interface CustomTea {
   id: string;
   name: string;
+  slug?: string;
+  phonetic_name?: string;
+  original_name?: string;
   description: string;
-  tea_type: string;
   origin: string;
+  tea_type: string;
+  category?: string;
   caffeine_level: string;
   brewing_temp_c: string;
   brewing_time_min: string;
+  brewing_num_brews?: number;
+  brewing_instructions?: string;
   characteristics: string[];
+  health_benefits?: string[];
+  color_hex?: string;
+  oxidation_level?: number;
+  roast_level?: number;
+  flavor_x?: number;
+  flavor_y?: number;
+  source?: string;
+  source_type?: "default" | "user" | "teahouse";
+  wikidata_qid?: string | null;
+  is_custom?: boolean;
+  is_public?: boolean;
+  owner_id?: string | null;
   created_at: string;
 }
 
@@ -106,34 +129,32 @@ interface TeaStore {
   unhideTea: (slug: string) => void;
   theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green";
   setTheme: (theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green") => void;
+  accentColor: string;
+  setAccentColor: (color: string) => void;
+  allTeas: Tea[];
   syncFromSupabase: (userId: string) => Promise<void>;
   migrateFromLocalStorage: (userId: string) => Promise<void>;
   loadDemoData: () => void;
 }
 
-const STATUS_CYCLE: TeaStatus[] = ["empty", "have", "tried"];
+const STATUS_CYCLE: TeaStatus[] = ["empty", "tried", "have"];
 
 // Helper: look up a tea's UUID in the `teas` table by its slug.
-// For custom teas (slug starts with "custom-"), look up in `custom_teas` instead.
+// Only looks in the `teas` table — custom teas are now stored there too
+// (source_type='user'). Kept simple; falls back to null on error.
 async function getTeaIdBySlug(slug: string): Promise<string | null> {
-  if (slug.startsWith("custom-")) {
-    // Custom tea — look up by slug in custom_teas table
-    const customSlug = slug; // full slug like "custom-abc-123"
+  try {
     const { data, error } = await supabase
-      .from("custom_teas")
+      .from("teas")
       .select("id")
-      .eq("slug", customSlug)
-      .single();
+      .eq("slug", slug)
+      .maybeSingle();
     if (error || !data) return null;
     return data.id as string;
+  } catch (e) {
+    console.error("getTeaIdBySlug error:", e);
+    return null;
   }
-  const { data, error } = await supabase
-    .from("teas")
-    .select("id")
-    .eq("slug", slug)
-    .single();
-  if (error || !data) return null;
-  return data.id as string;
 }
 
 // Helper: upsert a row in user_teas (status + hidden) for the current user.
@@ -178,27 +199,66 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
   customTeas: [],
   addCustomTea: (tea) => {
     const id = crypto.randomUUID();
+    const slug = tea.slug ?? `custom-${id}`;
     const created_at = new Date().toISOString();
-    set((state) => ({ customTeas: [...state.customTeas, { ...tea, id, created_at }] }));
+    set((state) => ({ customTeas: [...state.customTeas, { ...tea, id, slug, created_at }] }));
     if (demoMode) { saveDemoState(get()); return; }
     const userId = getUserId();
     if (!userId) return;
+    const sourceType = tea.source_type ?? "user";
+    const isPublic = tea.is_public ?? false;
+    const insertRow = {
+      name: tea.name,
+      slug,
+      phonetic_name: tea.phonetic_name ?? "",
+      original_name: tea.original_name ?? "",
+      description: tea.description,
+      origin: tea.origin,
+      tea_type: tea.tea_type,
+      category: tea.category ?? "",
+      caffeine_level: tea.caffeine_level,
+      brewing_temp_c: tea.brewing_temp_c ? Number(tea.brewing_temp_c) : null,
+      brewing_time_min: tea.brewing_time_min ? Number(tea.brewing_time_min) : null,
+      brewing_num_brews: tea.brewing_num_brews ?? 1,
+      brewing_instructions: tea.brewing_instructions ?? "",
+      characteristics: tea.characteristics,
+      health_benefits: tea.health_benefits ?? [],
+      color_hex: tea.color_hex ?? "",
+      oxidation_level: tea.oxidation_level ?? 50,
+      roast_level: tea.roast_level ?? 50,
+      flavor_x: tea.flavor_x ?? 50,
+      flavor_y: tea.flavor_y ?? 50,
+      source_type: sourceType,
+      source: tea.source ?? (sourceType === "teahouse" ? "" : "custom"),
+      owner_id: tea.owner_id ?? userId,
+      is_public: isPublic,
+    };
+    // Primary: insert into the unified `teas` table (source_type='user').
+    // Fallback: if the teas table doesn't have the source_type column yet
+    // (migration not run), fall back to the legacy custom_teas table.
     supabase
-      .from("custom_teas")
-      .insert({
-        user_id: userId,
-        name: tea.name,
-        slug: `custom-${id}`,
-        description: tea.description,
-        tea_type: tea.tea_type,
-        origin: tea.origin,
-        caffeine_level: tea.caffeine_level,
-        brewing_temp_c: tea.brewing_temp_c,
-        brewing_time_min: tea.brewing_time_min,
-        characteristics: tea.characteristics,
-      })
+      .from("teas")
+      .insert(insertRow)
       .then(({ error }) => {
-        if (error) console.error("Failed to insert custom_teas:", error.message);
+        if (!error) return;
+        // Fallback to legacy custom_teas table
+        supabase
+          .from("custom_teas")
+          .insert({
+            user_id: userId,
+            name: tea.name,
+            slug,
+            description: tea.description,
+            tea_type: tea.tea_type,
+            origin: tea.origin,
+            caffeine_level: tea.caffeine_level,
+            brewing_temp_c: tea.brewing_temp_c,
+            brewing_time_min: tea.brewing_time_min,
+            characteristics: tea.characteristics,
+          })
+          .then(({ error: legacyErr }) => {
+            if (legacyErr) console.error("Failed to insert custom tea (teas & custom_teas):", error.message, legacyErr.message);
+          });
       });
   },
   removeCustomTea: (id) => {
@@ -206,13 +266,23 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
     if (demoMode) { saveDemoState(get()); return; }
     const userId = getUserId();
     if (!userId) return;
+    const slug = `custom-${id}`;
+    // Primary: delete from unified `teas` table by slug.
+    // Fallback: delete from legacy custom_teas table.
     supabase
-      .from("custom_teas")
+      .from("teas")
       .delete()
-      .eq("user_id", userId)
-      .eq("slug", `custom-${id}`)
+      .eq("slug", slug)
       .then(({ error }) => {
-        if (error) console.error("Failed to delete custom_teas:", error.message);
+        if (!error) return;
+        supabase
+          .from("custom_teas")
+          .delete()
+          .eq("user_id", userId)
+          .eq("slug", slug)
+          .then(({ error: legacyErr }) => {
+            if (legacyErr) console.error("Failed to delete custom tea (teas & custom_teas):", error.message, legacyErr.message);
+          });
       });
   },
 
@@ -341,6 +411,21 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       });
   },
 
+  accentColor: "#c4853f",
+  allTeas: [],
+  setAccentColor: (color) => {
+    set({ accentColor: color });
+    if (demoMode) { saveDemoState(get()); return; }
+    const userId = getUserId();
+    if (!userId) return;
+    supabase
+      .from("user_preferences")
+      .upsert({ user_id: userId, accent_color: color }, { onConflict: "user_id" })
+      .then(({ error }) => {
+        if (error) console.error("Failed to upsert user_preferences:", error.message);
+      });
+  },
+
   // --- Demo mode: load from localStorage ---
   loadDemoData: () => {
     const data = loadDemoState();
@@ -351,10 +436,12 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         customTeas: data.customTeas || [],
         hiddenTeas: data.hiddenTeas || [],
         theme: data.theme || "cozy-dark",
+        accentColor: data.accentColor || "#c4853f",
+        allTeas: TEAS.map((t, i) => ({ ...t, id: t.id ?? i + 1 })),
       });
     } else {
       // Fresh demo — start empty
-      set({ teaStates: {}, teaLogs: {}, customTeas: [], hiddenTeas: [], theme: "cozy-dark" });
+      set({ teaStates: {}, teaLogs: {}, customTeas: [], hiddenTeas: [], theme: "cozy-dark", accentColor: "#c4853f", allTeas: TEAS.map((t, i) => ({ ...t, id: t.id ?? i + 1 })) });
     }
   },
 
@@ -362,14 +449,92 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
 
   syncFromSupabase: async (userId: string) => {
     try {
-      // 0. Load all teas (id → slug mapping) — no FK join needed since we dropped it
-      const { data: teasData, error: teasErr } = await supabase
-        .from("teas")
-        .select("id, slug");
-      const teaIdToSlug: Record<string, string> = {};
-      if (!teasErr && teasData) {
-        for (const row of teasData) {
-          teaIdToSlug[row.id] = row.slug;
+      // 0. Load ALL teas with ALL columns → stored as `allTeas`.
+      //    These include default teas, user teas (source_type='user'), and
+      //    teahouse teas. Build an id→slug mapping for status/log resolution.
+      let allTeas: Tea[] = [];
+      let teaIdToSlug: Record<string, string> = {};
+      let userTeaRows: Tea[] = [];
+      try {
+        const { data: teasData, error: teasErr } = await supabase
+          .from("teas")
+          .select("*");
+        if (!teasErr && teasData) {
+          allTeas = (teasData as Tea[]).map((t) => ({
+            ...t,
+            source_type: (t.source_type as Tea["source_type"]) || "default",
+            source: t.source || SOURCE_LABELS[(t.source_type as Tea["source_type"]) || "default"] || "Teapp",
+            is_custom: (t.source_type as Tea["source_type"]) !== "default",
+          }));
+          teaIdToSlug = {};
+          for (const row of allTeas) {
+            teaIdToSlug[row.id as number] = row.slug;
+          }
+          // User teas = teas with source_type='user' owned by this user
+          userTeaRows = allTeas.filter((t) => t.source_type === "user" && t.owner_id === userId);
+        }
+      } catch (e) {
+        // `teas` table select failed (e.g. source_type column missing). Fall back
+        // to id+slug-only select and legacy custom_teas for user teas.
+        console.error("syncFromSupabase: failed to select all teas, falling back:", e);
+        const { data: teasData, error: teasErr } = await supabase
+          .from("teas")
+          .select("id, slug");
+        if (!teasErr && teasData) {
+          teaIdToSlug = {};
+          for (const row of teasData) {
+            teaIdToSlug[row.id] = row.slug;
+          }
+        }
+        allTeas = TEAS.map((t, i) => ({ ...t, id: t.id ?? i + 1 }));
+      }
+
+      // 0b. If no user teas found in the unified `teas` table, fall back to
+      //     legacy custom_teas table (backward compat before migration).
+      if (userTeaRows.length === 0) {
+        try {
+          const { data: custom, error: customErr } = await supabase
+            .from("custom_teas")
+            .select("*")
+            .eq("user_id", userId);
+          if (!customErr && custom && custom.length > 0) {
+            const legacyUserTeas: Tea[] = custom.map((row) => ({
+              id: -1,
+              name: row.name,
+              slug: row.slug || `custom-${row.id}`,
+              phonetic_name: "",
+              original_name: "",
+              description: row.description || "",
+              origin: row.origin || "",
+              tea_type: row.tea_type || "",
+              category: "",
+              caffeine_level: row.caffeine_level || "",
+              brewing_temp_c: row.brewing_temp_c != null ? Number(row.brewing_temp_c) : null,
+              brewing_time_min: row.brewing_time_min != null ? Number(row.brewing_time_min) : null,
+              brewing_num_brews: 1,
+              brewing_instructions: "",
+              characteristics: row.characteristics || [],
+              health_benefits: [],
+              color_hex: TEA_TYPE_COLORS[row.tea_type] || "#999",
+              oxidation_level: 50,
+              roast_level: 50,
+              flavor_x: 50,
+              flavor_y: 50,
+              source: "custom",
+              wikidata_qid: null,
+              is_custom: true,
+              source_type: "user",
+              owner_id: userId,
+              is_public: false,
+            }));
+            userTeaRows = legacyUserTeas;
+            for (const row of legacyUserTeas) {
+              teaIdToSlug[row.id as number] = row.slug;
+            }
+            allTeas = [...allTeas.filter((t) => !String(t.slug).startsWith("custom-")), ...legacyUserTeas];
+          }
+        } catch (e) {
+          console.error("syncFromSupabase: custom_teas fallback failed:", e);
         }
       }
 
@@ -383,43 +548,6 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       if (!utErr && userTeas) {
         for (const row of userTeas) {
           const slug = teaIdToSlug[row.tea_id];
-          if (!slug) continue; // might be a custom tea — handled below
-          teaStates[slug] = row.status as TeaStatus;
-          if (row.hidden) hiddenTeas.push(slug);
-        }
-      }
-
-      // 1b. Load custom_teas first so we can resolve their IDs to slugs
-      const { data: custom, error: customErr } = await supabase
-        .from("custom_teas")
-        .select("*")
-        .eq("user_id", userId);
-      const customTeas: CustomTea[] = [];
-      const customIdToSlug: Record<string, string> = {};
-      if (!customErr && custom) {
-        for (const row of custom) {
-          const id = row.slug?.startsWith("custom-") ? row.slug.slice(7) : String(row.id);
-          const fullSlug = `custom-${id}`;
-          customIdToSlug[row.id] = fullSlug;
-          customTeas.push({
-            id,
-            name: row.name,
-            description: row.description || "",
-            tea_type: row.tea_type || "",
-            origin: row.origin || "",
-            caffeine_level: row.caffeine_level || "",
-            brewing_temp_c: row.brewing_temp_c != null ? String(row.brewing_temp_c) : "",
-            brewing_time_min: row.brewing_time_min != null ? String(row.brewing_time_min) : "",
-            characteristics: row.characteristics || [],
-            created_at: row.created_at || new Date().toISOString(),
-          });
-        }
-      }
-
-      // 1c. Resolve custom tea statuses from the same user_teas query
-      if (Object.keys(customIdToSlug).length > 0) {
-        for (const row of userTeas || []) {
-          const slug = customIdToSlug[row.tea_id];
           if (!slug) continue;
           teaStates[slug] = row.status as TeaStatus;
           if (row.hidden) hiddenTeas.push(slug);
@@ -435,8 +563,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       const teaLogs: TeaLogsMap = {};
       if (!logsErr && logs) {
         for (const row of logs) {
-          // Check regular teas first, then custom teas
-          const slug = teaIdToSlug[row.tea_id] || customIdToSlug[row.tea_id];
+          const slug = teaIdToSlug[row.tea_id];
           if (!slug) continue;
           const log: TeaLog = {
             id: String(row.id),
@@ -449,18 +576,39 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         }
       }
 
-      // 3. Load user_preferences (theme)
+      // 3. Load user_preferences (theme + accent color)
       let theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green" = "cozy-dark";
+      let accentColor: string = "#c4853f";
       const { data: prefs, error: prefsErr } = await supabase
         .from("user_preferences")
-        .select("theme")
+        .select("theme, accent_color")
         .eq("user_id", userId)
         .single();
-      if (!prefsErr && prefs && prefs.theme) {
-        theme = prefs.theme as typeof theme;
+      if (!prefsErr && prefs) {
+        if (prefs.theme) {
+          theme = prefs.theme as typeof theme;
+        }
+        if (prefs.accent_color) {
+          accentColor = prefs.accent_color as string;
+        }
       }
 
-      set({ teaStates, teaLogs, customTeas, hiddenTeas, theme });
+      // 4. Build customTeas from user teas (backward compat for components
+      //    that still read the customTeas array).
+      const customTeas: CustomTea[] = userTeaRows.map((t) => ({
+        id: String(t.slug).replace(/^custom-/, ""),
+        name: t.name,
+        description: t.description,
+        tea_type: t.tea_type,
+        origin: t.origin,
+        caffeine_level: t.caffeine_level,
+        brewing_temp_c: t.brewing_temp_c != null ? String(t.brewing_temp_c) : "",
+        brewing_time_min: t.brewing_time_min != null ? String(t.brewing_time_min) : "",
+        characteristics: t.characteristics,
+        created_at: new Date().toISOString(),
+      }));
+
+      set({ teaStates, teaLogs, customTeas, hiddenTeas, theme, accentColor, allTeas });
     } catch (err) {
       console.error("syncFromSupabase error:", err);
     }
@@ -507,20 +655,40 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         }
       }
 
-      // 3. Migrate custom teas
+      // 3. Migrate custom teas → into the unified `teas` table (source_type='user').
+      //    Fall back to legacy custom_teas if the source_type column isn't there yet.
       for (const ct of oldCustomTeas) {
-        await supabase.from("custom_teas").insert({
-          user_id: userId,
+        const slug = `custom-${ct.id}`;
+        const insertRow = {
           name: ct.name,
-          slug: `custom-${ct.id}`,
+          slug,
           description: ct.description,
           tea_type: ct.tea_type,
           origin: ct.origin,
           caffeine_level: ct.caffeine_level,
-          brewing_temp_c: ct.brewing_temp_c,
-          brewing_time_min: ct.brewing_time_min,
+          brewing_temp_c: ct.brewing_temp_c ? Number(ct.brewing_temp_c) : null,
+          brewing_time_min: ct.brewing_time_min ? Number(ct.brewing_time_min) : null,
           characteristics: ct.characteristics,
-        });
+          source_type: "user",
+          source: "custom",
+          owner_id: userId,
+          is_public: false,
+        };
+        const { error } = await supabase.from("teas").insert(insertRow);
+        if (error) {
+          await supabase.from("custom_teas").insert({
+            user_id: userId,
+            name: ct.name,
+            slug,
+            description: ct.description,
+            tea_type: ct.tea_type,
+            origin: ct.origin,
+            caffeine_level: ct.caffeine_level,
+            brewing_temp_c: ct.brewing_temp_c,
+            brewing_time_min: ct.brewing_time_min,
+            characteristics: ct.characteristics,
+          });
+        }
       }
 
       // 4. Migrate theme preference
