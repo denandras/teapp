@@ -31,7 +31,7 @@ const DEMO_FLAG_KEY = "teapp-demo-mode";
 
 // Bump this when auth flow changes — purges stale sessions from older versions
 const AUTH_VERSION_KEY = "teapp-auth-version";
-const AUTH_VERSION = "2";
+const AUTH_VERSION = "3";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -70,89 +70,104 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    // Version check: if auth version changed, purge stale session tokens
+    // --- Step 1: Version check ---
+    // If auth version changed, purge everything and start fresh.
     const storedVersion = typeof window !== "undefined" ? localStorage.getItem(AUTH_VERSION_KEY) : null;
     if (storedVersion !== AUTH_VERSION) {
-      // Stale session from an older app version — sign out and clear
-      localStorage.removeItem(AUTH_VERSION_KEY);
       localStorage.setItem(AUTH_VERSION_KEY, AUTH_VERSION);
-      // Purge Supabase auth tokens from previous versions
+      localStorage.removeItem(DEMO_FLAG_KEY);
       supabase.auth.signOut().catch(() => {});
       setCurrentUserId(null);
-      setUser(null);
-      setSession(null);
-      setProfile(null);
+      setDemoMode(false);
       setLoading(false);
-      return;
+      // Don't return — fall through to set up the auth listener
     }
 
-    // Check for Supabase recovery token in URL (password reset link).
-    // This must take priority over demo mode — the user clicked a reset link
-    // and expects to set a new password, not see demo teas.
+    // --- Step 2: Check for recovery token in URL hash ---
+    // Supabase password reset links put type=recovery&access_token=... in the hash.
+    // This must take priority over demo mode.
     const hashParams = typeof window !== "undefined" ? new URLSearchParams(window.location.hash.substring(1)) : null;
     const hasRecoveryToken = hashParams?.get("type") === "recovery" && !!hashParams?.get("access_token");
 
     if (hasRecoveryToken) {
-      // Clear demo mode if active — the recovery token takes over
+      // Clear demo mode — recovery takes over
       localStorage.removeItem(DEMO_FLAG_KEY);
       setDemoMode(false);
       setIsDemo(false);
-      // Supabase JS client will auto-detect the hash token and establish a session.
-      // The onAuthStateChange listener will pick it up and load the profile.
+      // Set up the auth listener to catch PASSWORD_RECOVERY event.
+      // Also call getSession which may detect the hash token and
+      // trigger the event synchronously.
+      const { data: authListener } = supabase.auth.onAuthStateChange(
+        (event, newSession) => {
+          if (!mounted) return;
+          if (event === "PASSWORD_RECOVERY") {
+            setIsPasswordRecovery(true);
+            setLoading(false);
+            return;
+          }
+          // If it's another event (e.g. SIGNED_IN from the recovery token),
+          // also show the recovery form so the user can set a new password
+          if (newSession?.user && event === "SIGNED_IN") {
+            // Check if this came from a recovery token
+            const currentHash = typeof window !== "undefined" ? window.location.hash : "";
+            if (currentHash.includes("type=recovery")) {
+              setIsPasswordRecovery(true);
+              setLoading(false);
+              return;
+            }
+          }
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
+          setLoading(false);
+        }
+      );
+      // getSession will detect the hash token and fire onAuthStateChange
+      supabase.auth.getSession().then(() => {
+        if (!mounted) return;
+        // If getSession didn't trigger a recovery event, check manually
+        // by seeing if we got a session from the hash
+      }).catch(() => {
+        if (!mounted) return;
+        setLoading(false);
+      });
+      // Safety timeout — if no event fires in 8s, show login form
+      const recoveryTimeout = setTimeout(() => {
+        if (!mounted) return;
+        console.warn("Recovery token not processed after 8s — showing login");
+        setLoading(false);
+      }, 8000);
+      return () => {
+        mounted = false;
+        clearTimeout(recoveryTimeout);
+        authListener.subscription.unsubscribe();
+      };
     } else {
-      // Check if demo mode was previously activated (e.g. page refresh)
+      // --- Step 3: Check demo mode ---
       const wasDemo = typeof window !== "undefined" && localStorage.getItem(DEMO_FLAG_KEY) === "true";
-
       if (wasDemo) {
-        // Restore demo mode without hitting Supabase — demo users skip onboarding
         setDemoMode(true);
         setIsDemo(true);
         setCurrentUserId(null);
         setProfile(null);
         loadDemoData();
         setLoading(false);
-        return;
+        return; // Demo mode — don't contact Supabase at all
       }
     }
 
-    // Add a timeout — getSession can hang in some environments
-    const sessionTimeout = setTimeout(() => {
-      if (!mounted) return;
-      console.warn("getSession timed out after 5s");
-      setLoading(false);
-    }, 5000);
-
-    supabase.auth.getSession().then(({ data, error: err }) => {
-      clearTimeout(sessionTimeout);
-      if (!mounted) return;
-      if (err) {
-        // Session errors (expired token, network issue) should NOT block
-        // the login form. Log and continue — user is just not authenticated.
-        console.warn("getSession error (non-blocking):", err.message);
-      }
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      if (data.session?.user) {
-        setCurrentUserId(data.session.user.id);
-        syncFromSupabase(data.session.user.id);
-        loadProfileForUser(data.session.user.id);
-      }
-      setLoading(false);
-    }).catch((e: unknown) => {
-      clearTimeout(sessionTimeout);
-      // Don't set error state — just log and show login form
-      console.warn("getSession exception (non-blocking):", e);
-      setLoading(false);
-    });
-
+    // --- Step 4: Set up auth listener FIRST, then getSession ---
+    // The listener catches PASSWORD_RECOVERY events from the hash token.
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
-        // Detect password recovery event — user clicked reset link
+        if (!mounted) return;
+
         if (event === "PASSWORD_RECOVERY") {
           setIsPasswordRecovery(true);
           setLoading(false);
           return;
         }
+
+        // Normal auth state change (sign in, sign out, token refresh)
         setSession(newSession);
         setUser(newSession?.user ?? null);
         if (newSession?.user) {
@@ -166,6 +181,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       }
     );
+
+    // --- Step 5: Check existing session ---
+    const sessionTimeout = setTimeout(() => {
+      if (!mounted) return;
+      console.warn("getSession timed out after 5s");
+      setLoading(false);
+    }, 5000);
+
+    supabase.auth.getSession().then(({ data, error: err }) => {
+      clearTimeout(sessionTimeout);
+      if (!mounted) return;
+      if (err) {
+        console.warn("getSession error (non-blocking):", err.message);
+      }
+      setSession(data.session);
+      setUser(data.session?.user ?? null);
+      if (data.session?.user) {
+        setCurrentUserId(data.session.user.id);
+        syncFromSupabase(data.session.user.id);
+        loadProfileForUser(data.session.user.id);
+      }
+      setLoading(false);
+    }).catch((e: unknown) => {
+      clearTimeout(sessionTimeout);
+      console.warn("getSession exception (non-blocking):", e);
+      setLoading(false);
+    });
 
     return () => {
       mounted = false;
@@ -209,12 +251,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
+    // Also clear any stale Supabase tokens so exitDemo truly returns to login
+    supabase.auth.signOut().catch(() => {});
   }, []);
 
   const updatePassword = useCallback(async (newPassword: string) => {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
-    // Clear recovery state and redirect to login
     setIsPasswordRecovery(false);
     // Clean the URL hash
     if (typeof window !== "undefined" && window.location.hash) {
