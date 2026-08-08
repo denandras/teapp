@@ -3,8 +3,9 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Edit, Save, Trash2, Thermometer, Clock, Repeat, MapPin, Star, Heart, Coffee, AlertTriangle } from "lucide-react";
-import { Tea, TeaStatus, TeaLog, CAFFEINE_LABELS } from "@/lib/types";
-import { useTeaStore } from "@/lib/store";
+import { Tea, TeaStatus, TeaLog, CAFFEINE_LABELS, SOURCE_LABELS, SOURCE_COLORS } from "@/lib/types";
+import { useTeaStore, getCurrentUserId } from "@/lib/store";
+import { supabase } from "@/lib/supabaseClient";
 import StatusCheckbox from "./StatusCheckbox";
 
 interface Props {
@@ -83,6 +84,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [editLogRating, setEditLogRating] = useState(0);
   const [editLogNote, setEditLogNote] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -158,15 +160,49 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
     return teaLogs.reduce((acc, log) => acc + log.rating, 0) / teaLogs.length;
   }, [teaLogs]);
 
-  const handleSave = () => {
+  const canEdit = tea.source_type !== "default" && tea.owner_id != null && tea.owner_id === getCurrentUserId();
+
+  const handleSave = async () => {
+    if (canEdit) {
+      setIsSaving(true);
+      try {
+        await supabase
+          .from("teas")
+          .update({
+            name: editedTea.name,
+            phonetic_name: editedTea.phonetic_name,
+            original_name: editedTea.original_name,
+            description: editedTea.description,
+            origin: editedTea.origin,
+            tea_type: editedTea.tea_type,
+            caffeine_level: editedTea.caffeine_level,
+            brewing_temp_c: editedTea.brewing_temp_c,
+            brewing_time_min: editedTea.brewing_time_min,
+            brewing_num_brews: editedTea.brewing_num_brews,
+            brewing_instructions: editedTea.brewing_instructions,
+            characteristics: editedTea.characteristics,
+            health_benefits: editedTea.health_benefits,
+            color_hex: editedTea.color_hex,
+            flavor_x: editedTea.flavor_x,
+            flavor_y: editedTea.flavor_y,
+          })
+          .eq("slug", tea.slug)
+          .eq("owner_id", getCurrentUserId());
+      } finally {
+        setIsSaving(false);
+      }
+    }
     setEditing(false);
-    // For database teas: no persistence (read-only data)
-    // For custom teas: could wire up but currently custom teas use a different store shape
-    // The edit is visual only for database teas
   };
 
-  const handleDelete = () => {
-    if (tea.is_custom) {
+  const handleDelete = async () => {
+    if (tea.source_type !== "default" && tea.owner_id != null && tea.owner_id === getCurrentUserId()) {
+      await supabase
+        .from("teas")
+        .delete()
+        .eq("slug", tea.slug)
+        .eq("owner_id", getCurrentUserId());
+    } else if (tea.is_custom) {
       // Try to find matching custom tea and remove
       const customTeas = useTeaStore.getState().customTeas;
       const match = customTeas.find(ct => `custom-${ct.id}` === tea.slug);
@@ -236,9 +272,11 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                   <AlertTriangle size={32} className="mx-auto mb-3 text-red-400" />
                   <h3 className="font-semibold text-lg mb-2">Delete this tea?</h3>
                   <p className="text-sm text-muted mb-4">
-                    {tea.is_custom
-                      ? "This custom tea will be permanently deleted."
-                      : "This tea will be hidden from your view. You can restore it later."}
+                    {tea.source_type !== "default" && tea.owner_id != null && tea.owner_id === getCurrentUserId()
+                      ? "This tea will be permanently deleted from your collection."
+                      : tea.is_custom
+                        ? "This custom tea will be permanently deleted."
+                        : "This tea will be hidden from your view. You can restore it later."}
                   </p>
                   <div className="flex gap-2 justify-center">
                     <button
@@ -318,6 +356,14 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                   >
                     {(editing ? editedTea.tea_type : tea.tea_type) || "unknown"}
                   </span>
+                  {/* Source badge */}
+                  <span
+                    className="px-2 py-0.5 rounded-full text-xs font-medium"
+                    style={{ backgroundColor: SOURCE_COLORS[tea.source_type || "default"] + "20", color: SOURCE_COLORS[tea.source_type || "default"] }}
+                    title="Source"
+                  >
+                    {SOURCE_LABELS[tea.source_type || "default"]}: {tea.source || "Unknown"}
+                  </span>
                   {/* Brewing inline badges */}
                   {(editing ? editedTea.brewing_temp_c : tea.brewing_temp_c) != null && (
                     <span className="flex items-center gap-1 text-xs text-muted px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bg)" }}>
@@ -369,20 +415,23 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {!editing ? (
-                <button
-                  onClick={() => setEditing(true)}
-                  className="p-2 rounded-lg hover:bg-accent/10 text-muted hover:text-accent transition-colors"
-                  title="Edit"
-                >
-                  <Edit size={18} />
-                </button>
+                canEdit && (
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="p-2 rounded-lg hover:bg-accent/10 text-muted hover:text-accent transition-colors"
+                    title="Edit"
+                  >
+                    <Edit size={18} />
+                  </button>
+                )
               ) : (
                 <button
                   onClick={handleSave}
-                  className="p-2 rounded-lg hover:bg-accent/10 text-muted hover:text-accent transition-colors"
-                  title="Save"
+                  disabled={isSaving}
+                  className="p-2 rounded-lg hover:bg-accent/10 text-muted hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-wait"
+                  title={isSaving ? "Saving..." : "Save"}
                 >
-                  <Save size={18} />
+                  {isSaving ? <Coffee size={18} className="animate-spin" /> : <Save size={18} />}
                 </button>
               )}
               <button

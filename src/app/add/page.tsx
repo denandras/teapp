@@ -115,6 +115,7 @@ function RangeSlider({
 export default function AddTeaPage() {
   const router = useRouter();
   const addCustomTea = useTeaStore((s) => s.addCustomTea);
+  const allTeas = useTeaStore((s) => s.allTeas);
   const { profile } = useAuth();
 
   const isTeahouse = profile?.profile_type === "teahouse";
@@ -142,9 +143,25 @@ export default function AddTeaPage() {
   const [flavor_y, setFlavorY] = useState(50);
   const [source, setSource] = useState("");
   const [success, setSuccess] = useState(false);
+  const [nameBlurred, setNameBlurred] = useState(false);
 
   const sourceType: "user" | "teahouse" = isTeahouse ? "teahouse" : "user";
   const sourceLockedValue = isTeahouse ? (profile?.teahouse_name || "") : "";
+
+  // Case-insensitive dedup check: warn if a tea with the same name already exists
+  // from a different source. The dedup key is (name + source_type + source), so
+  // this is only a warning — multiple same-named teas from different sources are valid.
+  const duplicateTeas = name.trim()
+    ? allTeas.filter((t) => t.name?.trim().toLowerCase() === name.trim().toLowerCase())
+    : [];
+  const duplicateSources = Array.from(
+    new Set(
+      duplicateTeas
+        .map((t) => t.source || (t.source_type === "teahouse" ? "teahouse" : "Teapp"))
+        .filter(Boolean)
+    )
+  );
+  const showDupWarning = nameBlurred && duplicateTeas.length > 0 && name.trim().length > 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -276,8 +293,21 @@ export default function AddTeaPage() {
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onBlur={() => setNameBlurred(true)}
             placeholder="e.g. Dong Ding Oolong"
           />
+          {showDupWarning && (
+            <div
+              className="mt-2 rounded-lg border px-3 py-2.5 text-sm"
+              style={{ backgroundColor: "#E6C84E20", borderColor: "#E6C84E" }}
+            >
+              <p style={{ color: "#b8860b" }}>
+                A tea called <span className="font-medium">&ldquo;{name.trim()}&rdquo;</span> already
+                exists from {duplicateSources.join(", ")}. Yours will appear separately with your
+                source.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4">

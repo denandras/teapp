@@ -442,6 +442,27 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       // Fresh demo — start empty
       set({ teaStates: {}, teaLogs: {}, customTeas: [], hiddenTeas: [], theme: "cozy-dark", accentColor: "#c4853f", allTeas: [] });
     }
+
+    // Demo mode can still READ from Supabase (anon key allows public teas).
+    // Fetch default + public teahouse teas read-only and populate allTeas,
+    // so demo users see all the teas without needing a logged-in user.
+    supabase
+      .from("teas")
+      .select("*")
+      .or("source_type.eq.default,(source_type.eq.teahouse,is_public.eq.true)")
+      .then(({ data: publicTeas, error }) => {
+        if (!error && publicTeas) {
+          const normalized = (publicTeas as Tea[]).map((t) => ({
+            ...t,
+            source_type: (t.source_type as Tea["source_type"]) || "default",
+            source: t.source || SOURCE_LABELS[(t.source_type as Tea["source_type"]) || "default"] || "Teapp",
+            is_custom: (t.source_type as Tea["source_type"]) !== "default",
+          }));
+          set({ allTeas: normalized });
+        } else if (error) {
+          console.error("loadDemoData: failed to fetch public teas:", error.message);
+        }
+      });
   },
 
   // --- Supabase sync ---
