@@ -1,22 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { Coffee } from "lucide-react";
+import { Leaf } from "lucide-react";
 
 export default function Footer() {
   return (
     <footer
-      className="border-t py-6 mt-6"
+      className="border-t py-6 mt-6 pb-24 sm:pb-6"
       style={{ borderColor: "var(--border)", backgroundColor: "var(--bg)" }}
     >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <Coffee size={16} className="text-accent" />
+          <Leaf size={16} className="text-accent" />
           <span className="font-serif font-bold" style={{ color: "var(--accent)" }}>
             Teapp
           </span>
           <span className="text-xs" style={{ color: "var(--muted)" }}>
-            © {new Date().getFullYear()} András Dénes
+            &copy; {new Date().getFullYear()} Andr&aacute;s D&eacute;nes
           </span>
         </Link>
 

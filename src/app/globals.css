@@ -20,7 +20,7 @@ body {
   overflow-x: hidden;
 }
 
-/* Fill bottom safe area with card color to match navbar — prevents see-thru on iPhone */
+/* Fill bottom safe area with bg color — prevents see-thru below the fixed nav */
 @supports (padding: env(safe-area-inset-bottom)) {
   body::after {
     content: "";
@@ -29,7 +29,7 @@ body {
     left: 0;
     right: 0;
     height: env(safe-area-inset-bottom, 0px);
-    background-color: var(--card);
+    background-color: var(--bg);
     z-index: 49;
     pointer-events: none;
   }

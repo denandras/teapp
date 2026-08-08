@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Coffee, Loader2, Sparkles, MapPin } from "lucide-react";
+import { Leaf, Loader2, Sparkles, MapPin } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
 export default function LoginForm() {
@@ -18,8 +18,6 @@ export default function LoginForm() {
     loading: true,
   });
 
-  // Geo-restriction: allow the login form only for Hungary.
-  // Demo mode always stays available.
   useEffect(() => {
     let mounted = true;
     fetch("/api/geo")
@@ -30,7 +28,6 @@ export default function LoginForm() {
       })
       .catch(() => {
         if (!mounted) return;
-        // Fall back to allowed on network errors (local dev).
         setGeo({ country: "HU", loading: false });
       });
     return () => {
@@ -75,58 +72,57 @@ export default function LoginForm() {
         className="w-full max-w-md rounded-2xl border shadow-2xl p-8"
         style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
       >
+        {/* Logo + intro */}
         <div className="flex flex-col items-center mb-6">
-          <Coffee size={40} className="text-accent mb-2" />
+          <Leaf size={40} className="text-accent mb-2" />
           <h1 className="text-2xl font-serif font-bold" style={{ color: "var(--text)" }}>
             Teapp
           </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
-            {mode === "signin" ? "Sign in to your account" : "Create a new account"}
+          <p className="text-sm text-center mt-2 leading-relaxed" style={{ color: "var(--muted)" }}>
+            Track your tea collection, discover new varieties, and explore teas from
+            tea houses across Hungary.
           </p>
         </div>
 
-        {isRestricted ? (
-          <>
-            <div className="flex flex-col items-center text-center">
-              <MapPin size={32} className="text-accent mb-3" />
-              <h2 className="text-lg font-bold mb-2" style={{ color: "var(--text)" }}>
-                Not available in your region yet
-              </h2>
-              <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
-                Teapp is currently available only in Hungary. We&apos;ll expand to more
-                countries soon!
-              </p>
-            </div>
+        {/* Demo button — always visible first */}
+        <button
+          onClick={handleDemo}
+          className="w-full py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 border mb-4"
+          style={{
+            backgroundColor: "transparent",
+            borderColor: "var(--accent)",
+            color: "var(--accent)",
+          }}
+        >
+          <Sparkles size={18} />
+          Try it out (no account needed)
+        </button>
 
-            <div className="relative my-6">
+        {isRestricted ? (
+          <div className="flex flex-col items-center text-center py-4">
+            <MapPin size={28} className="text-accent mb-3" />
+            <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
+              Sign-up is currently available only in Hungary. We&apos;ll expand to more
+              countries soon!
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Divider */}
+            <div className="relative my-2">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t" style={{ borderColor: "var(--border)" }} />
               </div>
               <div className="relative flex justify-center">
                 <span className="px-3 text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
-                  meanwhile
+                  or {mode === "signin" ? "sign in" : "sign up"}
                 </span>
               </div>
             </div>
 
-            <button
-              onClick={handleDemo}
-              className="w-full py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 border"
-              style={{
-                backgroundColor: "transparent",
-                borderColor: "var(--accent)",
-                color: "var(--accent)",
-              }}
-            >
-              <Sparkles size={18} />
-              Try Demo (no account)
-            </button>
-          </>
-        ) : (
-          <>
             {error && (
               <div
-                className="rounded-lg border p-3 mb-4 text-sm"
+                className="rounded-lg border p-3 mb-4 mt-4 text-sm"
                 style={{ backgroundColor: "#c44a3f20", borderColor: "#c44a3f", color: "#c44a3f" }}
               >
                 {error}
@@ -134,14 +130,14 @@ export default function LoginForm() {
             )}
             {info && (
               <div
-                className="rounded-lg border p-3 mb-4 text-sm"
+                className="rounded-lg border p-3 mb-4 mt-4 text-sm"
                 style={{ backgroundColor: "#7BA05B20", borderColor: "#7BA05B", color: "#7BA05B" }}
               >
                 {info}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
               <div>
                 <label
                   className="text-sm font-semibold uppercase tracking-wide block mb-2"
@@ -171,7 +167,7 @@ export default function LoginForm() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"
                   className="w-full px-4 py-2.5 rounded-lg border outline-none"
                   style={{ backgroundColor: "var(--bg)", borderColor: "var(--border)", color: "var(--text)" }}
                 />
@@ -186,38 +182,13 @@ export default function LoginForm() {
                 {busy ? (
                   <>
                     <Loader2 size={18} className="animate-spin" />
-                    {mode === "signin" ? "Signing in…" : "Creating account…"}
+                    {mode === "signin" ? "Signing in..." : "Creating account..."}
                   </>
                 ) : (
                   mode === "signin" ? "Sign in" : "Sign up"
                 )}
               </button>
             </form>
-
-            {/* Demo mode button */}
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t" style={{ borderColor: "var(--border)" }} />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="px-3 text-xs uppercase tracking-wide" style={{ color: "var(--muted)" }}>
-                  or
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={handleDemo}
-              className="w-full py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 border"
-              style={{
-                backgroundColor: "transparent",
-                borderColor: "var(--accent)",
-                color: "var(--accent)",
-              }}
-            >
-              <Sparkles size={18} />
-              Try Demo (no account)
-            </button>
 
             <div className="mt-4 text-center">
               <button

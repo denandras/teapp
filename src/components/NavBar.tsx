@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Coffee, LayoutGrid, Database, Settings, Plus, BookOpen, Shield } from "lucide-react";
+import { Leaf, LayoutGrid, Database, Settings, Plus, BookOpen, Shield } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 
 export default function NavBar() {
@@ -24,7 +24,7 @@ export default function NavBar() {
       <nav className="hidden sm:sticky sm:top-0 sm:z-50 sm:h-16 sm:flex sm:items-center sm:px-6 sm:gap-2 sm:border-b"
         style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
         <Link href="/" className="flex items-center gap-2 mr-6">
-          <Coffee size={24} className="text-accent" />
+          <Leaf size={24} className="text-accent" />
           <span className="font-serif text-xl font-bold text-accent">Teapp</span>
         </Link>
         <div className="flex items-center gap-1 flex-1">
@@ -43,7 +43,7 @@ export default function NavBar() {
         </div>
       </nav>
 
-      {/* Mobile: bottom nav bar — fills safe area to prevent Safari see-thru */}
+      {/* Mobile: bottom nav bar — solid background to prevent see-thru */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t px-2"
         style={{
           backgroundColor: "var(--card)",
