@@ -5,6 +5,7 @@ import NavBar from "@/components/NavBar";
 import StoreInit from "@/components/StoreInit";
 import Footer from "@/components/Footer";
 import { AuthProvider } from "@/components/AuthProvider";
+import AuthGate from "@/components/AuthGate";
 
 export const metadata: Metadata = {
   title: "Teapp — Tea Management",
@@ -26,11 +27,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <AuthProvider>
             <StoreInit />
-            <NavBar />
-            <main className="min-h-[calc(100vh-64px)] px-4 sm:px-6 lg:px-8 py-6 overflow-x-hidden pb-20 sm:pb-6">
-              {children}
-            </main>
-            <Footer />
+            <AuthGate>
+              <NavBar />
+              <main className="min-h-[calc(100vh-64px)] px-4 sm:px-6 lg:px-8 py-6 overflow-x-hidden pb-20 sm:pb-6">
+                {children}
+              </main>
+              <Footer />
+            </AuthGate>
           </AuthProvider>
         </ThemeProvider>
       </body>

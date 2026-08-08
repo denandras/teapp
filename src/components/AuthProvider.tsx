@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useTeaStore, setCurrentUserId, setDemoMode } from "@/lib/store";
 import { fetchProfile, type Profile } from "@/lib/profiles";
 import LoginForm from "@/components/LoginForm";
+import { Leaf } from "lucide-react";
 
 interface AuthContextValue {
   user: User | null;
@@ -187,7 +188,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           </div>
         </div>
       ) : loading ? (
-        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--bg)" }}>
+        <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ backgroundColor: "var(--bg)" }}>
+          <Leaf size={32} className="text-accent animate-pulse" />
           <div className="text-muted text-sm">Loading…</div>
         </div>
       ) : (user || isDemo) ? (

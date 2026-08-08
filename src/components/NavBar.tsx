@@ -9,6 +9,9 @@ export default function NavBar() {
   const { profile } = useAuth();
   const isAdminUser = !!profile?.is_admin;
 
+  // Hide nav entirely on onboarding page (full-screen experience)
+  if (pathname === "/onboarding") return null;
+
   const links = [
     { href: "/", label: "Dashboard", icon: LayoutGrid },
     { href: "/database", label: "Database", icon: Database },
@@ -43,7 +46,7 @@ export default function NavBar() {
         </div>
       </nav>
 
-      {/* Mobile: bottom nav bar — solid background to prevent see-thru */}
+      {/* Mobile: bottom nav bar — solid background to prevent see-thru on iPhone */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t px-2"
         style={{
           backgroundColor: "var(--card)",
@@ -51,6 +54,8 @@ export default function NavBar() {
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
           minHeight: "3.5rem",
           boxSizing: "border-box",
+          /* Extend background into the safe area to prevent any see-thru */
+          backgroundImage: "linear-gradient(var(--card), var(--card))",
         }}>
         {links.map((link) => {
           const Icon = link.icon;

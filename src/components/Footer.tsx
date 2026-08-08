@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Leaf } from "lucide-react";
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  // Hide footer on onboarding page (full-screen experience)
+  if (pathname === "/onboarding") return null;
+
   return (
     <footer
       className="border-t py-6 mt-6 pb-24 sm:pb-6"

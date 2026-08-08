@@ -20,7 +20,10 @@ body {
   overflow-x: hidden;
 }
 
-/* Fill bottom safe area with bg color — prevents see-thru below the fixed nav */
+/* Fill bottom safe area with bg color — prevents see-thru below the fixed nav.
+   Use a higher z-index so it sits above the body::before paper texture but
+   below the nav bar itself. The nav bar already has safe-area padding built in,
+   so this acts as a solid fill behind the nav bar's transparent safe-area gap. */
 @supports (padding: env(safe-area-inset-bottom)) {
   body::after {
     content: "";
@@ -28,9 +31,11 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    height: env(safe-area-inset-bottom, 0px);
-    background-color: var(--bg);
-    z-index: 49;
+    /* Cover the full bottom area: nav height + safe area inset.
+       The nav bar renders on top of this with its own background. */
+    height: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+    background-color: var(--card);
+    z-index: 48;
     pointer-events: none;
   }
 }
