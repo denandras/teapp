@@ -71,8 +71,8 @@ export default function DatabasePage() {
     }
     if (sourceFilter !== "all") {
       if (sourceFilter === "user") {
-        // 'Mine' — only user teas owned by the current user
-        teas = teas.filter(t => t.source_type === "user" && t.owner_id === currentUserId);
+        // 'Mine' — teas owned by the current user (both personal and teahouse)
+        teas = teas.filter(t => (t.source_type === "user" || t.source_type === "teahouse") && t.owner_id === currentUserId);
       } else {
         teas = teas.filter(t => t.source_type === sourceFilter);
       }

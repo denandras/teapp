@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
@@ -31,7 +31,7 @@ const DEMO_FLAG_KEY = "teapp-demo-mode";
 
 // Bump this when auth flow changes — purges stale sessions from older versions
 const AUTH_VERSION_KEY = "teapp-auth-version";
-const AUTH_VERSION = "3";
+const AUTH_VERSION = "4";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -41,6 +41,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isDemo, setIsDemo] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  // Ref flag to block auth listener from processing events during password
+  // update (prevents SIGNED_IN from recovery token re-setting user before signOut)
+  const authBlockedRef = useRef(false);
 
   const pathname = usePathname();
   const router = useRouter();
@@ -100,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: authListener } = supabase.auth.onAuthStateChange(
         (event, newSession) => {
           if (!mounted) return;
+          if (authBlockedRef.current) return;
           if (event === "PASSWORD_RECOVERY") {
             setIsPasswordRecovery(true);
             setLoading(false);
@@ -160,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         if (!mounted) return;
+        if (authBlockedRef.current) return;
 
         if (event === "PASSWORD_RECOVERY") {
           setIsPasswordRecovery(true);
@@ -258,6 +263,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updatePassword = useCallback(async (newPassword: string) => {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
+    // Block auth listener from processing SIGNED_OUT/SIGNED_IN events
+    // that fire during signOut — prevents redirect to onboarding
+    authBlockedRef.current = true;
     setIsPasswordRecovery(false);
     // Clean the URL hash
     if (typeof window !== "undefined" && window.location.hash) {
@@ -268,6 +276,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
+    // Unblock after a short delay to allow normal auth flow to resume
+    setTimeout(() => { authBlockedRef.current = false; }, 2000);
   }, []);
 
   const value: AuthContextValue = {

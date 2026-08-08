@@ -91,16 +91,16 @@ export default function SettingsPage() {
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-xl border p-4 text-center" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
-            <p className="text-3xl font-bold text-accent">{collectionCount}</p>
-            <p className="text-xs text-muted mt-1">Total</p>
+            <p className="text-3xl font-bold" style={{ color: "#c4853f" }}>{triedCount}</p>
+            <p className="text-xs text-muted mt-1">Have tried</p>
           </div>
           <div className="rounded-xl border p-4 text-center" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
             <p className="text-3xl font-bold" style={{ color: "#7BA05B" }}>{haveCount}</p>
             <p className="text-xs text-muted mt-1">Have it</p>
           </div>
           <div className="rounded-xl border p-4 text-center" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
-            <p className="text-3xl font-bold" style={{ color: "#c4853f" }}>{triedCount}</p>
-            <p className="text-xs text-muted mt-1">Have tried</p>
+            <p className="text-3xl font-bold text-accent">{collectionCount}</p>
+            <p className="text-xs text-muted mt-1">Total</p>
           </div>
         </div>
       </div>
