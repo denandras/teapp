@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useTeaStore, setCurrentUserId, setDemoMode } from "@/lib/store";
 import { fetchProfile, type Profile } from "@/lib/profiles";
 import LoginForm from "@/components/LoginForm";
+import PasswordRecoveryForm from "@/components/PasswordRecoveryForm";
 import { Leaf } from "lucide-react";
 
 interface AuthContextValue {
@@ -21,6 +22,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   exitDemo: () => void;
   refreshProfile: () => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -38,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
@@ -83,18 +86,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Check if demo mode was previously activated (e.g. page refresh)
-    const wasDemo = typeof window !== "undefined" && localStorage.getItem(DEMO_FLAG_KEY) === "true";
+    // Check for Supabase recovery token in URL (password reset link).
+    // This must take priority over demo mode — the user clicked a reset link
+    // and expects to set a new password, not see demo teas.
+    const hashParams = typeof window !== "undefined" ? new URLSearchParams(window.location.hash.substring(1)) : null;
+    const hasRecoveryToken = hashParams?.get("type") === "recovery" && !!hashParams?.get("access_token");
 
-    if (wasDemo) {
-      // Restore demo mode without hitting Supabase — demo users skip onboarding
-      setDemoMode(true);
-      setIsDemo(true);
-      setCurrentUserId(null);
-      setProfile(null);
-      loadDemoData();
-      setLoading(false);
-      return;
+    if (hasRecoveryToken) {
+      // Clear demo mode if active — the recovery token takes over
+      localStorage.removeItem(DEMO_FLAG_KEY);
+      setDemoMode(false);
+      setIsDemo(false);
+      // Supabase JS client will auto-detect the hash token and establish a session.
+      // The onAuthStateChange listener will pick it up and load the profile.
+    } else {
+      // Check if demo mode was previously activated (e.g. page refresh)
+      const wasDemo = typeof window !== "undefined" && localStorage.getItem(DEMO_FLAG_KEY) === "true";
+
+      if (wasDemo) {
+        // Restore demo mode without hitting Supabase — demo users skip onboarding
+        setDemoMode(true);
+        setIsDemo(true);
+        setCurrentUserId(null);
+        setProfile(null);
+        loadDemoData();
+        setLoading(false);
+        return;
+      }
     }
 
     // Add a timeout — getSession can hang in some environments
@@ -128,7 +146,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
+      (event, newSession) => {
+        // Detect password recovery event — user clicked reset link
+        if (event === "PASSWORD_RECOVERY") {
+          setIsPasswordRecovery(true);
+          setLoading(false);
+          return;
+        }
         setSession(newSession);
         setUser(newSession?.user ?? null);
         if (newSession?.user) {
@@ -187,8 +211,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }, []);
 
+  const updatePassword = useCallback(async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+    // Clear recovery state and redirect to login
+    setIsPasswordRecovery(false);
+    // Clean the URL hash
+    if (typeof window !== "undefined" && window.location.hash) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    // Sign out so they can sign in with the new password
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+  }, []);
+
   const value: AuthContextValue = {
-    user, session, loading, isDemo, profile, signIn, signUp, signInDemo, signOut, exitDemo, refreshProfile,
+    user, session, loading, isDemo, profile, signIn, signUp, signInDemo, signOut, exitDemo, refreshProfile, updatePassword,
   };
 
   return (
@@ -207,6 +247,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             </button>
           </div>
         </div>
+      ) : isPasswordRecovery ? (
+        <PasswordRecoveryForm onReset={async (pw) => updatePassword(pw)} />
       ) : loading ? (
         <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ backgroundColor: "var(--bg)" }}>
           <Leaf size={32} className="text-accent animate-pulse" />
