@@ -27,6 +27,10 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const DEMO_FLAG_KEY = "teapp-demo-mode";
 
+// Bump this when auth flow changes — purges stale sessions from older versions
+const AUTH_VERSION_KEY = "teapp-auth-version";
+const AUTH_VERSION = "2";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -62,6 +66,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+
+    // Version check: if auth version changed, purge stale session tokens
+    const storedVersion = typeof window !== "undefined" ? localStorage.getItem(AUTH_VERSION_KEY) : null;
+    if (storedVersion !== AUTH_VERSION) {
+      // Stale session from an older app version — sign out and clear
+      localStorage.removeItem(AUTH_VERSION_KEY);
+      localStorage.setItem(AUTH_VERSION_KEY, AUTH_VERSION);
+      // Purge Supabase auth tokens from previous versions
+      supabase.auth.signOut().catch(() => {});
+      setCurrentUserId(null);
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
 
     // Check if demo mode was previously activated (e.g. page refresh)
     const wasDemo = typeof window !== "undefined" && localStorage.getItem(DEMO_FLAG_KEY) === "true";
