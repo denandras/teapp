@@ -362,7 +362,9 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                     style={{ backgroundColor: SOURCE_COLORS[tea.source_type || "default"] + "20", color: SOURCE_COLORS[tea.source_type || "default"] }}
                     title="Source"
                   >
-                    {SOURCE_LABELS[tea.source_type || "default"]}: {tea.source || "Unknown"}
+                    {tea.source_type === "default" || !tea.source
+                      ? SOURCE_LABELS[tea.source_type || "default"]
+                      : `${SOURCE_LABELS[tea.source_type || "default"]}: ${tea.source}`}
                   </span>
                   {/* Brewing inline badges */}
                   {(editing ? editedTea.brewing_temp_c : tea.brewing_temp_c) != null && (

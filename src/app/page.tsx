@@ -256,7 +256,9 @@ export default function DashboardPage() {
                     {hoveredTea.tea.original_name && <p className="text-muted text-xs mt-1">{hoveredTea.tea.original_name}</p>}
                     <p className="text-muted text-xs mt-1">{TEA_TYPE_LABELS[hoveredTea.tea.tea_type]}</p>
                     <p className="text-xs mt-0.5" style={{ color: SOURCE_COLORS[hoveredTea.tea.source_type || 'default'] }}>
-                      {SOURCE_LABELS[hoveredTea.tea.source_type || 'default']}: {hoveredTea.tea.source}
+                      {hoveredTea.tea.source_type === 'default' || !hoveredTea.tea.source
+                        ? SOURCE_LABELS[hoveredTea.tea.source_type || 'default']
+                        : `${SOURCE_LABELS[hoveredTea.tea.source_type || 'default']}: ${hoveredTea.tea.source}`}
                     </p>
                     <p className="text-muted text-xs mt-0.5">({hoveredTea.x}, {hoveredTea.y})</p>
                     <p className="text-muted text-[10px] mt-2 italic">Tap to dismiss</p>
