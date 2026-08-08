@@ -4,7 +4,6 @@ import { create } from "zustand";
 import type { Tea, TeaStatus, TeaLog } from "./types";
 import { SOURCE_LABELS, TEA_TYPE_COLORS } from "./types";
 import { supabase } from "./supabaseClient";
-import { TEAS } from "@/data/teas";
 
 // Dynamic user ID — set by AuthProvider when auth state changes
 let currentUserId: string | null = null;
@@ -437,11 +436,11 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         hiddenTeas: data.hiddenTeas || [],
         theme: data.theme || "cozy-dark",
         accentColor: data.accentColor || "#c4853f",
-        allTeas: TEAS.map((t, i) => ({ ...t, id: t.id ?? i + 1 })),
+        allTeas: [],  // Will be loaded from Supabase; demo mode fetches public teas read-only
       });
     } else {
       // Fresh demo — start empty
-      set({ teaStates: {}, teaLogs: {}, customTeas: [], hiddenTeas: [], theme: "cozy-dark", accentColor: "#c4853f", allTeas: TEAS.map((t, i) => ({ ...t, id: t.id ?? i + 1 })) });
+      set({ teaStates: {}, teaLogs: {}, customTeas: [], hiddenTeas: [], theme: "cozy-dark", accentColor: "#c4853f", allTeas: [] });
     }
   },
 
@@ -486,7 +485,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
             teaIdToSlug[row.id] = row.slug;
           }
         }
-        allTeas = TEAS.map((t, i) => ({ ...t, id: t.id ?? i + 1 }));
+        allTeas = (teasData || []).map((row: any, i: number) => ({ ...row, id: i + 1 })) as Tea[];
       }
 
       // 0b. If no user teas found in the unified `teas` table, fall back to
