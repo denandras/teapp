@@ -444,12 +444,13 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
     }
 
     // Demo mode can still READ from Supabase (anon key allows public teas).
-    // Fetch default + public teahouse teas read-only and populate allTeas,
-    // so demo users see all the teas without needing a logged-in user.
+    // Fetch all teas — RLS policies ensure only visible teas are returned
+    // (default teas are public, teahouse teas are public if is_public=true,
+    // user teas are private to their owner).
     supabase
       .from("teas")
       .select("*")
-      .or("source_type.eq.default,(source_type.eq.teahouse,is_public.eq.true)")
+      .order("name")
       .then(({ data: publicTeas, error }) => {
         if (!error && publicTeas) {
           const normalized = (publicTeas as Tea[]).map((t) => ({
@@ -460,7 +461,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
           }));
           set({ allTeas: normalized });
         } else if (error) {
-          console.error("loadDemoData: failed to fetch public teas:", error.message);
+          console.error("loadDemoData: failed to fetch teas:", error.message);
         }
       });
   },

@@ -116,7 +116,7 @@ export default function AddTeaPage() {
   const router = useRouter();
   const addCustomTea = useTeaStore((s) => s.addCustomTea);
   const allTeas = useTeaStore((s) => s.allTeas);
-  const { profile } = useAuth();
+  const { profile, isDemo } = useAuth();
 
   const isTeahouse = profile?.profile_type === "teahouse";
   const isApproved = isApprovedTeahouse(profile);
@@ -200,6 +200,43 @@ export default function AddTeaPage() {
     setSuccess(true);
     setTimeout(() => router.push("/database"), 1500);
   };
+
+  // Demo users cannot add teas — read-only mode
+  if (isDemo) {
+    return (
+      <div className="max-w-2xl">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 260, damping: 24 }}
+          className="rounded-2xl border p-8 text-center"
+          style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
+        >
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <button
+              onClick={() => router.push("/")}
+              className="p-2 rounded-lg hover:bg-accent/10 text-muted hover:text-accent transition-colors"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <h1 className="text-2xl font-serif font-bold">Add Tea</h1>
+          </div>
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center"
+            style={{ backgroundColor: "var(--bg)" }}
+          >
+            <Coffee size={28} style={{ color: "var(--muted)" }} />
+          </motion.div>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
+            Demo mode is read-only. Sign up to add your own teas and build your collection.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
 
   // Teahouse whose enrollment is pending or rejected → block the form.
   if (isTeahouse && !isApproved) {
