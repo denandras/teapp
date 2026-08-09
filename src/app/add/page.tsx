@@ -21,7 +21,7 @@ import {
   CAFFEINE_LABELS,
 } from "@/lib/types";
 import { useAuth } from "@/components/AuthProvider";
-import { isApprovedTeahouse } from "@/lib/profiles";
+import { isApprovedTeahouse, isAdmin } from "@/lib/profiles";
 
 const CAFFEINE_LEVELS = [0, 1, 2, 3, 4, 5];
 const PRESET_SWATCHES = ["#7BA05B", "#C8C4B0", "#8B4513", "#D4852A", "#6B4226", "#E6C84E", "#C0856A", "#B07D56"];
@@ -121,6 +121,12 @@ export default function AddTeaPage() {
   const isTeahouse = profile?.profile_type === "teahouse";
   const isApproved = isApprovedTeahouse(profile);
   const teahouseLocked = isTeahouse && isApproved;
+  const adminUser = isAdmin(profile);
+
+  // Admin can choose to create as "default" (global, public, no owner) or
+  // "custom" (owned by admin's user account). Teahouses always create as
+  // teahouse teas. Regular users always create as user teas.
+  const [adminCreateAs, setAdminCreateAs] = useState<"default" | "user">("default");
 
   const [name, setName] = useState("");
   const [phonetic_name, setPhoneticName] = useState("");
@@ -145,7 +151,7 @@ export default function AddTeaPage() {
   const [success, setSuccess] = useState(false);
   const [nameBlurred, setNameBlurred] = useState(false);
 
-  const sourceType: "user" | "teahouse" = isTeahouse ? "teahouse" : "user";
+  const sourceType: "default" | "user" | "teahouse" = adminUser ? adminCreateAs : isTeahouse ? "teahouse" : "user";
   const sourceLockedValue = isTeahouse ? (profile?.teahouse_name || "") : "";
 
   // Case-insensitive dedup check: warn if a tea with the same name already exists
@@ -193,16 +199,16 @@ export default function AddTeaPage() {
       flavor_y,
       source: effectiveSource,
       source_type: sourceType,
-      is_public: isTeahouse,
-      is_custom: true,
+      is_public: sourceType === "default" ? true : isTeahouse,
+      is_custom: sourceType !== "default",
     });
 
     setSuccess(true);
     setTimeout(() => router.push("/database"), 1500);
   };
 
-  // Demo users cannot add teas — read-only mode
-  if (isDemo) {
+  // Demo users cannot add teas — read-only mode (admins bypass this)
+  if (isDemo && !adminUser) {
     return (
       <div className="max-w-2xl">
         <motion.div
@@ -239,7 +245,8 @@ export default function AddTeaPage() {
   }
 
   // Teahouse whose enrollment is pending or rejected → block the form.
-  if (isTeahouse && !isApproved) {
+  // Admins bypass this check.
+  if (isTeahouse && !isApproved && !adminUser) {
     return (
       <div className="max-w-2xl">
         <motion.div
@@ -293,12 +300,49 @@ export default function AddTeaPage() {
         <div>
           <h1 className="text-3xl font-serif font-bold">Add Tea</h1>
           <p className="text-muted text-sm mt-1">
-            {isTeahouse
-              ? "Publish a tea to your teahouse catalogue."
-              : "Can't find it in the database? Add your own."}
+            {adminUser
+              ? "Create a new tea entry in the database."
+              : isTeahouse
+                ? "Publish a tea to your teahouse catalogue."
+                : "Can't find it in the database? Add your own."}
           </p>
         </div>
       </motion.div>
+
+      {/* Admin source type toggle */}
+      {adminUser && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-2"
+        >
+          <span className="text-xs font-semibold text-muted uppercase tracking-wide mr-1">Create as:</span>
+          <button
+            type="button"
+            onClick={() => setAdminCreateAs("default")}
+            className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
+            style={{
+              backgroundColor: adminCreateAs === "default" ? "var(--accent)" : "transparent",
+              color: adminCreateAs === "default" ? "#fff" : "var(--muted)",
+              borderColor: adminCreateAs === "default" ? "var(--accent)" : "var(--border)",
+            }}
+          >
+            Default (global)
+          </button>
+          <button
+            type="button"
+            onClick={() => setAdminCreateAs("user")}
+            className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
+            style={{
+              backgroundColor: adminCreateAs === "user" ? "var(--accent)" : "transparent",
+              color: adminCreateAs === "user" ? "#fff" : "var(--muted)",
+              borderColor: adminCreateAs === "user" ? "var(--accent)" : "var(--border)",
+            }}
+          >
+            Custom (my own)
+          </button>
+        </motion.div>
+      )}
 
       <AnimatePresence>
         {success && (
@@ -576,14 +620,16 @@ export default function AddTeaPage() {
           <TextInput
             value={isTeahouse ? sourceLockedValue : source}
             onChange={(e) => setSource(e.target.value)}
-            placeholder={isTeahouse ? "" : "e.g. Your Tea Shop"}
+            placeholder={isTeahouse ? "" : adminUser && adminCreateAs === "default" ? "Teapp" : "e.g. Your Tea Shop"}
             disabled={isTeahouse}
             style={isTeahouse ? { ...inputStyle, opacity: 0.6, cursor: "not-allowed" } : inputStyle}
           />
           <p className="text-xs text-muted mt-1.5">
             {isTeahouse
               ? "Locked to your teahouse name."
-              : "This is the source visible to other users."}
+              : adminUser && adminCreateAs === "default"
+                ? "Default teas show \u201cTeapp\u201d as the source to all users."
+                : "This is the source visible to other users."}
           </p>
         </div>
 
@@ -595,7 +641,9 @@ export default function AddTeaPage() {
           style={{ backgroundColor: "var(--accent)", color: "#fff" }}
         >
           <Plus size={18} />
-          {isTeahouse ? "Publish Tea" : "Add Tea"}
+          {adminUser
+            ? adminCreateAs === "default" ? "Add Default Tea" : "Add Custom Tea"
+            : isTeahouse ? "Publish Tea" : "Add Tea"}
         </motion.button>
       </motion.form>
     </div>

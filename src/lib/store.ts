@@ -205,7 +205,10 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
     const userId = getUserId();
     if (!userId) return;
     const sourceType = tea.source_type ?? "user";
-    const isPublic = tea.is_public ?? false;
+    // Default teas (created by admin) have no owner and are public.
+    // User/teahouse teas are owned by the current user.
+    const isPublic = tea.is_public ?? (sourceType === "default");
+    const ownerId = tea.source_type === "default" ? null : (tea.owner_id ?? userId);
     const insertRow = {
       name: tea.name,
       slug,
@@ -228,8 +231,8 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       flavor_x: tea.flavor_x ?? 50,
       flavor_y: tea.flavor_y ?? 50,
       source_type: sourceType,
-      source: tea.source ?? (sourceType === "teahouse" ? "" : "custom"),
-      owner_id: tea.owner_id ?? userId,
+      source: tea.source ?? (sourceType === "default" ? "Teapp" : sourceType === "teahouse" ? "" : "custom"),
+      owner_id: ownerId,
       is_public: isPublic,
     };
     // Primary: insert into the unified `teas` table (source_type='user').

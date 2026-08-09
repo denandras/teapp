@@ -173,16 +173,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // Normal auth state change (sign in, sign out, token refresh)
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        if (newSession?.user) {
+        if (event === "SIGNED_IN" && newSession?.user) {
           setCurrentUserId(newSession.user.id);
           syncFromSupabase(newSession.user.id);
           loadProfileForUser(newSession.user.id);
-        } else {
+        } else if (event === "SIGNED_OUT" || !newSession?.user) {
           setCurrentUserId(null);
           setProfile(null);
         }
+        // TOKEN_REFRESHED and other events: keep existing store state as-is
+        // to avoid clobbering local changes (e.g. accent color) with stale
+        // server data before user edits have been persisted.
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
         setLoading(false);
       }
     );

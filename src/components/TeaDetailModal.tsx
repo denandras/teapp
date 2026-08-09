@@ -6,6 +6,7 @@ import { X, Edit, Save, Trash2, Thermometer, Clock, Repeat, MapPin, Star, Heart,
 import { Tea, TeaStatus, TeaLog, CAFFEINE_LABELS, SOURCE_LABELS, SOURCE_COLORS } from "@/lib/types";
 import { useTeaStore, getCurrentUserId } from "@/lib/store";
 import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/components/AuthProvider";
 import StatusCheckbox from "./StatusCheckbox";
 
 interface Props {
@@ -76,6 +77,7 @@ function CaffeineMeter({ level, onChange, editing }: { level: number; onChange?:
 }
 
 export default function TeaDetailModal({ tea, onClose }: Props) {
+  const { profile } = useAuth();
   const [editing, setEditing] = useState(false);
   const [editedTea, setEditedTea] = useState(tea);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -160,34 +162,64 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
     return teaLogs.reduce((acc, log) => acc + log.rating, 0) / teaLogs.length;
   }, [teaLogs]);
 
-  const canEdit = tea.source_type !== "default" && tea.owner_id != null && tea.owner_id === getCurrentUserId();
+  // Regular users can edit their own non-default teas.
+  // Admins can edit ANY tea (including default ones).
+  const isAdminUser = !!profile?.is_admin;
+  const isOwner = tea.source_type !== "default" && tea.owner_id != null && tea.owner_id === getCurrentUserId();
+  const canEdit = isAdminUser || isOwner;
 
   const handleSave = async () => {
     if (canEdit) {
       setIsSaving(true);
       try {
-        await supabase
-          .from("teas")
-          .update({
-            name: editedTea.name,
-            phonetic_name: editedTea.phonetic_name,
-            original_name: editedTea.original_name,
-            description: editedTea.description,
-            origin: editedTea.origin,
-            tea_type: editedTea.tea_type,
-            caffeine_level: editedTea.caffeine_level,
-            brewing_temp_c: editedTea.brewing_temp_c,
-            brewing_time_min: editedTea.brewing_time_min,
-            brewing_num_brews: editedTea.brewing_num_brews,
-            brewing_instructions: editedTea.brewing_instructions,
-            characteristics: editedTea.characteristics,
-            health_benefits: editedTea.health_benefits,
-            color_hex: editedTea.color_hex,
-            flavor_x: editedTea.flavor_x,
-            flavor_y: editedTea.flavor_y,
-          })
-          .eq("slug", tea.slug)
-          .eq("owner_id", getCurrentUserId());
+        if (isAdminUser) {
+          // Admin: update by slug, no owner_id filter — can edit any tea
+          await supabase
+            .from("teas")
+            .update({
+              name: editedTea.name,
+              phonetic_name: editedTea.phonetic_name,
+              original_name: editedTea.original_name,
+              description: editedTea.description,
+              origin: editedTea.origin,
+              tea_type: editedTea.tea_type,
+              caffeine_level: editedTea.caffeine_level,
+              brewing_temp_c: editedTea.brewing_temp_c,
+              brewing_time_min: editedTea.brewing_time_min,
+              brewing_num_brews: editedTea.brewing_num_brews,
+              brewing_instructions: editedTea.brewing_instructions,
+              characteristics: editedTea.characteristics,
+              health_benefits: editedTea.health_benefits,
+              color_hex: editedTea.color_hex,
+              flavor_x: editedTea.flavor_x,
+              flavor_y: editedTea.flavor_y,
+            })
+            .eq("slug", tea.slug);
+        } else {
+          // Regular user: update only own teas
+          await supabase
+            .from("teas")
+            .update({
+              name: editedTea.name,
+              phonetic_name: editedTea.phonetic_name,
+              original_name: editedTea.original_name,
+              description: editedTea.description,
+              origin: editedTea.origin,
+              tea_type: editedTea.tea_type,
+              caffeine_level: editedTea.caffeine_level,
+              brewing_temp_c: editedTea.brewing_temp_c,
+              brewing_time_min: editedTea.brewing_time_min,
+              brewing_num_brews: editedTea.brewing_num_brews,
+              brewing_instructions: editedTea.brewing_instructions,
+              characteristics: editedTea.characteristics,
+              health_benefits: editedTea.health_benefits,
+              color_hex: editedTea.color_hex,
+              flavor_x: editedTea.flavor_x,
+              flavor_y: editedTea.flavor_y,
+            })
+            .eq("slug", tea.slug)
+            .eq("owner_id", getCurrentUserId());
+        }
       } finally {
         setIsSaving(false);
       }
@@ -196,7 +228,13 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
   };
 
   const handleDelete = async () => {
-    if (tea.source_type !== "default" && tea.owner_id != null && tea.owner_id === getCurrentUserId()) {
+    if (isAdminUser) {
+      // Admin: permanently delete any tea from the database
+      await supabase
+        .from("teas")
+        .delete()
+        .eq("slug", tea.slug);
+    } else if (tea.source_type !== "default" && tea.owner_id != null && tea.owner_id === getCurrentUserId()) {
       await supabase
         .from("teas")
         .delete()
@@ -272,11 +310,13 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                   <AlertTriangle size={32} className="mx-auto mb-3 text-red-400" />
                   <h3 className="font-semibold text-lg mb-2">Delete this tea?</h3>
                   <p className="text-sm text-muted mb-4">
-                    {tea.source_type !== "default" && tea.owner_id != null && tea.owner_id === getCurrentUserId()
-                      ? "This tea will be permanently deleted from your collection."
-                      : tea.is_custom
-                        ? "This custom tea will be permanently deleted."
-                        : "This tea will be hidden from your view. You can restore it later."}
+                    {isAdminUser
+                      ? "As an admin, this tea will be permanently deleted from the database for all users."
+                      : tea.source_type !== "default" && tea.owner_id != null && tea.owner_id === getCurrentUserId()
+                        ? "This tea will be permanently deleted from your collection."
+                        : tea.is_custom
+                          ? "This custom tea will be permanently deleted."
+                          : "This tea will be hidden from your view. You can restore it later."}
                   </p>
                   <div className="flex gap-2 justify-center">
                     <button
