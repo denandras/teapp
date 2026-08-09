@@ -141,7 +141,7 @@ export default function DashboardPage() {
         ) : (
         <div className="relative">
           {/* Y-axis labels — vertical text to save horizontal space */}
-          <div className="absolute left-0 top-0 bottom-8 flex flex-col items-center justify-between pointer-events-none z-10" style={{ width: 20 }}>
+          <div className="absolute left-0 top-0 bottom-8 flex flex-col items-center justify-between pointer-events-none z-10" style={{ width: "clamp(14px, 3.5vw, 20px)" }}>
             <span className="text-[10px] sm:text-xs font-medium text-accent leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
               ↑ Sweet / Umami
             </span>
@@ -153,7 +153,7 @@ export default function DashboardPage() {
             </span>
           </div>
           {/* Chart area */}
-          <div className="pl-5 sm:pl-10 relative">
+          <div className="pl-2 sm:pl-10 relative">
             <ResponsiveContainer width="100%" height={350} minHeight={280}>
               <ScatterChart margin={{ top: 10, right: 4, bottom: 10, left: 4 }}>
                 {/* Quadrant background colors */}
@@ -187,27 +187,7 @@ export default function DashboardPage() {
                 {/* Zero lines (axes through origin) */}
                 <ReferenceLine x={0} stroke="var(--muted)" strokeOpacity={0.5} strokeWidth={1.5} />
                 <ReferenceLine y={0} stroke="var(--muted)" strokeOpacity={0.5} strokeWidth={1.5} />
-                {/* Quadrant labels — smaller on mobile */}
-                <ReferenceLine
-                  x={25}
-                  stroke="none"
-                  label={{ value: "Roasted & Sweet", position: "insideTopRight", fill: "var(--muted)", fontSize: 9, opacity: 0.4 }}
-                />
-                <ReferenceLine
-                  x={-25}
-                  stroke="none"
-                  label={{ value: "Fresh & Sweet", position: "insideTopLeft", fill: "var(--muted)", fontSize: 9, opacity: 0.4 }}
-                />
-                <ReferenceLine
-                  x={-25}
-                  stroke="none"
-                  label={{ value: "Fresh & Bitter", position: "insideBottomLeft", fill: "var(--muted)", fontSize: 9, opacity: 0.4 }}
-                />
-                <ReferenceLine
-                  x={25}
-                  stroke="none"
-                  label={{ value: "Roasted & Bitter", position: "insideBottomRight", fill: "var(--muted)", fontSize: 9, opacity: 0.4 }}
-                />
+
                 <Scatter
                   data={chartData}
                   onMouseEnter={(data: any) => {
@@ -268,7 +248,7 @@ export default function DashboardPage() {
             </AnimatePresence>
           </div>
           {/* X-axis labels — HTML for responsive control */}
-          <div className="flex justify-between pl-5 sm:pl-10 pr-1 mt-1">
+          <div className="flex justify-between pl-2 sm:pl-10 pr-1 mt-1">
             <span className="text-[10px] sm:text-xs font-medium text-accent leading-tight">
               ← Fresh / Green
             </span>

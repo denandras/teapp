@@ -28,6 +28,15 @@ export function isDemoMode() {
 }
 
 const DEMO_STORAGE_KEY = "teapp-demo-data";
+const ACCENT_STORAGE_KEY = "teapp-accent-color";
+
+/** Cache accent color in localStorage for instant restore on page reload. */
+function saveAccentCache(color: string) {
+  try { localStorage.setItem(ACCENT_STORAGE_KEY, color); } catch {}
+}
+function loadAccentCache(): string | null {
+  try { return localStorage.getItem(ACCENT_STORAGE_KEY); } catch { return null; }
+}
 
 interface DemoState {
   teaStates: Record<string, TeaStatus>;
@@ -413,10 +422,11 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       });
   },
 
-  accentColor: "#c4853f",
+  accentColor: typeof window !== "undefined" ? (loadAccentCache() || "#c4853f") : "#c4853f",
   allTeas: [],
   setAccentColor: (color) => {
     set({ accentColor: color });
+    saveAccentCache(color);
     if (demoMode) { saveDemoState(get()); return; }
     const userId = getUserId();
     if (!userId) return;
@@ -432,13 +442,15 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
   loadDemoData: () => {
     const data = loadDemoState();
     if (data) {
+      const demoAccent = data.accentColor || "#c4853f";
+      saveAccentCache(demoAccent);
       set({
         teaStates: data.teaStates || {},
         teaLogs: data.teaLogs || {},
         customTeas: data.customTeas || [],
         hiddenTeas: data.hiddenTeas || [],
         theme: data.theme || "cozy-dark",
-        accentColor: data.accentColor || "#c4853f",
+        accentColor: demoAccent,
         allTeas: [],  // Will be loaded from Supabase; demo mode fetches public teas read-only
       });
     } else {
@@ -602,7 +614,8 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
 
       // 3. Load user_preferences (theme + accent color)
       let theme: "cozy-dark" | "cozy-light" | "warm" | "dark-green" = "cozy-dark";
-      let accentColor: string = "#c4853f";
+      // Preserve cached accent color — don't reset to default if DB has nothing
+      let accentColor: string = loadAccentCache() || "#c4853f";
       const { data: prefs, error: prefsErr } = await supabase
         .from("user_preferences")
         .select("theme, accent_color")
@@ -614,6 +627,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         }
         if (prefs.accent_color) {
           accentColor = prefs.accent_color as string;
+          saveAccentCache(accentColor);
         }
       }
 
