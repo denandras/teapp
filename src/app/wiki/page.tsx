@@ -97,7 +97,7 @@ function EntryDetail({ entry, onBack }: { entry: WikiEntry; onBack: () => void }
         className="flex items-center gap-1.5 text-sm text-muted hover:text-accent transition-colors"
       >
         <ArrowLeft size={16} />
-        Back to {""}
+        Back
       </button>
 
       {/* Title + description */}
