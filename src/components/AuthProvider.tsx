@@ -8,6 +8,7 @@ import { useTeaStore, setCurrentUserId, setDemoMode } from "@/lib/store";
 import { fetchProfile, type Profile } from "@/lib/profiles";
 import LoginForm from "@/components/LoginForm";
 import PasswordRecoveryForm from "@/components/PasswordRecoveryForm";
+import { CookieConsent } from "@/components/CookieConsent";
 import { Leaf } from "lucide-react";
 
 interface AuthContextValue {
@@ -313,7 +314,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ) : (user || isDemo) ? (
         children
       ) : (
-        <LoginForm />
+        <CookieConsent>
+          <LoginForm />
+        </CookieConsent>
       )}
     </AuthContext.Provider>
   );
