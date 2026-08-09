@@ -1,6 +1,36 @@
 -- Migration: Discord webhook notifications for teahouse enrollment + new user signup
 -- Sends event-only messages (no user data) to the #automations Discord channel.
 -- Requires: pg_net extension enabled in Supabase dashboard.
+--
+-- ============================================================
+-- WEBHOOK ROTATION PROCEDURE
+-- ============================================================
+-- If the webhook URL is ever compromised (e.g. committed to git):
+--
+-- 1. Delete the compromised webhook in Discord:
+--    Server Settings → Integrations → Webhooks → delete the one in #automations
+--
+-- 2. Create a new webhook in Discord:
+--    #automations channel → Edit Channel → Integrations → Create Webhook
+--    Name it "Teapp Events", copy the URL
+--
+-- 3. Update the URL in Supabase (do NOT put it in this file):
+--    Run in Supabase SQL Editor:
+--      CREATE OR REPLACE FUNCTION teapp_discord_webhook_url()
+--      RETURNS TEXT AS $$
+--      BEGIN
+--        RETURN 'https://discord.com/api/webhooks/NEW_ID/NEW_TOKEN';
+--      END;
+--      $$ LANGUAGE plpgsql SECURITY DEFINER;
+--
+-- 4. Test end-to-end:
+--    SELECT teapp_notify_discord('🫖 Test — webhook rotation complete.');
+--    Verify the message appears in #automations.
+--
+-- 5. NEVER commit the real webhook URL to this repo.
+--    This file must always contain the placeholder 'DISCORD_WEBHOOK_URL_PLACEHOLDER'.
+--    A CI check (.github/workflows/secret-scan.yml) will block commits that
+--    contain a Discord webhook URL pattern.
 
 -- ============================================================
 -- 1. Enable pg_net extension
