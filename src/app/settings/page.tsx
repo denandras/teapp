@@ -160,7 +160,7 @@ export default function SettingsPage() {
       <div className="rounded-xl border p-4" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
         <h2 className="text-sm font-semibold text-muted uppercase tracking-wide mb-2">About</h2>
         <p className="text-sm text-muted leading-relaxed">
-          Teapp v1.0 — A cozy tea management webapp. Data sourced from Wikidata (277 entries) and TheTeaAPI (26 enriched entries).
+          Teapp v2.0 — A cozy tea management webapp. Data sourced from Wikidata (277 entries) and TheTeaAPI (26 enriched entries), with teahouse-published and user-added teas. Includes a tea wiki covering brewing methods, pouring techniques, accessories, and tea processing.
           {isDemo
             ? " Demo mode: data stored locally in your browser only."
             : " Your data is synced to Supabase. Add custom teas for anything not in the database."}
