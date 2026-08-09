@@ -95,9 +95,6 @@ function RangeSlider({
     <div>
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs font-semibold text-muted uppercase tracking-wide">{label}</span>
-        <span className="text-xs font-medium" style={{ color: "var(--accent)" }}>
-          {left} {value} {right}
-        </span>
       </div>
       <input
         type="range"
@@ -108,6 +105,10 @@ function RangeSlider({
         className="w-full accent-[var(--accent)]"
         style={{ accentColor: "var(--accent)" }}
       />
+      <div className="flex items-center justify-between mt-0.5">
+        <span className="text-[11px] text-muted">{left}</span>
+        <span className="text-[11px] text-muted">{right}</span>
+      </div>
     </div>
   );
 }
@@ -143,8 +144,6 @@ export default function AddTeaPage() {
   const [characteristics, setCharacteristics] = useState("");
   const [health_benefits, setHealthBenefits] = useState("");
   const [color_hex, setColorHex] = useState("#7BA05B");
-  const [oxidation_level, setOxidationLevel] = useState(50);
-  const [roast_level, setRoastLevel] = useState(50);
   const [flavor_x, setFlavorX] = useState(50);
   const [flavor_y, setFlavorY] = useState(50);
   const [source, setSource] = useState("");
@@ -193,8 +192,6 @@ export default function AddTeaPage() {
       characteristics: characteristics.split(",").map((s) => s.trim()).filter(Boolean),
       health_benefits: health_benefits.split(",").map((s) => s.trim()).filter(Boolean),
       color_hex,
-      oxidation_level,
-      roast_level,
       flavor_x,
       flavor_y,
       source: effectiveSource,
@@ -431,7 +428,10 @@ export default function AddTeaPage() {
               <motion.button
                 key={type}
                 type="button"
-                onClick={() => setTeaType(type)}
+                onClick={() => {
+                  setTeaType(type);
+                  setColorHex(TEA_TYPE_COLORS[type] || "#999");
+                }}
                 whileTap={{ scale: 0.94 }}
                 className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
                 style={{
@@ -606,12 +606,10 @@ export default function AddTeaPage() {
           </div>
         </div>
 
-        {/* Sliders */}
-        <div className="space-y-4 rounded-xl border p-4" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
-          <RangeSlider label="Oxidation" left="" right="%" value={oxidation_level} onChange={setOxidationLevel} />
-          <RangeSlider label="Roast" left="" right="%" value={roast_level} onChange={setRoastLevel} />
-          <RangeSlider label="Flavor X" left="Fresh" right="Roasted" value={flavor_x} onChange={setFlavorX} />
-          <RangeSlider label="Flavor Y" left="Bitter" right="Sweet" value={flavor_y} onChange={setFlavorY} />
+        {/* Flavor profile sliders */}
+        <div className="space-y-5 rounded-xl border p-4" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+          <RangeSlider label="Flavor" left="Fresh" right="Roasted" value={flavor_x} onChange={setFlavorX} />
+          <RangeSlider label="Taste" left="Bitter" right="Sweet" value={flavor_y} onChange={setFlavorY} />
         </div>
 
         {/* Source */}
