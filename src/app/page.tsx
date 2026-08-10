@@ -13,8 +13,6 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
   const [showOnlyCollection, setShowOnlyCollection] = useState(false);
-  const [bubbling, setBubbling] = useState(false);
-  const [chartKey, setChartKey] = useState(0);
   const [hoveredTea, setHoveredTea] = useState<{ tea: Tea; x: number; y: number; px: number; py: number } | null>(null);
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const teaStates = useTeaStore((s) => s.teaStates);
@@ -64,13 +62,17 @@ export default function DashboardPage() {
     setActiveTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
   };
 
-  // Bubble animation: pop dots out, switch collection, pop dots back in
+  // Bubble animation: pop dots out, swap data, pop dots back in
+  const [scatterPhase, setScatterPhase] = useState<"idle" | "pop-out" | "pop-in">("idle");
+
   const handleCollectionToggle = () => {
-    setBubbling(true);
-    setChartKey(k => k + 1);
+    // Phase 1: pop existing dots out
+    setScatterPhase("pop-out");
     setTimeout(() => {
+      // Phase 2: swap data + pop new dots in
       setShowOnlyCollection(prev => !prev);
-      setBubbling(false);
+      setScatterPhase("pop-in");
+      setTimeout(() => setScatterPhase("idle"), 500);
     }, 300);
   };
 
@@ -171,8 +173,11 @@ export default function DashboardPage() {
             </span>
           </div>
           {/* Chart area */}
-          <div className="pl-2 sm:pl-10 relative" ref={chartAreaRef}>
-            <ResponsiveContainer key={chartKey} width="100%" height={350} minHeight={280}>
+          <div
+            className={`pl-2 sm:pl-10 relative ${scatterPhase === "pop-in" ? "scatter-pop-in" : ""} ${scatterPhase === "pop-out" ? "scatter-pop-out" : ""}`}
+            ref={chartAreaRef}
+          >
+            <ResponsiveContainer width="100%" height={350} minHeight={280}>
               <ScatterChart margin={{ top: 10, right: 4, bottom: 10, left: 4 }}>
                 {/* Quadrant background colors */}
                 <ReferenceArea x1={0} x2={50} y1={0} y2={50} fill="var(--accent)" fillOpacity={0.02} />
@@ -208,8 +213,7 @@ export default function DashboardPage() {
 
                 <Scatter
                   data={chartData}
-                  animationDuration={bubbling ? 300 : 600}
-                  animationBegin={bubbling ? 0 : 50}
+                  isAnimationActive={false}
                   onMouseEnter={(data: any, e: any) => {
                     const d = Array.isArray(data) ? data[0]?.payload : data?.payload;
                     if (d?.tea && chartAreaRef.current) {
