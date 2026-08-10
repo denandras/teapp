@@ -13,6 +13,8 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
   const [showOnlyCollection, setShowOnlyCollection] = useState(false);
+  const [bubbling, setBubbling] = useState(false);
+  const [chartKey, setChartKey] = useState(0);
   const [hoveredTea, setHoveredTea] = useState<{ tea: Tea; x: number; y: number; px: number; py: number } | null>(null);
   const chartAreaRef = useRef<HTMLDivElement>(null);
   const teaStates = useTeaStore((s) => s.teaStates);
@@ -62,6 +64,19 @@ export default function DashboardPage() {
     setActiveTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
   };
 
+  // Bubble animation: pop dots out, switch collection, pop dots back in
+  const handleCollectionToggle = () => {
+    setBubbling(true);
+    setChartKey(k => k + 1);
+    setTimeout(() => {
+      setShowOnlyCollection(prev => !prev);
+      setBubbling(false);
+    }, 300);
+  };
+
+  // Stagger delay for dots popping in
+  const staggerDelay = (index: number) => Math.min(index * 0.02, 0.5);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -93,8 +108,9 @@ export default function DashboardPage() {
               </button>
             )}
           </div>
-          <button
-            onClick={() => setShowOnlyCollection(!showOnlyCollection)}
+          <motion.button
+            onClick={handleCollectionToggle}
+            whileTap={{ scale: 0.95 }}
             className="px-3 py-2 rounded-lg text-sm font-medium transition-colors border whitespace-nowrap"
             style={{
               backgroundColor: showOnlyCollection ? "var(--accent)" : "transparent",
@@ -103,18 +119,22 @@ export default function DashboardPage() {
             }}
           >
             My Collection
-          </button>
+          </motion.button>
         </div>
       </div>
 
       {/* Type filters */}
       <div className="flex items-center gap-2 flex-wrap overflow-x-auto pb-1">
-        {ALL_TEA_TYPES.map(type => {
+        {ALL_TEA_TYPES.map((type, i) => {
           const active = activeTypes.includes(type);
           return (
-            <button
+            <motion.button
               key={type}
               onClick={() => toggleType(type)}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.03, duration: 0.2 }}
+              whileTap={{ scale: 0.92 }}
               className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
               style={{
                 backgroundColor: active ? TEA_TYPE_COLORS[type] : "transparent",
@@ -123,7 +143,7 @@ export default function DashboardPage() {
               }}
             >
               {TEA_TYPE_LABELS[type]}
-            </button>
+            </motion.button>
           );
         })}
       </div>
@@ -152,7 +172,7 @@ export default function DashboardPage() {
           </div>
           {/* Chart area */}
           <div className="pl-2 sm:pl-10 relative" ref={chartAreaRef}>
-            <ResponsiveContainer width="100%" height={350} minHeight={280}>
+            <ResponsiveContainer key={chartKey} width="100%" height={350} minHeight={280}>
               <ScatterChart margin={{ top: 10, right: 4, bottom: 10, left: 4 }}>
                 {/* Quadrant background colors */}
                 <ReferenceArea x1={0} x2={50} y1={0} y2={50} fill="var(--accent)" fillOpacity={0.02} />
@@ -188,6 +208,8 @@ export default function DashboardPage() {
 
                 <Scatter
                   data={chartData}
+                  animationDuration={bubbling ? 300 : 600}
+                  animationBegin={bubbling ? 0 : 50}
                   onMouseEnter={(data: any, e: any) => {
                     const d = Array.isArray(data) ? data[0]?.payload : data?.payload;
                     if (d?.tea && chartAreaRef.current) {
@@ -219,7 +241,13 @@ export default function DashboardPage() {
                   }}
                 >
                   {chartData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} fillOpacity={entry.status === "empty" ? 0.5 : 0.9} stroke={entry.color} strokeWidth={entry.status !== "empty" ? 2 : 0} />
+                    <Cell
+                      key={i}
+                      fill={entry.color}
+                      fillOpacity={entry.status === "empty" ? 0.5 : 0.9}
+                      stroke={entry.color}
+                      strokeWidth={entry.status !== "empty" ? 2 : 0}
+                    />
                   ))}
                 </Scatter>
               </ScatterChart>

@@ -23,6 +23,28 @@ function SourceBadge({ tea }: { tea: Tea }) {
   );
 }
 
+// Compact filter pill
+function FilterPill({
+  active, onClick, children, activeColor,
+}: {
+  active: boolean; onClick: () => void; children: React.ReactNode; activeColor: string;
+}) {
+  return (
+    <motion.button
+      onClick={onClick}
+      whileTap={{ scale: 0.92 }}
+      className="px-2.5 py-1 rounded-full text-xs font-medium transition-all border flex-shrink-0"
+      style={{
+        backgroundColor: active ? activeColor : "transparent",
+        color: active ? "#fff" : "var(--muted)",
+        borderColor: active ? activeColor : "var(--border)",
+      }}
+    >
+      {children}
+    </motion.button>
+  );
+}
+
 export default function DatabasePage() {
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
@@ -71,7 +93,6 @@ export default function DatabasePage() {
     }
     if (sourceFilter !== "all") {
       if (sourceFilter === "user") {
-        // 'Mine' — teas owned by the current user (both personal and teahouse)
         teas = teas.filter(t => (t.source_type === "user" || t.source_type === "teahouse") && t.owner_id === currentUserId);
       } else {
         teas = teas.filter(t => t.source_type === sourceFilter);
@@ -140,74 +161,63 @@ export default function DatabasePage() {
         )}
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-2 flex-wrap overflow-x-auto pb-1">
-        {ALL_TEA_TYPES.map(type => {
-          const active = activeTypes.includes(type);
-          return (
-            <button
+      {/* Filters — compact rows with labeled groups, no line breaks within a group */}
+      <div className="space-y-2">
+        {/* Row 1: Tea type filters */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1">Type</span>
+          {ALL_TEA_TYPES.map(type => (
+            <FilterPill
               key={type}
+              active={activeTypes.includes(type)}
               onClick={() => toggleType(type)}
-              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex-shrink-0"
-              style={{
-                backgroundColor: active ? TEA_TYPE_COLORS[type] : "transparent",
-                color: active ? "#fff" : "var(--muted)",
-                borderColor: active ? TEA_TYPE_COLORS[type] : "var(--border)",
-              }}
+              activeColor={TEA_TYPE_COLORS[type]}
             >
               {TEA_TYPE_LABELS[type]}
-            </button>
-          );
-        })}
-        <div className="w-px h-6 mx-2" style={{ backgroundColor: "var(--border)" }} />
-        {(["all", "have", "tried", "empty"] as const).map(s => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
-            style={{
-              backgroundColor: statusFilter === s ? "var(--accent)" : "transparent",
-              color: statusFilter === s ? "#fff" : "var(--muted)",
-              borderColor: statusFilter === s ? "var(--accent)" : "var(--border)",
-            }}
-          >
-            {s === "all" ? "All" : statusConfig[s].label}
-          </button>
-        ))}
-        <div className="w-px h-6 mx-2" style={{ backgroundColor: "var(--border)" }} />
-        {(["all", "default", "teahouse", "user"] as const).map(s => (
-          <button
-            key={s}
-            onClick={() => setSourceFilter(s)}
-            className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
-            style={{
-              backgroundColor: sourceFilter === s ? SOURCE_COLORS[s === "all" ? "default" : s] : "transparent",
-              color: sourceFilter === s ? "#fff" : "var(--muted)",
-              borderColor: sourceFilter === s ? SOURCE_COLORS[s === "all" ? "default" : s] : "var(--border)",
-            }}
-          >
-            {s === "all" ? "All" : s === "default" ? "Default" : s === "teahouse" ? "Tea House" : "Mine"}
-          </button>
-        ))}
-        <div className="w-px h-6 mx-2" style={{ backgroundColor: "var(--border)" }} />
-        <div className="flex items-center gap-1">
-          {(["name", "type", "rating"] as const).map(s => (
-            <button
+            </FilterPill>
+          ))}
+        </div>
+
+        {/* Row 2: Status + Source + Sort — each group on one line, separated by dividers */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1">Status</span>
+          {(["all", "have", "tried", "empty"] as const).map(s => (
+            <FilterPill
               key={s}
-              onClick={() => { setSortBy(s); if (s === "rating") setSortDir("desc"); }}
-              className="px-3 py-1.5 rounded-full text-xs font-medium border transition-all"
-              style={{
-                backgroundColor: sortBy === s ? "var(--accent)" : "transparent",
-                color: sortBy === s ? "#fff" : "var(--muted)",
-                borderColor: sortBy === s ? "var(--accent)" : "var(--border)",
-              }}
+              active={statusFilter === s}
+              onClick={() => setStatusFilter(s)}
+              activeColor="var(--accent)"
             >
-              Sort: {s === "name" ? "Name" : s === "type" ? "Type" : "Rating"}
-            </button>
+              {s === "all" ? "All" : statusConfig[s].label}
+            </FilterPill>
+          ))}
+          <span className="w-px h-5 mx-1" style={{ backgroundColor: "var(--border)" }} />
+          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1">Source</span>
+          {(["all", "default", "teahouse", "user"] as const).map(s => (
+            <FilterPill
+              key={s}
+              active={sourceFilter === s}
+              onClick={() => setSourceFilter(s)}
+              activeColor={SOURCE_COLORS[s === "all" ? "default" : s]}
+            >
+              {s === "all" ? "All" : s === "default" ? "Default" : s === "teahouse" ? "Tea House" : "Mine"}
+            </FilterPill>
+          ))}
+          <span className="w-px h-5 mx-1" style={{ backgroundColor: "var(--border)" }} />
+          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1">Sort</span>
+          {(["name", "type", "rating"] as const).map(s => (
+            <FilterPill
+              key={s}
+              active={sortBy === s}
+              onClick={() => { setSortBy(s); if (s === "rating") setSortDir("desc"); }}
+              activeColor="var(--accent)"
+            >
+              {s === "name" ? "Name" : s === "type" ? "Type" : "Rating"}
+            </FilterPill>
           ))}
           <button
             onClick={toggleSort}
-            className="px-2 py-1.5 rounded-full text-xs font-medium border transition-all"
+            className="px-2 py-1 rounded-full text-xs font-medium border transition-all flex-shrink-0"
             style={{ borderColor: "var(--border)", color: "var(--muted)" }}
           >
             {sortDir === "asc" ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -222,7 +232,7 @@ export default function DatabasePage() {
         ) : (
           <div className="divide-y" style={{ borderColor: "var(--border)" }}>
             <AnimatePresence>
-              {filteredTeas.map((tea) => {
+              {filteredTeas.map((tea, i) => {
                 const status = teaStates[tea.slug] || "empty";
                 const expanded = expandedTea === tea.slug;
                 const avgRating = getAvgRating(tea.slug);
@@ -230,10 +240,10 @@ export default function DatabasePage() {
                 return (
                   <motion.div
                     key={tea.slug}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.2, delay: Math.min(i * 0.015, 0.3) }}
                     className="group"
                     style={{ borderColor: "var(--border)" }}
                   >
@@ -250,7 +260,7 @@ export default function DatabasePage() {
                         aria-label={`Filter by ${TEA_TYPE_LABELS[tea.tea_type]}`}
                       />
 
-                      {/* Name — click to open detail modal */}
+                      {/* Name + inline metadata — all on one row to avoid line break confusion */}
                       <div
                         className="min-w-0 flex-1"
                         onClick={(e) => { e.stopPropagation(); setSelectedTea(tea); }}
@@ -258,34 +268,43 @@ export default function DatabasePage() {
                         <div className="flex items-center gap-2">
                           <span className="font-medium truncate hover:text-accent transition-colors">{tea.name || "Unknown Tea"}</span>
                           <SourceBadge tea={tea} />
-                        </div>
-                        {(tea.original_name || tea.phonetic_name) && (
-                          <span className="text-xs text-muted truncate block">
-                            {tea.original_name && <span className="font-serif">{tea.original_name}</span>}
-                            {tea.original_name && tea.phonetic_name && " · "}
-                            {tea.phonetic_name}
+                          {/* Type badge inline */}
+                          <span
+                            className="hidden sm:inline px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
+                            style={{ backgroundColor: tea.color_hex + "20", color: tea.color_hex }}
+                          >
+                            {TEA_TYPE_LABELS[tea.tea_type]}
                           </span>
-                        )}
-                        {/* Inline brewing badges */}
-                        <div className="flex items-center gap-2 mt-1">
-                          {tea.brewing_temp_c != null && (
-                            <span className="flex items-center gap-0.5 text-xs text-muted">
-                              <Thermometer size={11} className="text-accent" />
-                              {tea.brewing_temp_c}°C
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          {(tea.original_name || tea.phonetic_name) && (
+                            <span className="text-xs text-muted truncate">
+                              {tea.original_name && <span className="font-serif">{tea.original_name}</span>}
+                              {tea.original_name && tea.phonetic_name && " · "}
+                              {tea.phonetic_name}
                             </span>
                           )}
-                          {tea.brewing_time_min != null && (
-                            <span className="flex items-center gap-0.5 text-xs text-muted">
-                              <Clock size={11} className="text-accent" />
-                              {tea.brewing_time_min}m
-                            </span>
-                          )}
-                          {tea.brewing_num_brews > 1 && (
-                            <span className="flex items-center gap-0.5 text-xs text-muted">
-                              <Repeat size={11} className="text-accent" />
-                              {tea.brewing_num_brews}×
-                            </span>
-                          )}
+                          {/* Inline brewing data — separated by dots, no line breaks */}
+                          <span className="flex items-center gap-2 text-xs text-muted flex-shrink-0">
+                            {tea.brewing_temp_c != null && (
+                              <span className="flex items-center gap-0.5">
+                                <Thermometer size={11} className="text-accent" />
+                                {tea.brewing_temp_c}°C
+                              </span>
+                            )}
+                            {tea.brewing_time_min != null && (
+                              <span className="flex items-center gap-0.5">
+                                <Clock size={11} className="text-accent" />
+                                {tea.brewing_time_min}m
+                              </span>
+                            )}
+                            {tea.brewing_num_brews > 1 && (
+                              <span className="flex items-center gap-0.5">
+                                <Repeat size={11} className="text-accent" />
+                                {tea.brewing_num_brews}×
+                              </span>
+                            )}
+                          </span>
                         </div>
                       </div>
 
@@ -297,14 +316,6 @@ export default function DatabasePage() {
                           <span className="text-xs text-muted">({logCount})</span>
                         </div>
                       )}
-
-                      {/* Type badge */}
-                      <span
-                        className="hidden sm:inline px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
-                        style={{ backgroundColor: tea.color_hex + "20", color: tea.color_hex }}
-                      >
-                        {TEA_TYPE_LABELS[tea.tea_type]}
-                      </span>
 
                       {/* Status checkbox */}
                       <button

@@ -64,16 +64,22 @@ function getIcon(name: string) {
 
 // ── ParamCard component ──────────────────────────────────────────────
 
-function ParamCard({ param }: { param: WikiParam }) {
+function ParamCard({ param, index }: { param: WikiParam; index: number }) {
   const Icon = getIcon(param.icon);
   return (
-    <div className="rounded-xl border p-3" style={{ backgroundColor: "var(--bg)", borderColor: "var(--border)" }}>
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.05, duration: 0.2 }}
+      className="rounded-xl border p-3"
+      style={{ backgroundColor: "var(--bg)", borderColor: "var(--border)" }}
+    >
       <div className="flex items-center gap-2 mb-1.5">
         <Icon size={15} className="text-accent" />
         <span className="text-xs text-muted uppercase tracking-wide font-semibold">{param.label}</span>
       </div>
       <p className="text-sm leading-relaxed">{param.value}</p>
-    </div>
+    </motion.div>
   );
 }
 
@@ -89,7 +95,7 @@ function EntryDetail({ entry, onBack }: { entry: WikiEntry; onBack: () => void }
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
-      className="space-y-6"
+      className="space-y-4"
     >
       {/* Back button */}
       <button
@@ -101,7 +107,13 @@ function EntryDetail({ entry, onBack }: { entry: WikiEntry; onBack: () => void }
       </button>
 
       {/* Title + description */}
-      <div className="rounded-2xl border p-5 sm:p-6 paper-card" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.05, duration: 0.25 }}
+        className="rounded-2xl border p-5 sm:p-6 paper-card"
+        style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
+      >
         <div className="flex items-start gap-3 mb-3">
           <Icon size={28} className="text-accent flex-shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1">
@@ -131,49 +143,74 @@ function EntryDetail({ entry, onBack }: { entry: WikiEntry; onBack: () => void }
             ))}
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* Parameters */}
       {entry.params && entry.params.length > 0 && (
-        <div className="rounded-2xl border p-5 sm:p-6 paper-card" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.25 }}
+          className="rounded-2xl border p-5 sm:p-6 paper-card"
+          style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
+        >
           <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-4">Key Parameters</h3>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {entry.params.map((p, i) => (
-              <ParamCard key={i} param={p} />
+              <ParamCard key={i} param={p} index={i} />
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Sections */}
       {entry.sections && entry.sections.length > 0 && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {entry.sections.map((sec, i) => (
-            <div key={i} className="rounded-2xl border p-5 sm:p-6 paper-card" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
-              <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-3">{sec.heading}</h3>
-              <p className="text-sm leading-relaxed mb-3">{sec.body}</p>
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.12 + i * 0.04, duration: 0.2 }}
+              className="rounded-2xl border p-5 sm:p-6 paper-card"
+              style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
+            >
+              <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-2">{sec.heading}</h3>
+              {sec.body && <p className="text-sm leading-relaxed mb-2">{sec.body}</p>}
               {sec.bullets && sec.bullets.length > 0 && (
-                <ul className="space-y-2 mt-2">
+                <ul className="space-y-1.5 mt-2">
                   {sec.bullets.map((b, j) => (
                     <li key={j} className="flex items-start gap-2.5 text-sm leading-relaxed">
                       <span className="flex-shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "var(--accent)" }} />
-                      <span className="text-muted">{b}</span>
+                      <span>{b}</span>
                     </li>
                   ))}
                 </ul>
               )}
-            </div>
+            </motion.div>
           ))}
         </div>
       )}
 
       {/* Steps */}
       {entry.steps && entry.steps.length > 0 && (
-        <div className="rounded-2xl border p-5 sm:p-6 paper-card" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.25 }}
+          className="rounded-2xl border p-5 sm:p-6 paper-card"
+          style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
+        >
           <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-4">Step-by-Step</h3>
           <div className="space-y-2">
             {entry.steps.map((step, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-lg">
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 + i * 0.03, duration: 0.2 }}
+                className="flex items-start gap-3 p-3 rounded-lg"
+              >
                 <span
                   className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
                   style={{ backgroundColor: "var(--accent)" + "20", color: "var(--accent)" }}
@@ -181,28 +218,34 @@ function EntryDetail({ entry, onBack }: { entry: WikiEntry; onBack: () => void }
                   {i + 1}
                 </span>
                 <span className="text-sm leading-relaxed flex-1 pt-0.5">{step}</span>
-              </div>
+              </motion.div>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Tips */}
       {entry.tips && entry.tips.length > 0 && (
-        <div className="rounded-2xl border p-5 sm:p-6 paper-card" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-2 mb-4">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.25 }}
+          className="rounded-2xl border p-5 sm:p-6 paper-card"
+          style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
+        >
+          <div className="flex items-center gap-2 mb-3">
             <Lightbulb size={18} className="text-accent" />
-            <h3 className="text-sm font-semibold text-muted uppercase tracking-wide">Tips for Beginners</h3>
+            <h3 className="text-sm font-semibold text-muted uppercase tracking-wide">Tips</h3>
           </div>
-          <ul className="space-y-2.5">
+          <ul className="space-y-2">
             {entry.tips.map((tip, i) => (
               <li key={i} className="flex items-start gap-2.5 text-sm leading-relaxed">
                 <Check size={15} className="text-accent flex-shrink-0 mt-0.5" />
-                <span className="text-muted">{tip}</span>
+                <span>{tip}</span>
               </li>
             ))}
           </ul>
-        </div>
+        </motion.div>
       )}
     </motion.div>
   );
@@ -228,14 +271,17 @@ function EntryList({
     >
       <p className="text-sm text-muted leading-relaxed">{category.description}</p>
       <div className="grid gap-3 sm:grid-cols-2">
-        {category.entries.map((entry) => {
+        {category.entries.map((entry, i) => {
           const Icon = getIcon(entry.icon);
           return (
             <motion.button
               key={entry.slug}
               onClick={() => onSelect(entry.slug)}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ delay: i * 0.04, duration: 0.25, ease: "easeOut" }}
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
               className="text-left rounded-2xl border p-4 paper-card transition-colors"
               style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
             >
@@ -310,14 +356,17 @@ export default function WikiPage() {
 
       {/* Category selector — top-level pushable buttons */}
       <div className="flex items-center gap-2 flex-wrap overflow-x-auto pb-1">
-        {WIKI_CATEGORIES.map((cat) => {
+        {WIKI_CATEGORIES.map((cat, i) => {
           const Icon = getIcon(cat.icon);
-          const active = categorySlug === cat.slug && !entrySlug;
           const activeCat = categorySlug === cat.slug;
           return (
-            <button
+            <motion.button
               key={cat.slug}
               onClick={() => selectCategory(cat.slug)}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05, duration: 0.2 }}
+              whileTap={{ scale: 0.95 }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border flex-shrink-0"
               style={{
                 backgroundColor: activeCat ? "var(--accent)" : "transparent",
@@ -328,7 +377,7 @@ export default function WikiPage() {
             >
               <Icon size={16} />
               <span>{cat.name}</span>
-            </button>
+            </motion.button>
           );
         })}
       </div>

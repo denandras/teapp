@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useTeaStore } from "@/lib/store";
 
 // --- Color utilities ---
@@ -47,29 +47,17 @@ function lighten(hex: string, percent: number): string {
   return hslToHex(h, s, Math.min(0.95, l + percent / 100));
 }
 
-/**
- * Derive a full palette from an accent color by rotating the hue of the
- * default amber-based cozy-dark theme to match the accent's hue.
- *
- * The default theme is built around amber (#c4853f, h≈32°). We take the
- * accent's hue and shift every palette color by the same delta, keeping
- * their saturation and lightness intact. This makes the entire UI feel
- * tinted by the chosen accent — dark tones included.
- */
 function derivePalette(accentHex: string) {
   const accent = hexToHSL(accentHex);
   const defaultAccent = hexToHSL("#c4853f");
 
-  // Hue rotation: how many degrees to shift from the default amber hue
   const hueShift = accent.h - defaultAccent.h;
 
-  // Rotate a color's hue by the shift, wrapping around 360°
   const rotate = (hex: string) => {
     const { h, s, l } = hexToHSL(hex);
     return hslToHex((h + hueShift + 360) % 360, s, l);
   };
 
-  // Default cozy-dark palette (amber-based)
   const defaults = {
     bg: "#1a1410",
     card: "#241c16",
@@ -89,8 +77,24 @@ function derivePalette(accentHex: string) {
   };
 }
 
+/**
+ * Trigger a color-flow ripple animation from the clicked swatch.
+ * A circular overlay in the new accent color expands from the click point
+ * and fades out, giving a "new color flowing in over the old one" effect.
+ */
+function triggerColorFlow(color: string, x: number, y: number) {
+  const overlay = document.createElement("div");
+  overlay.className = "color-flow-overlay";
+  overlay.style.left = `${x - 50}px`;
+  overlay.style.top = `${y - 50}px`;
+  overlay.style.background = `radial-gradient(circle, ${color} 0%, ${color}88 40%, transparent 70%)`;
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.remove(), 700);
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const accentColor = useTeaStore((s) => s.accentColor);
+  const prevColorRef = useRef(accentColor);
 
   useEffect(() => {
     const body = document.body;
@@ -102,7 +106,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     body.style.setProperty("--muted", palette.muted);
     body.style.setProperty("--accent", palette.accent);
     body.style.setProperty("--accent-hover", palette.accentHover);
+    prevColorRef.current = accentColor;
   }, [accentColor]);
 
   return <>{children}</>;
 }
+
+export { triggerColorFlow };

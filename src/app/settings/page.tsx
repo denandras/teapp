@@ -2,6 +2,7 @@
 
 import { useTeaStore } from "@/lib/store";
 import { useAuth } from "@/components/AuthProvider";
+import { triggerColorFlow } from "@/components/ThemeProvider";
 import { Palette, Trash2, Coffee, LogOut } from "lucide-react";
 
 const accentColors = [
@@ -54,7 +55,11 @@ export default function SettingsPage() {
               <button
                 key={c.id}
                 type="button"
-                onClick={() => setAccentColor(c.color)}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  triggerColorFlow(c.color, rect.left + rect.width / 2, rect.top + rect.height / 2);
+                  setAccentColor(c.color);
+                }}
                 title={c.name}
                 aria-label={`Set accent color to ${c.name}`}
                 className="group flex flex-col items-center gap-2 focus:outline-none"
