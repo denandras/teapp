@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, ResponsiveContainer, Cell, ReferenceLine, ReferenceArea } from "recharts";
 import { Tea, TEA_TYPE_COLORS, TEA_TYPE_LABELS, ALL_TEA_TYPES, SOURCE_COLORS, SOURCE_LABELS } from "@/lib/types";
 import { useTeaStore } from "@/lib/store";
@@ -13,7 +13,8 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
   const [showOnlyCollection, setShowOnlyCollection] = useState(false);
-  const [hoveredTea, setHoveredTea] = useState<{ tea: Tea; x: number; y: number } | null>(null);
+  const [hoveredTea, setHoveredTea] = useState<{ tea: Tea; x: number; y: number; px: number; py: number } | null>(null);
+  const chartAreaRef = useRef<HTMLDivElement>(null);
   const teaStates = useTeaStore((s) => s.teaStates);
   const allTeas = useTeaStore((s) => s.allTeas);
 
@@ -145,15 +146,12 @@ export default function DashboardPage() {
             <span className="text-[10px] sm:text-xs font-medium text-accent leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
               ↑ Sweet / Umami
             </span>
-            <span className="text-[10px] sm:text-xs font-medium hidden sm:block" style={{ color: "var(--muted)", writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
-              Sweet ↔ Bitter
-            </span>
             <span className="text-[10px] sm:text-xs font-medium text-accent leading-tight" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
               Bitter / Astringent ↓
             </span>
           </div>
           {/* Chart area */}
-          <div className="pl-2 sm:pl-10 relative">
+          <div className="pl-2 sm:pl-10 relative" ref={chartAreaRef}>
             <ResponsiveContainer width="100%" height={350} minHeight={280}>
               <ScatterChart margin={{ top: 10, right: 4, bottom: 10, left: 4 }}>
                 {/* Quadrant background colors */}
@@ -190,15 +188,32 @@ export default function DashboardPage() {
 
                 <Scatter
                   data={chartData}
-                  onMouseEnter={(data: any) => {
+                  onMouseEnter={(data: any, e: any) => {
                     const d = Array.isArray(data) ? data[0]?.payload : data?.payload;
-                    if (d?.tea) setHoveredTea({ tea: d.tea, x: d.x, y: d.y });
+                    if (d?.tea && chartAreaRef.current) {
+                      const rect = chartAreaRef.current.getBoundingClientRect();
+                      const cx = e?.nativeEvent?.clientX ?? rect.left + rect.width / 2;
+                      const cy = e?.nativeEvent?.clientY ?? rect.top + rect.height / 2;
+                      setHoveredTea({ tea: d.tea, x: d.x, y: d.y, px: cx - rect.left, py: cy - rect.top });
+                    }
+                  }}
+                  onMouseMove={(data: any, e: any) => {
+                    const d = Array.isArray(data) ? data[0]?.payload : data?.payload;
+                    if (d?.tea && chartAreaRef.current) {
+                      const rect = chartAreaRef.current.getBoundingClientRect();
+                      const cx = e?.nativeEvent?.clientX ?? rect.left + rect.width / 2;
+                      const cy = e?.nativeEvent?.clientY ?? rect.top + rect.height / 2;
+                      setHoveredTea({ tea: d.tea, x: d.x, y: d.y, px: cx - rect.left, py: cy - rect.top });
+                    }
                   }}
                   onMouseLeave={() => setHoveredTea(null)}
-                  onClick={(data: any) => {
+                  onClick={(data: any, e: any) => {
                     const d = Array.isArray(data) ? data[0]?.payload : data?.payload;
-                    if (d?.tea) {
-                      setHoveredTea({ tea: d.tea, x: d.x, y: d.y });
+                    if (d?.tea && chartAreaRef.current) {
+                      const rect = chartAreaRef.current.getBoundingClientRect();
+                      const cx = e?.nativeEvent?.clientX ?? rect.left + rect.width / 2;
+                      const cy = e?.nativeEvent?.clientY ?? rect.top + rect.height / 2;
+                      setHoveredTea({ tea: d.tea, x: d.x, y: d.y, px: cx - rect.left, py: cy - rect.top });
                       setSelectedTea(d.tea);
                     }
                   }}
@@ -209,7 +224,7 @@ export default function DashboardPage() {
                 </Scatter>
               </ScatterChart>
             </ResponsiveContainer>
-            {/* Custom tooltip — tappable to dismiss */}
+            {/* Custom tooltip — positioned at cursor, click/tap anywhere to dismiss */}
             <AnimatePresence>
               {hoveredTea && (
                 <motion.div
@@ -219,14 +234,21 @@ export default function DashboardPage() {
                   transition={{ duration: 0.15 }}
                   className="absolute inset-0 z-20"
                   onClick={() => setHoveredTea(null)}
+                  onTouchStart={() => setHoveredTea(null)}
                 >
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8, y: 5 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="absolute top-2 right-2 rounded-lg p-3 border shadow-xl text-sm"
-                    style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", maxWidth: 180 }}
+                    className="absolute rounded-lg p-3 border shadow-xl text-sm pointer-events-none"
+                    style={{
+                      backgroundColor: "var(--card)",
+                      borderColor: "var(--border)",
+                      maxWidth: 180,
+                      left: Math.min(hoveredTea.px + 12, (chartAreaRef.current?.offsetWidth ?? 200) - 190),
+                      top: Math.max(hoveredTea.py - 40, 4),
+                    }}
                     onClick={(e) => { e.stopPropagation(); setHoveredTea(null); }}
                   >
                     <div className="flex items-center gap-2">
@@ -241,7 +263,6 @@ export default function DashboardPage() {
                         : `${SOURCE_LABELS[hoveredTea.tea.source_type || 'default']}: ${hoveredTea.tea.source}`}
                     </p>
                     <p className="text-muted text-xs mt-0.5">({hoveredTea.x}, {hoveredTea.y})</p>
-                    <p className="text-muted text-[10px] mt-2 italic">Tap to dismiss</p>
                   </motion.div>
                 </motion.div>
               )}
@@ -251,9 +272,6 @@ export default function DashboardPage() {
           <div className="flex justify-between pl-2 sm:pl-10 pr-1 mt-1">
             <span className="text-[10px] sm:text-xs font-medium text-accent leading-tight">
               ← Fresh / Green
-            </span>
-            <span className="text-xs font-medium hidden sm:block" style={{ color: "var(--muted)" }}>
-              Fresh ↔ Roasted
             </span>
             <span className="text-[10px] sm:text-xs font-medium text-accent leading-tight">
               Roasted Aroma →
