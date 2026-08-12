@@ -579,6 +579,36 @@ export const ACCESSORIES_CATEGORY: WikiCategory = {
       best_for: ["Sencha", "Gyokuro", "Japanese green tea"],
       icon: "CookingPot",
     },
+    {
+      slug: "tea-pet",
+      name: "Tea Pet",
+      original_name: "茶寵",
+      romaji: "chá chǒng",
+      description:
+        "A tea pet is a small clay figure — usually Yixing zisha — that lives on your tea tray and is 'fed' the first rinse of each brewing session. Over time, the tea liquor nourishes the clay, giving it a warm sheen. A whimsical companion rooted in Chinese tea culture — so you never drink alone.",
+      params: [
+        { icon: "CupSoda", label: "Material", value: "Unglazed Yixing zisha clay (same as Yixing teapots)" },
+        { icon: "PawPrint", label: "Designs", value: "Animals (frog, dragon, elephant), mythical creatures, Buddha figures" },
+        { icon: "Sparkles", label: "Symbolism", value: "Frog = wealth, dragon = power, elephant = stability" },
+      ],
+      sections: [
+        {
+          heading: "How to raise a tea pet",
+          body: "Pour the first rinse or leftover tea over your tea pet during each session. The unglazed clay absorbs the tea oils and gradually develops a glossy patina — the more you 'feed' it, the shinier it gets. Different teas will tint the clay differently; green tea keeps it light, pu-erh darkens it.",
+        },
+        {
+          heading: "The 'seven baths' ritual",
+          body: "Some practitioners give their tea pet seven pours in a row when first bringing it home, to 'awaken' the clay. After that, a pour or two per session is enough.",
+        },
+      ],
+      tips: [
+        "Never use soap — rinse with tea or hot water only, same as Yixing teapots.",
+        "Pick a tea pet that resonates with you — it's a personal companion, not just decoration.",
+        "Some tea pets have a small hole that lets them spit water when poured over — a playful tea-table trick.",
+      ],
+      best_for: ["Gongfu brewing", "Tea tray companion", "Tea ceremony aesthetics"],
+      icon: "PawPrint",
+    },
   ],
 };
 
