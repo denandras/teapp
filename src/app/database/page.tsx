@@ -25,13 +25,16 @@ function SourceBadge({ tea }: { tea: Tea }) {
 
 // Compact filter pill
 function FilterPill({
-  active, onClick, children, activeColor,
+  active, onClick, children, activeColor, index = 0,
 }: {
-  active: boolean; onClick: () => void; children: React.ReactNode; activeColor: string;
+  active: boolean; onClick: () => void; children: React.ReactNode; activeColor: string; index?: number;
 }) {
   return (
     <motion.button
       onClick={onClick}
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.03, duration: 0.2 }}
       whileTap={{ scale: 0.92 }}
       className="px-2.5 py-1 rounded-full text-xs font-medium transition-all border flex-shrink-0"
       style={{
@@ -183,9 +186,10 @@ export default function DatabasePage() {
         {/* Row 1: Tea type filters */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1 w-12">Type</span>
-          {ALL_TEA_TYPES.map(type => (
+          {ALL_TEA_TYPES.map((type, i) => (
             <FilterPill
               key={type}
+              index={i}
               active={activeTypes.includes(type)}
               onClick={() => toggleType(type)}
               activeColor={TEA_TYPE_COLORS[type]}
@@ -198,9 +202,10 @@ export default function DatabasePage() {
         {/* Row 2: Status */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1 w-12">Status</span>
-          {(["all", "have", "tried", "empty"] as const).map(s => (
+          {(["all", "have", "tried", "empty"] as const).map((s, i) => (
             <FilterPill
               key={s}
+              index={ALL_TEA_TYPES.length + i}
               active={statusFilter === s}
               onClick={() => setStatusFilter(s)}
               activeColor="var(--accent)"
@@ -213,9 +218,10 @@ export default function DatabasePage() {
         {/* Row 3: Source */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1 w-12">Source</span>
-          {(["all", "default", "teahouse", "user"] as const).map(s => (
+          {(["all", "default", "teahouse", "user"] as const).map((s, i) => (
             <FilterPill
               key={s}
+              index={ALL_TEA_TYPES.length + 4 + i}
               active={sourceFilter === s}
               onClick={() => setSourceFilter(s)}
               activeColor={SOURCE_COLORS[s === "all" ? "default" : s]}
@@ -229,9 +235,10 @@ export default function DatabasePage() {
         {teahouses.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1 w-12">House</span>
-            {teahouses.map(name => (
+            {teahouses.map((name, i) => (
               <FilterPill
                 key={name}
+                index={ALL_TEA_TYPES.length + 8 + i}
                 active={activeTeahouses.includes(name)}
                 onClick={() => toggleTeahouse(name)}
                 activeColor={SOURCE_COLORS.teahouse}
@@ -245,9 +252,10 @@ export default function DatabasePage() {
         {/* Row 5: Sort */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1 w-12">Sort</span>
-          {(["name", "type", "rating"] as const).map(s => (
+          {(["name", "type", "rating"] as const).map((s, i) => (
             <FilterPill
               key={s}
+              index={ALL_TEA_TYPES.length + 12 + i}
               active={sortBy === s}
               onClick={() => { setSortBy(s); if (s === "rating") setSortDir("desc"); }}
               activeColor="var(--accent)"
