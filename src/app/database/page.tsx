@@ -226,7 +226,7 @@ export default function DatabasePage() {
               onClick={() => setSourceFilter(s)}
               activeColor={SOURCE_COLORS[s === "all" ? "default" : s]}
             >
-              {s === "all" ? "All" : s === "default" ? "Default" : s === "teahouse" ? "Tea House" : "Mine"}
+              {s === "all" ? "All" : s === "default" ? "Default" : s === "teahouse" ? "Tea House" : "Custom"}
             </FilterPill>
           ))}
         </div>
