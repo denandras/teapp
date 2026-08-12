@@ -2,11 +2,12 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Edit, Save, Trash2, Thermometer, Clock, Repeat, MapPin, Star, Heart, Coffee, AlertTriangle } from "lucide-react";
+import { X, Edit, Save, Trash2, Thermometer, Clock, Repeat, MapPin, Star, Heart, Coffee, AlertTriangle, Users } from "lucide-react";
 import { Tea, TeaStatus, TeaLog, CAFFEINE_LABELS, SOURCE_LABELS, SOURCE_COLORS } from "@/lib/types";
 import { useTeaStore, getCurrentUserId } from "@/lib/store";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/AuthProvider";
+import { isApprovedTeahouse } from "@/lib/profiles";
 import StatusCheckbox from "./StatusCheckbox";
 
 interface Props {
@@ -149,10 +150,10 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
   const caffeineNum = useMemo(() => {
     const c = (editing ? editedTea.caffeine_level : tea.caffeine_level || "").toLowerCase();
     if (c.includes("very high") || c === "5") return 5;
+    if (c.includes("very low") || c === "1") return 1;
     if (c.includes("high") || c === "4") return 4;
     if (c.includes("medium") || c.includes("moderate") || c === "3") return 3;
     if (c.includes("low") || c === "2") return 2;
-    if (c.includes("very low") || c === "1") return 1;
     if (c.includes("none") || c.includes("no") || c.includes("decaf") || c === "0") return 0;
     return 3;
   }, [tea.caffeine_level, editedTea.caffeine_level, editing]);
@@ -161,6 +162,32 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
     if (teaLogs.length === 0) return null;
     return teaLogs.reduce((acc, log) => acc + log.rating, 0) / teaLogs.length;
   }, [teaLogs]);
+
+  // Community rating stats (for teahouse owners viewing their own teas)
+  // Fetches aggregate avg + count via RPC — individual ratings are never exposed.
+  const [communityRating, setCommunityRating] = useState<{ avg: number; count: number } | null>(null);
+  const showCommunityRating = isApprovedTeahouse(profile) && tea.source_type === "teahouse";
+
+  useEffect(() => {
+    if (!showCommunityRating) {
+      setCommunityRating(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc("get_tea_rating_stats", { tea_slug_val: tea.slug });
+        if (cancelled || error || !data) return;
+        const stats = typeof data === "string" ? JSON.parse(data) : data;
+        if (stats && stats.count >= 3) {
+          setCommunityRating({ avg: Number(stats.avg), count: stats.count });
+        } else {
+          setCommunityRating(null);
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [tea.slug, showCommunityRating]);
 
   // Regular users can edit their own non-default teas.
   // Admins can edit ANY tea (including default ones).
@@ -656,6 +683,17 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                 ) : (
                   <p className="text-sm leading-relaxed">{tea.brewing_instructions || "No specific instructions."}</p>
                 )}
+              </div>
+            )}
+
+            {/* Community Rating (teahouse owners only) */}
+            {showCommunityRating && communityRating && (
+              <div className="flex items-center gap-2 rounded-xl p-3" style={{ backgroundColor: "var(--bg)" }}>
+                <Users size={16} style={{ color: "var(--accent)" }} />
+                <span className="text-sm">
+                  <span className="font-bold text-accent">{communityRating.avg.toFixed(1)}</span>
+                  <span className="text-muted"> avg from {communityRating.count} rating{communityRating.count !== 1 ? "s" : ""}</span>
+                </span>
               </div>
             )}
 
