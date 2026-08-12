@@ -233,16 +233,6 @@ export default function DashboardPage() {
                     }
                   }}
                   onMouseLeave={() => setHoveredTea(null)}
-                  onClick={(data: any, e: any) => {
-                    const d = Array.isArray(data) ? data[0]?.payload : data?.payload;
-                    if (d?.tea && chartAreaRef.current) {
-                      const rect = chartAreaRef.current.getBoundingClientRect();
-                      const cx = e?.nativeEvent?.clientX ?? rect.left + rect.width / 2;
-                      const cy = e?.nativeEvent?.clientY ?? rect.top + rect.height / 2;
-                      setHoveredTea({ tea: d.tea, x: d.x, y: d.y, px: cx - rect.left, py: cy - rect.top });
-                      setSelectedTea(d.tea);
-                    }
-                  }}
                 >
                   {chartData.map((entry, i) => (
                     <Cell
@@ -251,6 +241,24 @@ export default function DashboardPage() {
                       fillOpacity={entry.status === "empty" ? 0.5 : 0.9}
                       stroke={entry.color}
                       strokeWidth={entry.status !== "empty" ? 2 : 0}
+                      onClick={(e: any) => {
+                        if (entry.tea && chartAreaRef.current) {
+                          const rect = chartAreaRef.current.getBoundingClientRect();
+                          const cx = e?.nativeEvent?.clientX ?? e?.nativeEvent?.touches?.[0]?.clientX ?? rect.left + rect.width / 2;
+                          const cy = e?.nativeEvent?.clientY ?? e?.nativeEvent?.touches?.[0]?.clientY ?? rect.top + rect.height / 2;
+                          setHoveredTea({ tea: entry.tea, x: entry.x, y: entry.y, px: cx - rect.left, py: cy - rect.top });
+                          setSelectedTea(entry.tea);
+                        }
+                      }}
+                      onTouchStart={(e: any) => {
+                        if (entry.tea && chartAreaRef.current) {
+                          const rect = chartAreaRef.current.getBoundingClientRect();
+                          const touch = e?.nativeEvent?.touches?.[0];
+                          const cx = touch?.clientX ?? rect.left + rect.width / 2;
+                          const cy = touch?.clientY ?? rect.top + rect.height / 2;
+                          setHoveredTea({ tea: entry.tea, x: entry.x, y: entry.y, px: cx - rect.left, py: cy - rect.top });
+                        }
+                      }}
                     />
                   ))}
                 </Scatter>
