@@ -28,9 +28,9 @@ export default function SettingsPage() {
   const allTeas = useTeaStore((s) => s.allTeas);
   const { isDemo, signOut, exitDemo } = useAuth();
 
-  const collectionCount = Object.values(teaStates).filter(s => s && s !== "empty").length;
-  const haveCount = Object.values(teaStates).filter(s => s === "have" || s === "tried").length;
+  const haveCount = Object.values(teaStates).filter(s => s === "have").length;
   const triedCount = Object.values(teaStates).filter(s => s === "tried").length;
+  const collectionCount = haveCount + triedCount;
 
   return (
     <div className="max-w-2xl space-y-8">
