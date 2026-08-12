@@ -66,14 +66,14 @@ export default function DashboardPage() {
   const [scatterPhase, setScatterPhase] = useState<"idle" | "pop-out" | "pop-in">("idle");
 
   const handleCollectionToggle = () => {
-    // Phase 1: pop existing dots out
+    // Phase 1: fade existing dots out
     setScatterPhase("pop-out");
     setTimeout(() => {
-      // Phase 2: swap data + pop new dots in
+      // Phase 2: swap data + fade new dots in
       setShowOnlyCollection(prev => !prev);
       setScatterPhase("pop-in");
-      setTimeout(() => setScatterPhase("idle"), 500);
-    }, 300);
+      setTimeout(() => setScatterPhase("idle"), 400);
+    }, 250);
   };
 
   // Stagger delay for dots popping in
