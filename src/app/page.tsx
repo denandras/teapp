@@ -237,10 +237,10 @@ export default function DashboardPage() {
                   {chartData.map((entry, i) => (
                     <Cell
                       key={i}
-                      fill={entry.color}
-                      fillOpacity={entry.status === "empty" ? 0.5 : 0.9}
-                      stroke={entry.color}
-                      strokeWidth={entry.status !== "empty" ? 2 : 0}
+                      fill="var(--muted)"
+                      fillOpacity={entry.status === "empty" ? 0.35 : 0.7}
+                      stroke="var(--muted)"
+                      strokeWidth={entry.status !== "empty" ? 1.5 : 0}
                       onClick={(e: any) => {
                         if (entry.tea && chartAreaRef.current) {
                           const rect = chartAreaRef.current.getBoundingClientRect();
@@ -332,7 +332,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2 sm:ml-4">
           <span className="text-xs text-muted">●</span>
           <span className="text-xs text-muted">Small = not in collection</span>
-          <span className="text-xs text-accent">●</span>
+          <span className="text-xs text-muted">●</span>
           <span className="text-xs text-muted">Large = in collection</span>
         </div>
       </div>
