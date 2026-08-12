@@ -48,6 +48,7 @@ function FilterPill({
 export default function DatabasePage() {
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
+  const [activeTeahouses, setActiveTeahouses] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<TeaStatus | "all">("all");
   const [sourceFilter, setSourceFilter] = useState<TeaSourceType | "all">("all");
   const [sortBy, setSortBy] = useState<"name" | "type" | "rating">("name");
@@ -56,7 +57,7 @@ export default function DatabasePage() {
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
 
   // Reset expanded state when search or filters change to avoid stale state
-  const searchKey = search + activeTypes.join(",") + statusFilter + sourceFilter;
+  const searchKey = search + activeTypes.join(",") + activeTeahouses.join(",") + statusFilter + sourceFilter;
   const [lastSearchKey, setLastSearchKey] = useState(searchKey);
   if (searchKey !== lastSearchKey) {
     setLastSearchKey(searchKey);
@@ -88,6 +89,9 @@ export default function DatabasePage() {
     if (activeTypes.length > 0) {
       teas = teas.filter(t => activeTypes.includes(t.tea_type));
     }
+    if (activeTeahouses.length > 0) {
+      teas = teas.filter(t => t.source_type === "teahouse" && activeTeahouses.includes(t.source || ""));
+    }
     if (statusFilter !== "all") {
       teas = teas.filter(t => (teaStates[t.slug] || "empty") === statusFilter);
     }
@@ -110,11 +114,24 @@ export default function DatabasePage() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return teas;
-  }, [visibleTeas, search, activeTypes, statusFilter, sourceFilter, sortBy, sortDir, teaStates, teaLogs, currentUserId]);
+  }, [visibleTeas, search, activeTypes, activeTeahouses, statusFilter, sourceFilter, sortBy, sortDir, teaStates, teaLogs, currentUserId]);
 
   const toggleType = (type: string) => {
     setActiveTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
   };
+
+  const toggleTeahouse = (name: string) => {
+    setActiveTeahouses(prev => prev.includes(name) ? prev.filter(t => t !== name) : [...prev, name]);
+  };
+
+  // Unique teahouse names
+  const teahouses = useMemo(() => {
+    const names = new Set<string>();
+    visibleTeas.forEach(t => {
+      if (t.source_type === "teahouse" && t.source) names.add(t.source);
+    });
+    return Array.from(names).sort();
+  }, [visibleTeas]);
 
   const toggleSort = () => setSortDir(prev => prev === "asc" ? "desc" : "asc");
 
@@ -161,11 +178,11 @@ export default function DatabasePage() {
         )}
       </div>
 
-      {/* Filters — compact rows with labeled groups, no line breaks within a group */}
-      <div className="space-y-2">
+      {/* Filters — each group on its own row */}
+      <div className="space-y-1.5">
         {/* Row 1: Tea type filters */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1">Type</span>
+          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1 w-12">Type</span>
           {ALL_TEA_TYPES.map(type => (
             <FilterPill
               key={type}
@@ -178,9 +195,9 @@ export default function DatabasePage() {
           ))}
         </div>
 
-        {/* Row 2: Status + Source + Sort — each group on one line, separated by dividers */}
+        {/* Row 2: Status */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1">Status</span>
+          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1 w-12">Status</span>
           {(["all", "have", "tried", "empty"] as const).map(s => (
             <FilterPill
               key={s}
@@ -191,8 +208,11 @@ export default function DatabasePage() {
               {s === "all" ? "All" : statusConfig[s].label}
             </FilterPill>
           ))}
-          <span className="w-px h-5 mx-1" style={{ backgroundColor: "var(--border)" }} />
-          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1">Source</span>
+        </div>
+
+        {/* Row 3: Source */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1 w-12">Source</span>
           {(["all", "default", "teahouse", "user"] as const).map(s => (
             <FilterPill
               key={s}
@@ -203,8 +223,28 @@ export default function DatabasePage() {
               {s === "all" ? "All" : s === "default" ? "Default" : s === "teahouse" ? "Tea House" : "Mine"}
             </FilterPill>
           ))}
-          <span className="w-px h-5 mx-1" style={{ backgroundColor: "var(--border)" }} />
-          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1">Sort</span>
+        </div>
+
+        {/* Row 4: Individual teahouses (only if any exist) */}
+        {teahouses.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1 w-12">House</span>
+            {teahouses.map(name => (
+              <FilterPill
+                key={name}
+                active={activeTeahouses.includes(name)}
+                onClick={() => toggleTeahouse(name)}
+                activeColor={SOURCE_COLORS.teahouse}
+              >
+                {name}
+              </FilterPill>
+            ))}
+          </div>
+        )}
+
+        {/* Row 5: Sort */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1 w-12">Sort</span>
           {(["name", "type", "rating"] as const).map(s => (
             <FilterPill
               key={s}
