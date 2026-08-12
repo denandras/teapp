@@ -142,19 +142,19 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Type filters — one per row */}
-      <div className="space-y-1.5">
+      {/* Type + Teahouse filters */}
+      <div className="flex items-center gap-2 flex-wrap overflow-x-auto pb-1">
         {ALL_TEA_TYPES.map((type, i) => {
           const active = activeTypes.includes(type);
           return (
             <motion.button
               key={type}
               onClick={() => toggleType(type)}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.03, duration: 0.2 }}
               whileTap={{ scale: 0.92 }}
-              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border w-fit"
+              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex-shrink-0"
               style={{
                 backgroundColor: active ? TEA_TYPE_COLORS[type] : "transparent",
                 color: active ? "#fff" : "var(--muted)",
@@ -165,36 +165,30 @@ export default function DashboardPage() {
             </motion.button>
           );
         })}
-
-        {/* Teahouse filters — one per row */}
         {teahouses.length > 0 && (
-          <>
-            <div className="pt-2 pb-0.5">
-              <span className="text-[10px] uppercase tracking-wide font-semibold text-muted">Tea Houses</span>
-            </div>
-            {teahouses.map((name, i) => {
-              const active = activeTeahouses.includes(name);
-              return (
-                <motion.button
-                  key={name}
-                  onClick={() => toggleTeahouse(name)}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: (ALL_TEA_TYPES.length + i) * 0.03, duration: 0.2 }}
-                  whileTap={{ scale: 0.92 }}
-                  className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border w-fit"
-                  style={{
-                    backgroundColor: active ? SOURCE_COLORS.teahouse : "transparent",
-                    color: active ? "#fff" : "var(--muted)",
-                    borderColor: active ? SOURCE_COLORS.teahouse : "var(--border)",
-                  }}
-                >
-                  {name}
-                </motion.button>
-              );
-            })}
-          </>
+          <span className="w-px h-5 mx-1" style={{ backgroundColor: "var(--border)" }} />
         )}
+        {teahouses.map((name, i) => {
+          const active = activeTeahouses.includes(name);
+          return (
+            <motion.button
+              key={name}
+              onClick={() => toggleTeahouse(name)}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: (ALL_TEA_TYPES.length + i) * 0.03, duration: 0.2 }}
+              whileTap={{ scale: 0.92 }}
+              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex-shrink-0"
+              style={{
+                backgroundColor: active ? SOURCE_COLORS.teahouse : "transparent",
+                color: active ? "#fff" : "var(--muted)",
+                borderColor: active ? SOURCE_COLORS.teahouse : "var(--border)",
+              }}
+            >
+              {name}
+            </motion.button>
+          );
+        })}
       </div>
 
       {/* Chart */}
