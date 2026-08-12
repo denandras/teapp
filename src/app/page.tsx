@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
+  const [activeTeahouses, setActiveTeahouses] = useState<string[]>([]);
   const [showOnlyCollection, setShowOnlyCollection] = useState(false);
   const [hoveredTea, setHoveredTea] = useState<{ tea: Tea; x: number; y: number; px: number; py: number } | null>(null);
   const chartAreaRef = useRef<HTMLDivElement>(null);
@@ -40,11 +41,14 @@ export default function DashboardPage() {
     if (activeTypes.length > 0) {
       teas = teas.filter(t => activeTypes.includes(t.tea_type));
     }
+    if (activeTeahouses.length > 0) {
+      teas = teas.filter(t => t.source_type === "teahouse" && activeTeahouses.includes(t.source || ""));
+    }
     if (showOnlyCollection) {
       teas = teas.filter(t => teaStates[t.slug] && teaStates[t.slug] !== "empty");
     }
     return teas;
-  }, [search, activeTypes, showOnlyCollection, teaStates, allTeas]);
+  }, [search, activeTypes, activeTeahouses, showOnlyCollection, teaStates, allTeas]);
 
   // Convert 0-100 flavor coordinates to centered -50..+50 range
   const chartData = useMemo(() =>
@@ -60,6 +64,19 @@ export default function DashboardPage() {
 
   const toggleType = (type: string) => {
     setActiveTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
+  };
+
+  // Unique teahouse names from visible teas
+  const teahouses = useMemo(() => {
+    const names = new Set<string>();
+    allTeas.forEach(t => {
+      if (t.source_type === "teahouse" && t.source) names.add(t.source);
+    });
+    return Array.from(names).sort();
+  }, [allTeas]);
+
+  const toggleTeahouse = (name: string) => {
+    setActiveTeahouses(prev => prev.includes(name) ? prev.filter(t => t !== name) : [...prev, name]);
   };
 
   // Bubble animation: pop dots out, swap data, pop dots back in
@@ -125,19 +142,19 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Type filters */}
-      <div className="flex items-center gap-2 flex-wrap overflow-x-auto pb-1">
+      {/* Type filters — one per row */}
+      <div className="space-y-1.5">
         {ALL_TEA_TYPES.map((type, i) => {
           const active = activeTypes.includes(type);
           return (
             <motion.button
               key={type}
               onClick={() => toggleType(type)}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.03, duration: 0.2 }}
               whileTap={{ scale: 0.92 }}
-              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border"
+              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border w-fit"
               style={{
                 backgroundColor: active ? TEA_TYPE_COLORS[type] : "transparent",
                 color: active ? "#fff" : "var(--muted)",
@@ -148,6 +165,36 @@ export default function DashboardPage() {
             </motion.button>
           );
         })}
+
+        {/* Teahouse filters — one per row */}
+        {teahouses.length > 0 && (
+          <>
+            <div className="pt-2 pb-0.5">
+              <span className="text-[10px] uppercase tracking-wide font-semibold text-muted">Tea Houses</span>
+            </div>
+            {teahouses.map((name, i) => {
+              const active = activeTeahouses.includes(name);
+              return (
+                <motion.button
+                  key={name}
+                  onClick={() => toggleTeahouse(name)}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: (ALL_TEA_TYPES.length + i) * 0.03, duration: 0.2 }}
+                  whileTap={{ scale: 0.92 }}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border w-fit"
+                  style={{
+                    backgroundColor: active ? SOURCE_COLORS.teahouse : "transparent",
+                    color: active ? "#fff" : "var(--muted)",
+                    borderColor: active ? SOURCE_COLORS.teahouse : "var(--border)",
+                  }}
+                >
+                  {name}
+                </motion.button>
+              );
+            })}
+          </>
+        )}
       </div>
 
       {/* Chart */}
@@ -237,10 +284,10 @@ export default function DashboardPage() {
                   {chartData.map((entry, i) => (
                     <Cell
                       key={i}
-                      fill="var(--muted)"
-                      fillOpacity={entry.status === "empty" ? 0.35 : 0.7}
-                      stroke="var(--muted)"
-                      strokeWidth={entry.status !== "empty" ? 1.5 : 0}
+                      fill={entry.color}
+                      fillOpacity={entry.status === "empty" ? 0.5 : 0.9}
+                      stroke={entry.color}
+                      strokeWidth={entry.status !== "empty" ? 2 : 0}
                       onClick={(e: any) => {
                         if (entry.tea && chartAreaRef.current) {
                           const rect = chartAreaRef.current.getBoundingClientRect();
