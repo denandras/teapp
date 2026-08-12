@@ -52,7 +52,7 @@ export default function CookiesPage() {
           Cookie Policy
         </h1>
         <p className="text-sm mt-2" style={{ color: "var(--muted)" }}>
-          Last updated: August 2026
+          Last updated: August 12, 2026, 13:03 CEST
         </p>
         <p className="text-sm mt-4 leading-relaxed" style={{ color: "var(--muted)" }}>
           This Cookie Policy explains how and why Teapp uses cookies and similar

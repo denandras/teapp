@@ -116,7 +116,7 @@ export default function TermsPage() {
           Terms &amp; Conditions
         </h1>
         <p className="text-sm mt-2" style={{ color: "var(--muted)" }}>
-          Last updated: August 2026
+          Last updated: August 12, 2026, 13:03 CEST
         </p>
         <p className="text-sm mt-4 leading-relaxed" style={{ color: "var(--muted)" }}>
           Welcome to Teapp. Please read these Terms &amp; Conditions carefully before using
