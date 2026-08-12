@@ -140,6 +140,7 @@ interface TeaStore {
   accentColor: string;
   setAccentColor: (color: string) => void;
   allTeas: Tea[];
+  updateTeaInStore: (slug: string, updates: Partial<Tea>) => void;
   syncFromSupabase: (userId: string) => Promise<void>;
   migrateFromLocalStorage: (userId: string) => Promise<void>;
   loadDemoData: () => void;
@@ -436,6 +437,12 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       .then(({ error }) => {
         if (error) console.error("Failed to upsert user_preferences:", error.message);
       });
+  },
+
+  updateTeaInStore: (slug, updates) => {
+    set((state) => ({
+      allTeas: state.allTeas.map((t) => (t.slug === slug ? { ...t, ...updates } : t)),
+    }));
   },
 
   // --- Demo mode: load from localStorage ---

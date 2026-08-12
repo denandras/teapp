@@ -81,6 +81,12 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
   const { profile } = useAuth();
   const [editing, setEditing] = useState(false);
   const [editedTea, setEditedTea] = useState(tea);
+
+  // Reset editedTea when the tea prop changes (e.g. after parent re-render)
+  useEffect(() => {
+    setEditedTea(tea);
+    setSavedTea(null);
+  }, [tea]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [logRating, setLogRating] = useState(0);
   const [logNote, setLogNote] = useState("");
@@ -88,6 +94,11 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
   const [editLogRating, setEditLogRating] = useState(0);
   const [editLogNote, setEditLogNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [savedTea, setSavedTea] = useState<Tea | null>(null);
+
+  // After a save, use savedTea for display so the modal reflects edits immediately
+  // (the parent's tea prop doesn't update until the store re-renders the parent)
+  const displayTea = savedTea || tea;
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -148,7 +159,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
 
   // Parse caffeine level string to number
   const caffeineNum = useMemo(() => {
-    const c = (editing ? editedTea.caffeine_level : tea.caffeine_level || "").toLowerCase();
+    const c = (editing ? editedTea.caffeine_level : displayTea.caffeine_level || "").toLowerCase();
     if (c.includes("very high") || c === "5") return 5;
     if (c.includes("very low") || c === "1") return 1;
     if (c.includes("high") || c === "4") return 4;
@@ -156,7 +167,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
     if (c.includes("low") || c === "2") return 2;
     if (c.includes("none") || c.includes("no") || c.includes("decaf") || c === "0") return 0;
     return 3;
-  }, [tea.caffeine_level, editedTea.caffeine_level, editing]);
+  }, [displayTea.caffeine_level, editedTea.caffeine_level, editing]);
 
   const avgRating = useMemo(() => {
     if (teaLogs.length === 0) return null;
@@ -166,7 +177,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
   // Community rating stats (for teahouse owners viewing their own teas)
   // Fetches aggregate avg + count via RPC — individual ratings are never exposed.
   const [communityRating, setCommunityRating] = useState<{ avg: number; count: number } | null>(null);
-  const showCommunityRating = isApprovedTeahouse(profile) && tea.source_type === "teahouse";
+  const showCommunityRating = isApprovedTeahouse(profile) && displayTea.source_type === "teahouse";
 
   useEffect(() => {
     if (!showCommunityRating) {
@@ -176,7 +187,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
     let cancelled = false;
     (async () => {
       try {
-        const { data, error } = await supabase.rpc("get_tea_rating_stats", { tea_slug_val: tea.slug });
+        const { data, error } = await supabase.rpc("get_tea_rating_stats", { tea_slug_val: displayTea.slug });
         if (cancelled || error || !data) return;
         const stats = typeof data === "string" ? JSON.parse(data) : data;
         if (stats && stats.count >= 3) {
@@ -187,13 +198,15 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
       } catch {}
     })();
     return () => { cancelled = true; };
-  }, [tea.slug, showCommunityRating]);
+  }, [displayTea.slug, showCommunityRating]);
 
   // Regular users can edit their own non-default teas.
   // Admins can edit ANY tea (including default ones).
   const isAdminUser = !!profile?.is_admin;
-  const isOwner = tea.source_type !== "default" && tea.owner_id != null && tea.owner_id === getCurrentUserId();
+  const isOwner = displayTea.source_type !== "default" && displayTea.owner_id != null && displayTea.owner_id === getCurrentUserId();
   const canEdit = isAdminUser || isOwner;
+
+  const updateTeaInStore = useTeaStore((s) => s.updateTeaInStore);
 
   const handleSave = async () => {
     if (canEdit) {
@@ -221,7 +234,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
               flavor_x: editedTea.flavor_x,
               flavor_y: editedTea.flavor_y,
             })
-            .eq("slug", tea.slug);
+            .eq("slug", displayTea.slug);
         } else {
           // Regular user: update only own teas
           await supabase
@@ -244,9 +257,12 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
               flavor_x: editedTea.flavor_x,
               flavor_y: editedTea.flavor_y,
             })
-            .eq("slug", tea.slug)
+            .eq("slug", displayTea.slug)
             .eq("owner_id", getCurrentUserId());
         }
+        // Update the Zustand store so the dashboard/database list reflects changes
+        updateTeaInStore(displayTea.slug, editedTea);
+        setSavedTea(editedTea);
       } finally {
         setIsSaving(false);
       }
@@ -260,20 +276,20 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
       await supabase
         .from("teas")
         .delete()
-        .eq("slug", tea.slug);
-    } else if (tea.source_type !== "default" && tea.owner_id != null && tea.owner_id === getCurrentUserId()) {
+        .eq("slug", displayTea.slug);
+    } else if (displayTea.source_type !== "default" && displayTea.owner_id != null && displayTea.owner_id === getCurrentUserId()) {
       await supabase
         .from("teas")
         .delete()
-        .eq("slug", tea.slug)
+        .eq("slug", displayTea.slug)
         .eq("owner_id", getCurrentUserId());
-    } else if (tea.is_custom) {
+    } else if (displayTea.is_custom) {
       // Try to find matching custom tea and remove
       const customTeas = useTeaStore.getState().customTeas;
-      const match = customTeas.find(ct => `custom-${ct.id}` === tea.slug);
+      const match = customTeas.find(ct => `custom-${ct.id}` === displayTea.slug);
       if (match) removeCustomTea(match.id);
     } else {
-      hideTea(tea.slug);
+      hideTea(displayTea.slug);
     }
     onClose();
   };
@@ -339,9 +355,9 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                   <p className="text-sm text-muted mb-4">
                     {isAdminUser
                       ? "As an admin, this tea will be permanently deleted from the database for all users."
-                      : tea.source_type !== "default" && tea.owner_id != null && tea.owner_id === getCurrentUserId()
+                      : displayTea.source_type !== "default" && displayTea.owner_id != null && displayTea.owner_id === getCurrentUserId()
                         ? "This tea will be permanently deleted from your collection."
-                        : tea.is_custom
+                        : displayTea.is_custom
                           ? "This custom tea will be permanently deleted."
                           : "This tea will be hidden from your view. You can restore it later."}
                   </p>
@@ -373,7 +389,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
             <div className="flex items-start gap-4 flex-1 min-w-0">
               <motion.div
                 className="w-12 h-12 rounded-full flex-shrink-0 mt-1"
-                style={{ backgroundColor: (editing ? editedTea.color_hex : tea.color_hex) || "#999", boxShadow: `0 0 20px ${(editing ? editedTea.color_hex : tea.color_hex) || "#999"}40` }}
+                style={{ backgroundColor: (editing ? editedTea.color_hex : displayTea.color_hex) || "#999", boxShadow: `0 0 20px ${(editing ? editedTea.color_hex : displayTea.color_hex) || "#999"}40` }}
                 whileHover={{ scale: 1.1 }}
                 transition={{ type: "spring", stiffness: 300 }}
               />
@@ -386,7 +402,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                       className="bg-transparent border-b w-full"
                       style={{ borderColor: "var(--border)" }}
                     />
-                  ) : (tea.name || "Unknown Tea")}
+                  ) : (displayTea.name || "Unknown Tea")}
                 </h2>
                 {editing ? (
                   <div className="mt-1 space-y-1">
@@ -406,11 +422,11 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                     />
                   </div>
                 ) : (
-                  (tea.original_name || tea.phonetic_name) && (
+                  (displayTea.original_name || displayTea.phonetic_name) && (
                     <p className="text-muted text-sm mt-1">
-                      {tea.original_name && <span className="font-serif text-lg">{tea.original_name}</span>}
-                      {tea.original_name && tea.phonetic_name && " · "}
-                      {tea.phonetic_name && <span>{tea.phonetic_name}</span>}
+                      {displayTea.original_name && <span className="font-serif text-lg">{displayTea.original_name}</span>}
+                      {displayTea.original_name && displayTea.phonetic_name && " · "}
+                      {displayTea.phonetic_name && <span>{displayTea.phonetic_name}</span>}
                     </p>
                   )
                 )}
@@ -419,22 +435,22 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                 <div className="flex items-center gap-3 mt-2 flex-wrap">
                   <span
                     className="px-2 py-0.5 rounded-full text-xs font-medium"
-                    style={{ backgroundColor: (editing ? editedTea.color_hex : tea.color_hex) + "30", color: (editing ? editedTea.color_hex : tea.color_hex) }}
+                    style={{ backgroundColor: (editing ? editedTea.color_hex : displayTea.color_hex) + "30", color: (editing ? editedTea.color_hex : displayTea.color_hex) }}
                   >
-                    {(editing ? editedTea.tea_type : tea.tea_type) || "unknown"}
+                    {(editing ? editedTea.tea_type : displayTea.tea_type) || "unknown"}
                   </span>
                   {/* Source badge */}
                   <span
                     className="px-2 py-0.5 rounded-full text-xs font-medium"
-                    style={{ backgroundColor: SOURCE_COLORS[tea.source_type || "default"] + "20", color: SOURCE_COLORS[tea.source_type || "default"] }}
                     title="Source"
+                    style={{ backgroundColor: SOURCE_COLORS[displayTea.source_type || "default"] + "20", color: SOURCE_COLORS[displayTea.source_type || "default"] }}
                   >
-                    {tea.source_type === "default" || !tea.source
-                      ? SOURCE_LABELS[tea.source_type || "default"]
-                      : `${SOURCE_LABELS[tea.source_type || "default"]}: ${tea.source}`}
+                    {displayTea.source_type === "default" || !displayTea.source
+                      ? SOURCE_LABELS[displayTea.source_type || "default"]
+                      : `${SOURCE_LABELS[displayTea.source_type || "default"]}: ${displayTea.source}`}
                   </span>
                   {/* Brewing inline badges */}
-                  {(editing ? editedTea.brewing_temp_c : tea.brewing_temp_c) != null && (
+                  {(editing ? editedTea.brewing_temp_c : displayTea.brewing_temp_c) != null && (
                     <span className="flex items-center gap-1 text-xs text-muted px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bg)" }}>
                       <Thermometer size={12} className="text-accent" />
                       {editing ? (
@@ -445,11 +461,11 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                           className="w-12 bg-transparent border-b text-xs"
                           style={{ borderColor: "var(--border)" }}
                         />
-                      ) : tea.brewing_temp_c}
+                      ) : displayTea.brewing_temp_c}
                       °C
                     </span>
                   )}
-                  {(editing ? editedTea.brewing_time_min : tea.brewing_time_min) != null && (
+                  {(editing ? editedTea.brewing_time_min : displayTea.brewing_time_min) != null && (
                     <span className="flex items-center gap-1 text-xs text-muted px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bg)" }}>
                       <Clock size={12} className="text-accent" />
                       {editing ? (
@@ -460,11 +476,11 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                           className="w-12 bg-transparent border-b text-xs"
                           style={{ borderColor: "var(--border)" }}
                         />
-                      ) : tea.brewing_time_min}
+                      ) : displayTea.brewing_time_min}
                       min
                     </span>
                   )}
-                  {(editing ? editedTea.brewing_num_brews : tea.brewing_num_brews) > 1 && (
+                  {(editing ? editedTea.brewing_num_brews : displayTea.brewing_num_brews) > 1 && (
                     <span className="flex items-center gap-1 text-xs text-muted px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--bg)" }}>
                       <Repeat size={12} className="text-accent" />
                       {editing ? (
@@ -475,7 +491,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                           className="w-10 bg-transparent border-b text-xs"
                           style={{ borderColor: "var(--border)" }}
                         />
-                      ) : tea.brewing_num_brews}
+                      ) : displayTea.brewing_num_brews}
                       × brews
                     </span>
                   )}
@@ -547,7 +563,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                   rows={4}
                 />
               ) : (
-                <p className="text-sm leading-relaxed">{tea.description || "No description available."}</p>
+                <p className="text-sm leading-relaxed">{displayTea.description || "No description available."}</p>
               )}
             </div>
 
@@ -562,7 +578,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
             </div>
 
             {/* Origin */}
-            {(editing || tea.origin) && (
+            {(editing || displayTea.origin) && (
               <div>
                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-2">Origin</h3>
                 <div className="flex items-center gap-1.5 text-sm">
@@ -575,7 +591,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                       style={{ borderColor: "var(--border)" }}
                     />
                   ) : (
-                    <span>{tea.origin || "Unknown"}</span>
+                    <span>{displayTea.origin || "Unknown"}</span>
                   )}
                 </div>
               </div>
@@ -592,13 +608,13 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                   style={{ borderColor: "var(--border)" }}
                   placeholder="Floral, Sweet, Umami"
                 />
-              ) : tea.characteristics.length > 0 ? (
+              ) : displayTea.characteristics.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {tea.characteristics.map((c) => (
+                  {displayTea.characteristics.map((c) => (
                     <span
                       key={c}
                       className="px-2.5 py-1 rounded-full text-xs"
-                      style={{ backgroundColor: (tea.color_hex || "#999") + "20", color: tea.color_hex || "#999" }}
+                      style={{ backgroundColor: (displayTea.color_hex || "#999") + "20", color: displayTea.color_hex || "#999" }}
                     >
                       {c}
                     </span>
@@ -610,7 +626,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
             </div>
 
             {/* Health Benefits */}
-            {(editing || tea.health_benefits.length > 0) && (
+            {(editing || displayTea.health_benefits.length > 0) && (
               <div>
                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-2">Health Benefits</h3>
                 {editing ? (
@@ -621,9 +637,9 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                     style={{ borderColor: "var(--border)" }}
                     placeholder="Rich in Antioxidants, Improves Focus"
                   />
-                ) : tea.health_benefits.length > 0 ? (
+                ) : displayTea.health_benefits.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {tea.health_benefits.map((h) => (
+                    {displayTea.health_benefits.map((h) => (
                       <span
                         key={h}
                         className="px-2.5 py-1 rounded-full text-xs text-muted"
@@ -651,7 +667,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                       className="w-16 bg-transparent border-b text-center"
                       style={{ borderColor: "var(--border)" }}
                     />
-                  ) : (tea.flavor_x ?? 50)}/100</p>
+                  ) : (displayTea.flavor_x ?? 50)}/100</p>
                 </div>
                 <div className="p-3 rounded-xl text-center" style={{ backgroundColor: "var(--bg)" }}>
                   <p className="text-xs text-muted">Bitterness</p>
@@ -663,13 +679,13 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                       className="w-16 bg-transparent border-b text-center"
                       style={{ borderColor: "var(--border)" }}
                     />
-                  ) : (tea.flavor_y ?? 50)}/100</p>
+                  ) : (displayTea.flavor_y ?? 50)}/100</p>
                 </div>
               </div>
             </div>
 
             {/* Brewing instructions */}
-            {(editing || tea.brewing_instructions) && (
+            {(editing || displayTea.brewing_instructions) && (
               <div>
                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-2">Brewing Instructions</h3>
                 {editing ? (
@@ -681,7 +697,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                     rows={3}
                   />
                 ) : (
-                  <p className="text-sm leading-relaxed">{tea.brewing_instructions || "No specific instructions."}</p>
+                  <p className="text-sm leading-relaxed">{displayTea.brewing_instructions || "No specific instructions."}</p>
                 )}
               </div>
             )}
