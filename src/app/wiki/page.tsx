@@ -40,6 +40,8 @@ import {
   Sparkles,
   ArrowLeft,
   Mountain,
+  PersonStanding,
+  PawPrint,
 } from "lucide-react";
 import {
   WIKI_CATEGORIES,
@@ -55,7 +57,7 @@ const ICONS: Record<string, React.ComponentType<{ size?: number; className?: str
   Lightbulb, Check, ChevronRight, BookOpen, Compass, Zap, Feather, MoveVertical,
   MoveDown, RotateCw, RotateCcw, GitFork, Mountain, CookingPot, FlaskConical, Utensils, Box,
   Crosshair, RectangleHorizontal, Waves, Circle, Award, GlassWater, Snowflake,
-  Flame, Sun, Sparkles, ArrowLeft,
+  Flame, Sun, Sparkles, ArrowLeft, PersonStanding, PawPrint,
 };
 
 function getIcon(name: string) {

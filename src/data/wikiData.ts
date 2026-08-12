@@ -607,7 +607,7 @@ export const ACCESSORIES_CATEGORY: WikiCategory = {
         "Some tea pets have a small hole that lets them spit water when poured over — a playful tea-table trick.",
       ],
       best_for: ["Gongfu brewing", "Tea tray companion", "Tea ceremony aesthetics"],
-      icon: "PawPrint",
+      icon: "PersonStanding",
     },
   ],
 };
