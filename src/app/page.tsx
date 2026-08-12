@@ -57,7 +57,7 @@ export default function DashboardPage() {
       y: -((t.flavor_y ?? 50) - 50), // flip Y so positive = up
       z: teaStates[t.slug] === "have" ? 400 : teaStates[t.slug] === "tried" ? 250 : 120,
       tea: t,
-      color: t.color_hex,
+      color: t.color_hex || "#999",
       status: teaStates[t.slug] || "empty",
     })),
   [filteredTeas, teaStates]);
@@ -309,42 +309,31 @@ export default function DashboardPage() {
             <AnimatePresence>
               {hoveredTea && (
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute inset-0 z-20"
-                  onClick={() => setHoveredTea(null)}
-                  onTouchStart={() => setHoveredTea(null)}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="absolute rounded-lg p-3 border shadow-xl text-sm pointer-events-none z-20"
+                  style={{
+                    backgroundColor: "var(--card)",
+                    borderColor: "var(--border)",
+                    maxWidth: 180,
+                    left: Math.min(hoveredTea.px + 12, (chartAreaRef.current?.offsetWidth ?? 200) - 190),
+                    top: Math.max(hoveredTea.py - 40, 4),
+                  }}
                 >
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="absolute rounded-lg p-3 border shadow-xl text-sm pointer-events-none"
-                    style={{
-                      backgroundColor: "var(--card)",
-                      borderColor: "var(--border)",
-                      maxWidth: 180,
-                      left: Math.min(hoveredTea.px + 12, (chartAreaRef.current?.offsetWidth ?? 200) - 190),
-                      top: Math.max(hoveredTea.py - 40, 4),
-                    }}
-                    onClick={(e) => { e.stopPropagation(); setHoveredTea(null); }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: hoveredTea.tea.color_hex }} />
-                      <span className="font-bold">{hoveredTea.tea.name}</span>
-                    </div>
-                    {hoveredTea.tea.original_name && <p className="text-muted text-xs mt-1">{hoveredTea.tea.original_name}</p>}
-                    <p className="text-muted text-xs mt-1">{TEA_TYPE_LABELS[hoveredTea.tea.tea_type]}</p>
-                    <p className="text-xs mt-0.5" style={{ color: SOURCE_COLORS[hoveredTea.tea.source_type || 'default'] }}>
-                      {hoveredTea.tea.source_type === 'default' || !hoveredTea.tea.source
-                        ? SOURCE_LABELS[hoveredTea.tea.source_type || 'default']
-                        : `${SOURCE_LABELS[hoveredTea.tea.source_type || 'default']}: ${hoveredTea.tea.source}`}
-                    </p>
-                    <p className="text-muted text-xs mt-0.5">({hoveredTea.x}, {hoveredTea.y})</p>
-                  </motion.div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: hoveredTea.tea.color_hex || "#999" }} />
+                    <span className="font-bold">{hoveredTea.tea.name}</span>
+                  </div>
+                  {hoveredTea.tea.original_name && <p className="text-muted text-xs mt-1">{hoveredTea.tea.original_name}</p>}
+                  <p className="text-muted text-xs mt-1">{TEA_TYPE_LABELS[hoveredTea.tea.tea_type]}</p>
+                  <p className="text-xs mt-0.5" style={{ color: SOURCE_COLORS[hoveredTea.tea.source_type || 'default'] }}>
+                    {hoveredTea.tea.source_type === 'default' || !hoveredTea.tea.source
+                      ? SOURCE_LABELS[hoveredTea.tea.source_type || 'default']
+                      : `${SOURCE_LABELS[hoveredTea.tea.source_type || 'default']}: ${hoveredTea.tea.source}`}
+                  </p>
+                  <p className="text-muted text-xs mt-0.5">({hoveredTea.x}, {hoveredTea.y})</p>
                 </motion.div>
               )}
             </AnimatePresence>
