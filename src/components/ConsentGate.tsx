@@ -5,20 +5,24 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 
-const CONSENT_KEY = "teapp-consent-accepted";
+// Bump this when Terms, Privacy, or Cookies docs are updated.
+// Users who accepted an older version will be re-prompted to accept again.
+const DOC_VERSION = "2";
+const CONSENT_KEY = "teapp-consent-version";
 
 export function ConsentGate({ children }: { children: React.ReactNode }) {
   const [accepted, setAccepted] = useState(true); // assume accepted to avoid flash
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(CONSENT_KEY);
-    setAccepted(stored === "true");
+    const storedVersion = localStorage.getItem(CONSENT_KEY);
+    // Acceptance is valid only if the stored version matches the current DOC_VERSION
+    setAccepted(storedVersion === DOC_VERSION);
     setMounted(true);
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem(CONSENT_KEY, "true");
+    localStorage.setItem(CONSENT_KEY, DOC_VERSION);
     setAccepted(true);
   };
 
@@ -50,11 +54,11 @@ export function ConsentGate({ children }: { children: React.ReactNode }) {
               <ShieldCheck size={28} className="text-accent flex-shrink-0 mt-0.5" />
               <div>
                 <h2 className="text-lg font-serif font-bold" style={{ color: "var(--text)" }}>
-                  Before you continue
+                  Updated policies
                 </h2>
                 <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>
-                  Teapp uses essential cookies for authentication — no tracking or
-                  advertising. Please review our policies before signing in.
+                  Our Terms, Privacy Policy, and Cookie Policy have been updated.
+                  Please review and accept the updated policies to continue using Teapp.
                 </p>
               </div>
             </div>

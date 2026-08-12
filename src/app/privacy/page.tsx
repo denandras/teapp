@@ -86,14 +86,21 @@ export default function PrivacyPage() {
       ],
     },
     {
-      title: "12. Changes",
+      title: "12. Service Communications",
       body: [
-        "We may update this Privacy Policy from time to time. We will indicate the date of the latest revision at the top of this page and bring material changes to your attention.",
-        "Your continued use of the Service after changes take effect constitutes acceptance of the revised Privacy Policy.",
+        "We may use the email address associated with your account to contact you about important changes to the Service — such as domain changes, updates to our policies, or other matters that may affect your use of Teapp. These communications are necessary for the performance of our contract with you (Article 6(1)(b) GDPR).",
+        "You can review and update your email address in the Settings page at any time. We will not use your email address for marketing or promotional purposes without your separate consent.",
       ],
     },
     {
-      title: "13. Contact",
+      title: "13. Changes",
+      body: [
+        "We may update this Privacy Policy from time to time. We will indicate the date of the latest revision at the top of this page. When material changes are made, you will be asked to review and accept the updated policy within the Service before continuing to use it.",
+        "Your continued use of the Service after changes take effect also constitutes acceptance of the revised Privacy Policy.",
+      ],
+    },
+    {
+      title: "14. Contact",
       body: [
         "For any questions or requests relating to your personal data, contact András Dénes at contact@andrasdenes.com.",
       ],

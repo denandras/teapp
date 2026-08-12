@@ -32,6 +32,12 @@ export default function CookiesPage() {
       ],
     },
     {
+      title: "Changes to this policy",
+      body: [
+        "We may update this Cookie Policy from time to time. When material changes are made, you will be asked to review and accept the updated policy within the Service before continuing to use it.",
+      ],
+    },
+    {
       title: "Contact",
       body: [
         "If you have any questions about how Teapp uses cookies, please contact us at contact@andrasdenes.com.",

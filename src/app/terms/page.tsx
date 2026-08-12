@@ -84,18 +84,25 @@ export default function TermsPage() {
       title: "12. Changes to Terms",
       body: [
         "We may update these Terms & Conditions from time to time to reflect changes in the Service, the law, or our practices. We will indicate the date of the latest revision at the top of this page.",
-        "Material changes will be brought to your attention within the Service. Your continued use of the Service after changes take effect constitutes acceptance of the revised terms.",
+        "When material changes are made, you will be asked to review and accept the updated Terms within the Service before continuing to use it. Your continued use of the Service after changes take effect also constitutes acceptance of the revised terms.",
       ],
     },
     {
-      title: "13. Governing Law",
+      title: "13. Service Communications",
+      body: [
+        "From time to time, we may need to contact you via the email address associated with your account to inform you about important changes to the Service — such as domain changes, policy updates, or other matters that may affect your use of Teapp.",
+        "These communications are sent to the email address you provided during registration (or as updated in your account settings). You can review or update your email address in the Settings page at any time.",
+      ],
+    },
+    {
+      title: "14. Governing Law",
       body: [
         "These Terms & Conditions are governed by and construed in accordance with the laws of Hungary.",
         "Any disputes arising out of or in connection with these terms shall be subject to the exclusive jurisdiction of the competent courts of Hungary.",
       ],
     },
     {
-      title: "14. Contact",
+      title: "15. Contact",
       body: [
         "If you have any questions about these Terms & Conditions, please contact us at contact@andrasdenes.com.",
       ],
