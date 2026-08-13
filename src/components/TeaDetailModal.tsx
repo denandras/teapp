@@ -159,7 +159,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
 
   // Parse caffeine level string to number
   const caffeineNum = useMemo(() => {
-    const c = (editing ? editedTea.caffeine_level : displayTea.caffeine_level || "").toLowerCase();
+    const c = ((editing ? editedTea.caffeine_level : displayTea.caffeine_level) || "").toLowerCase();
     if (c.includes("very high") || c === "5") return 5;
     if (c.includes("very low") || c === "1") return 1;
     if (c.includes("high") || c === "4") return 4;
@@ -435,7 +435,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                 <div className="flex items-center gap-3 mt-2 flex-wrap">
                   <span
                     className="px-2 py-0.5 rounded-full text-xs font-medium"
-                    style={{ backgroundColor: (editing ? editedTea.color_hex : displayTea.color_hex) + "30", color: (editing ? editedTea.color_hex : displayTea.color_hex) }}
+                    style={{ backgroundColor: ((editing ? editedTea.color_hex : displayTea.color_hex) || "#999") + "30", color: (editing ? editedTea.color_hex : displayTea.color_hex) || "#999" }}
                   >
                     {(editing ? editedTea.tea_type : displayTea.tea_type) || "unknown"}
                   </span>
@@ -602,7 +602,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
               <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-2">Flavor Profile</h3>
               {editing ? (
                 <input
-                  value={editedTea.characteristics.join(", ")}
+                  value={(editedTea.characteristics || []).join(", ")}
                   onChange={(e) => setEditedTea({ ...editedTea, characteristics: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
                   className="w-full bg-transparent border rounded-lg p-2 text-sm"
                   style={{ borderColor: "var(--border)" }}
@@ -631,7 +631,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-2">Health Benefits</h3>
                 {editing ? (
                   <input
-                    value={editedTea.health_benefits.join(", ")}
+                    value={(editedTea.health_benefits || []).join(", ")}
                     onChange={(e) => setEditedTea({ ...editedTea, health_benefits: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
                     className="w-full bg-transparent border rounded-lg p-2 text-sm"
                     style={{ borderColor: "var(--border)" }}
@@ -690,7 +690,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                 <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-2">Brewing Instructions</h3>
                 {editing ? (
                   <textarea
-                    value={editedTea.brewing_instructions}
+                    value={editedTea.brewing_instructions ?? ""}
                     onChange={(e) => setEditedTea({ ...editedTea, brewing_instructions: e.target.value })}
                     className="w-full bg-transparent border rounded-lg p-2 text-sm"
                     style={{ borderColor: "var(--border)" }}
