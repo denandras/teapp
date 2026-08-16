@@ -46,11 +46,12 @@ export default function NavBar() {
         </div>
       </nav>
 
-      {/* Mobile: bottom nav bar — solid background covers safe area to prevent see-thru */}
+      {/* Mobile: bottom nav bar — fully solid background */}
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t px-2"
         style={{
           backgroundColor: "var(--card)",
           borderColor: "var(--border)",
+          boxShadow: "0 -4px 12px rgba(0,0,0,0.3)",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
           minHeight: "3.5rem",
           boxSizing: "border-box",

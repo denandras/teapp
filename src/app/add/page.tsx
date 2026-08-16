@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -9,7 +9,6 @@ import {
   Thermometer,
   Clock,
   Repeat,
-  Palette,
   ShieldAlert,
   Coffee,
 } from "lucide-react";
@@ -24,7 +23,6 @@ import { useAuth } from "@/components/AuthProvider";
 import { isApprovedTeahouse, isAdmin } from "@/lib/profiles";
 
 const CAFFEINE_LEVELS = [0, 1, 2, 3, 4, 5];
-const PRESET_SWATCHES = ["#7BA05B", "#C8C4B0", "#8B4513", "#D4852A", "#6B4226", "#E6C84E", "#C0856A", "#B07D56"];
 
 function slugify(str: string): string {
   return str
@@ -143,7 +141,7 @@ export default function AddTeaPage() {
   const [brewing_instructions, setBrewingInstructions] = useState("");
   const [characteristics, setCharacteristics] = useState("");
   const [health_benefits, setHealthBenefits] = useState("");
-  const [color_hex, setColorHex] = useState("#7BA05B");
+  const [color_hex, setColorHex] = useState(TEA_TYPE_COLORS["blend"]);
   const [flavor_x, setFlavorX] = useState(50);
   const [flavor_y, setFlavorY] = useState(50);
   const [source, setSource] = useState("");
@@ -167,6 +165,11 @@ export default function AddTeaPage() {
     )
   );
   const showDupWarning = nameBlurred && duplicateTeas.length > 0 && name.trim().length > 0;
+
+  // Auto-sync color to tea type — all teas of the same type share one color
+  useEffect(() => {
+    setColorHex(TEA_TYPE_COLORS[tea_type] || "#999");
+  }, [tea_type]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -572,38 +575,14 @@ export default function AddTeaPage() {
           />
         </div>
 
-        {/* Color */}
-        <div>
-          <SectionLabel>
-            <span className="inline-flex items-center gap-1"><Palette size={12} /> Color</span>
-          </SectionLabel>
-          <div className="flex items-center gap-3">
-            <input
-              type="color"
-              value={color_hex}
-              onChange={(e) => setColorHex(e.target.value)}
-              className="w-10 h-10 rounded-lg border cursor-pointer"
-              style={{ backgroundColor: color_hex, borderColor: "var(--border)" }}
-            />
-            <span className="text-xs font-mono text-muted">{color_hex}</span>
-            <div className="flex items-center gap-1.5 flex-wrap ml-1">
-              {PRESET_SWATCHES.map((c) => (
-                <motion.button
-                  key={c}
-                  type="button"
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setColorHex(c)}
-                  className="w-6 h-6 rounded-full border"
-                  style={{
-                    backgroundColor: c,
-                    borderColor: color_hex === c ? "var(--text)" : "var(--border)",
-                    boxShadow: color_hex === c ? `0 0 0 2px ${c}40` : "none",
-                  }}
-                  aria-label={`Set color to ${c}`}
-                />
-              ))}
-            </div>
-          </div>
+        {/* Color — auto-determined by tea type */}
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-lg border"
+            style={{ backgroundColor: color_hex, borderColor: "var(--border)" }}
+          />
+          <span className="text-xs font-mono text-muted">{color_hex}</span>
+          <span className="text-xs text-muted">Color is set by tea type</span>
         </div>
 
         {/* Flavor profile sliders */}

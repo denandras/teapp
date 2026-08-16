@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Edit, Save, Trash2, Thermometer, Clock, Repeat, MapPin, Star, Heart, Coffee, AlertTriangle, Users } from "lucide-react";
-import { Tea, TeaStatus, TeaLog, CAFFEINE_LABELS, SOURCE_LABELS, SOURCE_COLORS } from "@/lib/types";
+import { Tea, TeaStatus, TeaLog, CAFFEINE_LABELS, SOURCE_LABELS, SOURCE_COLORS, TEA_TYPE_COLORS } from "@/lib/types";
 import { useTeaStore, getCurrentUserId } from "@/lib/store";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/AuthProvider";
@@ -230,7 +230,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
               brewing_instructions: editedTea.brewing_instructions,
               characteristics: editedTea.characteristics,
               health_benefits: editedTea.health_benefits,
-              color_hex: editedTea.color_hex,
+              color_hex: TEA_TYPE_COLORS[editedTea.tea_type] || editedTea.color_hex,
               flavor_x: editedTea.flavor_x,
               flavor_y: editedTea.flavor_y,
             })
@@ -253,7 +253,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
               brewing_instructions: editedTea.brewing_instructions,
               characteristics: editedTea.characteristics,
               health_benefits: editedTea.health_benefits,
-              color_hex: editedTea.color_hex,
+              color_hex: TEA_TYPE_COLORS[editedTea.tea_type] || editedTea.color_hex,
               flavor_x: editedTea.flavor_x,
               flavor_y: editedTea.flavor_y,
             })

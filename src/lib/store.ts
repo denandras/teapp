@@ -235,7 +235,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       brewing_instructions: tea.brewing_instructions ?? "",
       characteristics: tea.characteristics,
       health_benefits: tea.health_benefits ?? [],
-      color_hex: tea.color_hex ?? "",
+      color_hex: TEA_TYPE_COLORS[tea.tea_type] || tea.color_hex || "",
       oxidation_level: tea.oxidation_level ?? 50,
       roast_level: tea.roast_level ?? 50,
       flavor_x: tea.flavor_x ?? 50,
@@ -480,6 +480,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
             source_type: (t.source_type as Tea["source_type"]) || "default",
             source: t.source || SOURCE_LABELS[(t.source_type as Tea["source_type"]) || "default"] || "Teapp",
             is_custom: (t.source_type as Tea["source_type"]) !== "default",
+            color_hex: TEA_TYPE_COLORS[t.tea_type] || t.color_hex || "#999",
           }));
           set({ allTeas: normalized });
         } else if (error) {
@@ -508,6 +509,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
             source_type: (t.source_type as Tea["source_type"]) || "default",
             source: t.source || SOURCE_LABELS[(t.source_type as Tea["source_type"]) || "default"] || "Teapp",
             is_custom: (t.source_type as Tea["source_type"]) !== "default",
+            color_hex: TEA_TYPE_COLORS[t.tea_type] || t.color_hex || "#999",
           }));
           teaIdToSlug = {};
           for (const row of allTeas) {

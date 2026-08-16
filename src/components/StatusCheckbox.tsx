@@ -21,7 +21,7 @@ export default function StatusCheckbox({ status, onCycle }: Props) {
       icon: Check,
       bg: "#7BA05B",
       color: "#fff",
-      label: "Currently have",
+      label: "In collection",
     },
     tried: {
       icon: Check,

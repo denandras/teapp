@@ -25,9 +25,20 @@ body {
   min-height: 100dvh;
 }
 
-/* Mobile bottom nav: cover the safe area to prevent see-thru.
-   The nav bar itself handles this via padding-bottom + solid bg.
-   No body::after needed — the html background + nav background covers everything. */
+/* Mobile bottom safe area fill — prevents see-thru below the fixed navbar
+   on iPhone (home indicator zone). Sits behind the navbar (z-50) but above
+   page content, filling any gap between navbar bottom and physical screen bottom. */
+body::after {
+  content: "";
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-bottom, 0px);
+  background-color: var(--bg);
+  z-index: 49;
+  pointer-events: none;
+}
 
 /* Paper texture overlay - subtle noise/grain across the whole app */
 body::before {
