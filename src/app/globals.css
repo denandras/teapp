@@ -21,7 +21,7 @@ body {
   color: var(--text);
   transition: background-color 0.3s, color 0.3s;
   position: relative;
-  overflow-x: hidden;
+  overflow-x: clip;
   min-height: 100dvh;
 }
 
