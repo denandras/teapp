@@ -46,28 +46,29 @@ export default function NavBar() {
         </div>
       </nav>
 
-      {/* Mobile: bottom nav bar — fully solid background */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t px-2"
+      {/* Mobile: bottom nav bar — structure matches andrasdenes.com */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 border-t pb-[env(safe-area-inset-bottom,0px)]"
         style={{
           backgroundColor: "var(--card)",
           borderColor: "var(--border)",
           boxShadow: "0 -4px 12px rgba(0,0,0,0.3)",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
-          minHeight: "3.5rem",
-          boxSizing: "border-box",
         }}>
-        {links.map((link) => {
-          const Icon = link.icon;
-          const active = pathname === link.href;
-          return (
-            <Link key={link.href} href={link.href}
-              className="flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-lg transition-colors min-w-0 flex-1"
-              style={active ? { color: "var(--accent)" } : { color: "var(--muted)" }}>
-              <Icon size={20} strokeWidth={active ? 2.5 : 2} />
-              <span className="text-[10px] font-medium truncate">{link.label}</span>
-            </Link>
-          );
-        })}
+        <div className="grid h-14 w-full grid-cols-6">
+          {links.map((link) => {
+            const Icon = link.icon;
+            const active = pathname === link.href;
+            return (
+              <Link key={link.href} href={link.href}
+                className="flex h-full items-center justify-center transition-colors"
+                style={active ? { color: "var(--accent)" } : { color: "var(--muted)" }}>
+                <div className="flex flex-col items-center gap-0.5">
+                  <Icon size={20} strokeWidth={active ? 2.5 : 2} />
+                  <span className="text-[10px] font-medium truncate">{link.label}</span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </>
   );
