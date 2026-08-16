@@ -25,20 +25,9 @@ body {
   min-height: 100dvh;
 }
 
-/* Mobile bottom safe area fill — prevents see-thru below the fixed navbar
-   on iPhone (home indicator zone). Sits behind the navbar (z-50) but above
-   page content, filling any gap between navbar bottom and physical screen bottom. */
-body::after {
-  content: "";
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-bottom, 0px);
-  background-color: var(--bg);
-  z-index: 49;
-  pointer-events: none;
-}
+/* Mobile bottom nav: root wrapper (flex min-h-screen with solid bg)
+   + navbar paddingBottom env(safe-area-inset-bottom) covers the safe area.
+   No body::after needed. */
 
 /* Paper texture overlay - subtle noise/grain across the whole app */
 body::before {
