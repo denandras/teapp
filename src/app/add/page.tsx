@@ -210,7 +210,7 @@ export default function AddTeaPage() {
   // Demo users cannot add teas — read-only mode (admins bypass this)
   if (isDemo && !adminUser) {
     return (
-      <div className="max-w-2xl">
+      <div>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -248,7 +248,7 @@ export default function AddTeaPage() {
   // Admins bypass this check.
   if (isTeahouse && !isApproved && !adminUser) {
     return (
-      <div className="max-w-2xl">
+      <div>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -284,7 +284,7 @@ export default function AddTeaPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

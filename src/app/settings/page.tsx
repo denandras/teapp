@@ -5,7 +5,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { useTeaStore } from "@/lib/store";
 import { useAuth } from "@/components/AuthProvider";
 import { triggerColorFlow } from "@/components/ThemeProvider";
-import { Palette, Trash2, Coffee, LogOut, PieChart as PieIcon, Store } from "lucide-react";
+import { Palette, Trash2, Coffee, LogOut, PieChart as PieIcon, Store, CalendarDays } from "lucide-react";
+import TeaCalendarGraph from "@/components/TeaCalendarGraph";
 import { TEA_TYPE_COLORS, TEA_TYPE_LABELS, ALL_TEA_TYPES } from "@/lib/types";
 import { isApprovedTeahouse } from "@/lib/profiles";
 import { supabase } from "@/lib/supabaseClient";
@@ -133,7 +134,7 @@ export default function SettingsPage() {
   const teahouseTasteTotal = teahouseTasteByType.reduce((sum, d) => sum + d.value, 0);
 
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-serif font-bold">Settings</h1>
         <p className="text-muted text-sm mt-1">Customize your Teapp experience</p>
@@ -208,6 +209,20 @@ export default function SettingsPage() {
             <p className="text-3xl font-bold text-accent">{collectionCount}</p>
             <p className="text-xs text-muted mt-1">Total</p>
           </div>
+        </div>
+      </div>
+
+      {/* Tea drinking calendar — last 30 days */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <CalendarDays size={20} className="text-accent" />
+          <h2 className="text-lg font-semibold">Last 30 Days</h2>
+        </div>
+        <p className="text-xs text-muted mb-4">
+          Your tea drinking activity over the past month. Hover any day to see what you logged.
+        </p>
+        <div className="rounded-xl border p-4 overflow-x-auto" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+          <TeaCalendarGraph />
         </div>
       </div>
 

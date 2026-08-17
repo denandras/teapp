@@ -116,7 +116,7 @@ export default function AdminPage() {
   // Not an admin — show access denied
   if (!isAdminUser) {
     return (
-      <div className="max-w-2xl">
+      <div>
         <div className="rounded-xl border p-10 text-center" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
           <Shield size={48} className="mx-auto mb-4" style={{ color: "var(--muted)" }} />
           <h1 className="text-2xl font-serif font-bold mb-2" style={{ color: "var(--text)" }}>
@@ -137,7 +137,7 @@ export default function AdminPage() {
   ];
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-serif font-bold flex items-center gap-2">
           <Shield size={26} className="text-accent" />

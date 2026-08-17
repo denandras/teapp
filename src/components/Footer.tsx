@@ -18,7 +18,7 @@ export default function Footer() {
         backgroundColor: "var(--bg)",
       }}
     >
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
         <Link href="/" className="flex items-center gap-2">
           <Leaf size={16} className="text-accent" />
           <span className="font-serif font-bold" style={{ color: "var(--accent)" }}>

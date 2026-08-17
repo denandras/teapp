@@ -103,7 +103,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-serif font-bold">Tea Dashboard</h1>
           <p className="text-muted text-sm mt-1">
-            {filteredTeas.length} teas · {collectionCount} in your collection
+            {allTeas.length} teas · {collectionCount} in your collection
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
