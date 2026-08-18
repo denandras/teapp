@@ -212,6 +212,7 @@ export default function TeaCalendarGraph() {
   // --- tooltip ---
   const [hoveredCell, setHoveredCell] = useState<DayCell | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const [flippedBelow, setFlippedBelow] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -221,11 +222,24 @@ export default function TeaCalendarGraph() {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const containerRect = containerRef.current?.getBoundingClientRect();
     if (containerRect) {
-      // Position relative to container
-      setTooltipPos({
-        x: rect.left - containerRect.left + rect.width / 2,
-        y: rect.top - containerRect.top - 8,
-      });
+      const cellCenterX = rect.left - containerRect.left + rect.width / 2;
+      const cellTop = rect.top - containerRect.top;
+      const containerW = containerRect.width;
+      const tooltipW = 200; // estimated, maxWidth is 240 but most are narrower
+      const tooltipH = 120; // estimated height
+
+      // Clamp X so tooltip stays within container [0, containerW]
+      let x = cellCenterX;
+      const halfW = tooltipW / 2;
+      if (x - halfW < 0) x = halfW + 2;
+      if (x + halfW > containerW) x = containerW - halfW - 2;
+
+      // If not enough space above the cell, flip tooltip below
+      const flipBelow = cellTop < tooltipH + 8;
+      const y = flipBelow ? rect.top - containerRect.top + rect.height + 8 : cellTop - 8;
+
+      setFlippedBelow(flipBelow);
+      setTooltipPos({ x, y });
     }
   }
 
@@ -342,16 +356,17 @@ export default function TeaCalendarGraph() {
           style={{
             left: tooltipPos.x,
             top: tooltipPos.y,
-            transform: "translate(-50%, -100%)",
+            transform: flippedBelow ? "translate(-50%, 0)" : "translate(-50%, -100%)",
           }}
         >
           <div
-            className="rounded-lg px-3 py-2 text-xs shadow-lg"
+            className="rounded-lg px-3 py-2 text-xs shadow-lg overflow-y-auto"
             style={{
               backgroundColor: "var(--card)",
               border: "1px solid var(--border)",
               minWidth: 140,
               maxWidth: 240,
+              maxHeight: 300,
             }}
           >
             {/* Date header */}
