@@ -212,16 +212,16 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Tea drinking calendar — last 30 days */}
+      {/* Tea drinking calendar — full history */}
       <div>
         <div className="flex items-center gap-2 mb-4">
           <CalendarDays size={20} className="text-accent" />
-          <h2 className="text-lg font-semibold">Last 30 Days</h2>
+          <h2 className="text-lg font-semibold">Drinking History</h2>
         </div>
         <p className="text-xs text-muted mb-4">
-          Your tea drinking activity over the past month. Hover any day to see what you logged.
+          Your tea drinking activity. The calendar fills the available space — hover any day to see what you logged.
         </p>
-        <div className="rounded-xl border p-4 overflow-x-auto" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+        <div className="rounded-xl border p-4" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
           <TeaCalendarGraph />
         </div>
       </div>

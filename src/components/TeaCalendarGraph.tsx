@@ -12,6 +12,7 @@ interface DayCell {
   count: number;
   isToday: boolean;
   isFuture: boolean;
+  isMonthStart: boolean;
 }
 
 // --- helpers ---
@@ -60,47 +61,98 @@ export default function TeaCalendarGraph() {
     return byDate;
   }, [teaLogs, teaNameMap]);
 
-  // Generate the last 30 days of cells, organized into a week-column grid
-  // (columns = weeks, rows = weekdays, Sun..Sat — GitHub style)
-  const { columns, monthLabels, weekdayLabels, totalLogs, maxCount } = useMemo(() => {
+  // --- dynamic container width measurement ---
+  // Measure the grid container so we can compute how many week columns fit.
+  // Cell size and gap come from CSS custom properties (responsive, no JS flash).
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(entry.contentRect.width);
+      }
+    });
+    ro.observe(el);
+    // Set initial value
+    setContainerWidth(el.getBoundingClientRect().width);
+    return () => ro.disconnect();
+  }, []);
+
+  // Read CSS custom properties for cell size and gap (set in globals.css,
+  // responsive via media query). Fallback to 14/3 if not available.
+  const cellSize = useMemo(() => {
+    if (typeof window === "undefined") return 14;
+    const v = getComputedStyle(document.documentElement)
+      .getPropertyValue("--cal-cell-size")
+      .trim();
+    return v ? parseInt(v, 10) : 14;
+  }, [containerWidth]); // re-read when container resizes (crosses breakpoint)
+
+  const cellGap = useMemo(() => {
+    if (typeof window === "undefined") return 3;
+    const v = getComputedStyle(document.documentElement)
+      .getPropertyValue("--cal-cell-gap")
+      .trim();
+    return v ? parseInt(v, 10) : 3;
+  }, [containerWidth]);
+
+  // Compute how many week columns can fit in the available width.
+  // Each column is cellSize wide, separated by cellGap.
+  const numWeeks = useMemo(() => {
+    if (containerWidth === 0) return 0; // not yet measured
+    const colStride = cellSize + cellGap;
+    // floor((width + gap) / stride) — the +gap accounts for no trailing gap
+    const fit = Math.floor((containerWidth + cellGap) / colStride);
+    // Minimum 4 weeks so very narrow containers still show something
+    return Math.max(4, fit);
+  }, [containerWidth, cellSize, cellGap]);
+
+  // Generate cells for numWeeks weeks ending at the current week, organized
+  // into a week-column grid (columns = weeks, rows = weekdays, Sun..Sat).
+  // Dates with no data still render as empty/zero-intensity cells.
+  const { columns, monthLabels, weekdayLabels, totalLogs, maxCount, daysShown } = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Start 29 days ago so we include today = 30 cells total
-    const start = new Date(today);
-    start.setDate(start.getDate() - 29);
+    // End of the range = end of the current week (Saturday).
+    const end = new Date(today);
+    const endDow = end.getDay(); // 0=Sun..6=Sat
+    end.setDate(end.getDate() + (6 - endDow)); // move forward to Saturday
 
-    // Align start to the beginning of its week (Sunday)
-    const startDow = start.getDay(); // 0=Sun
-    const gridStart = new Date(start);
-    gridStart.setDate(gridStart.getDate() - startDow);
+    // Start = end minus (numWeeks * 7 - 1) days, aligned to Sunday
+    const gridStart = new Date(end);
+    gridStart.setDate(gridStart.getDate() - (numWeeks * 7 - 1));
 
-    // Build all cells from gridStart until we cover today
+    // Build all cells from gridStart to end (inclusive)
     const cells: DayCell[] = [];
     const cursor = new Date(gridStart);
     let totalLogs = 0;
     let maxCount = 0;
 
-    // We need enough weeks to include today
-    while (cursor <= today) {
-      for (let dow = 0; dow < 7; dow++) {
-        const dateStr = toDateString(cursor);
-        const isFuture = cursor > today;
-        const isToday = toDateString(cursor) === toDateString(today);
-        const dayLogs = logsByDate[dateStr] || [];
-        const count = dayLogs.length;
+    while (cursor <= end) {
+      const dateStr = toDateString(cursor);
+      const isFuture = cursor > today;
+      const isToday = toDateString(cursor) === toDateString(today);
+      const isMonthStart = cursor.getDate() === 1;
+      const dayLogs = logsByDate[dateStr] || [];
+      const count = dayLogs.length;
+      if (!isFuture) {
         totalLogs += count;
         if (count > maxCount) maxCount = count;
-        cells.push({
-          date: new Date(cursor),
-          dateStr,
-          logs: dayLogs,
-          count,
-          isToday,
-          isFuture,
-        });
-        cursor.setDate(cursor.getDate() + 1);
       }
+      cells.push({
+        date: new Date(cursor),
+        dateStr,
+        logs: dayLogs,
+        count,
+        isToday,
+        isFuture,
+        isMonthStart,
+      });
+      cursor.setDate(cursor.getDate() + 1);
     }
 
     // Organize into columns of 7 (one per week)
@@ -132,8 +184,9 @@ export default function TeaCalendarGraph() {
       weekdayLabels: weekdays,
       totalLogs,
       maxCount,
+      daysShown: cells.filter((c) => !c.isFuture).length,
     };
-  }, [logsByDate]);
+  }, [logsByDate, numWeeks]);
 
   // --- intensity scale ---
   function getCellBg(cell: DayCell): string {
@@ -181,26 +234,13 @@ export default function TeaCalendarGraph() {
     setTooltipPos(null);
   }
 
-  // Mobile detection for responsive sizing
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  const cellSize = isMobile ? 12 : 14;
-  const cellGap = isMobile ? 2 : 3;
-
   // --- render ---
+  // Responsive sizing via CSS custom properties (no JS flash, no SSR mismatch).
+  // The grid measures its container and renders only as many week columns as fit.
   return (
     <div ref={containerRef} className="relative">
-      {/* Month labels */}
-      <div
-        className="flex mb-1"
-        style={{ gap: cellGap, paddingLeft: isMobile ? 0 : 0 }}
-      >
+      {/* Month labels — offset to align with the grid (weekday column width + marginRight + parent gap) */}
+      <div className="flex mb-1" style={{ gap: cellGap, paddingLeft: `calc(var(--cal-weekday-label-width) + 8px)` }}>
         {columns.map((col, i) => {
           const ml = monthLabels.find((m) => m.colIndex === i);
           return (
@@ -216,23 +256,24 @@ export default function TeaCalendarGraph() {
       </div>
 
       <div className="flex gap-1">
-        {/* Weekday labels column */}
-        {!isMobile && (
-          <div className="flex flex-col" style={{ gap: cellGap, marginRight: 4 }}>
-            {weekdayLabels.map((day, i) => (
-              <div
-                key={day}
-                className="text-[10px] text-muted flex items-center justify-end"
-                style={{ height: cellSize, width: 24, lineHeight: `${cellSize}px` }}
-              >
-                {i % 2 === 0 ? day : ""}
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Weekday labels column — CSS var collapses width to 0 on mobile */}
+        <div
+          className="flex flex-col overflow-hidden"
+          style={{ gap: cellGap, marginRight: 4, width: "var(--cal-weekday-label-width)" }}
+        >
+          {weekdayLabels.map((day, i) => (
+            <div
+              key={day}
+              className="text-[10px] text-muted flex items-center justify-end"
+              style={{ height: cellSize, lineHeight: `${cellSize}px` }}
+            >
+              {i % 2 === 0 ? day : ""}
+            </div>
+          ))}
+        </div>
 
-        {/* Calendar grid */}
-        <div className="flex" style={{ gap: cellGap }}>
+        {/* Calendar grid — ref for width measurement, flex-1 to fill space */}
+        <div ref={gridRef} className="flex flex-1 min-w-0" style={{ gap: cellGap }}>
           {columns.map((col, colIdx) => (
             <div key={colIdx} className="flex flex-col" style={{ gap: cellGap }}>
               {col.map((cell, rowIdx) => {
@@ -248,9 +289,13 @@ export default function TeaCalendarGraph() {
                       width: cellSize,
                       height: cellSize,
                       backgroundColor: bg,
+                      borderLeft: cell.isMonthStart
+                        ? "2px solid var(--muted)"
+                        : undefined,
                       outline: isToday ? `1.5px solid ${accentColor}` : "none",
                       outlineOffset: isToday ? "1px" : "0",
                       borderRadius: 2,
+                      boxSizing: "border-box",
                     }}
                   />
                 );
@@ -260,8 +305,8 @@ export default function TeaCalendarGraph() {
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-1.5 mt-3 text-[10px] text-muted">
+      {/* Legend — wraps on narrow screens */}
+      <div className="flex flex-wrap items-center gap-1.5 mt-3 text-[10px] text-muted">
         <span>Less</span>
         {[0, 0.35, 0.55, 0.75, 1.0].map((opacity, i) => {
           const hex = accentColor.replace("#", "");
@@ -282,9 +327,9 @@ export default function TeaCalendarGraph() {
           );
         })}
         <span>More</span>
-        {totalLogs > 0 && (
+        {totalLogs > 0 && daysShown > 0 && (
           <span className="ml-2">
-            · {totalLogs} {totalLogs === 1 ? "log" : "logs"} in last 30 days
+            · {totalLogs} {totalLogs === 1 ? "log" : "logs"} in last {Math.round(daysShown / 7)} weeks
           </span>
         )}
       </div>

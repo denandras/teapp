@@ -229,3 +229,19 @@ input, select, textarea {
   background-color: var(--accent) + "20";
   color: var(--accent);
 }
+
+/* ── Calendar graph responsive sizing ── */
+/* Pure CSS — no JS flash, adapts at runtime. */
+:root {
+  --cal-cell-size: 14px;
+  --cal-cell-gap: 3px;
+  --cal-weekday-label-width: 24px;
+}
+
+@media (max-width: 639px) {
+  :root {
+    --cal-cell-size: 12px;
+    --cal-cell-gap: 2px;
+    --cal-weekday-label-width: 0px;
+  }
+}
