@@ -319,9 +319,8 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       if (!teaId) return;
       supabase
         .from("tea_logs")
-        .upsert(
-          { user_id: userId, tea_id: teaId, rating, note },
-          { onConflict: "user_id,tea_id" }
+        .insert(
+          { user_id: userId, tea_id: teaId, rating, note }
         )
         .then(({ error }) => {
           if (error) console.error("Failed to insert tea_logs:", error.message);
@@ -693,12 +692,12 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         const teaId = await getTeaIdBySlug(slug);
         if (!teaId) continue;
         for (const log of logs) {
-          await supabase.from("tea_logs").upsert({
+          await supabase.from("tea_logs").insert({
             user_id: userId,
             tea_id: teaId,
             rating: log.rating,
             note: log.note,
-          }, { onConflict: "user_id,tea_id" });
+          });
         }
       }
 
