@@ -20,13 +20,14 @@ export default function DashboardPage() {
   const allTeas = useTeaStore((s) => s.allTeas);
 
   const collectionCount = Object.values(teaStates).filter(s => s && s !== "empty").length;
+  const haveCount = Object.values(teaStates).filter(s => s === "have").length;
 
   // Default to "My Collection" view only if user has teas in their collection
   useEffect(() => {
-    if (collectionCount > 0 && !showOnlyCollection) {
+    if (haveCount > 0 && !showOnlyCollection) {
       setShowOnlyCollection(true);
     }
-  }, [collectionCount]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [haveCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredTeas = useMemo(() => {
     let teas = allTeas.map((t, i) => ({ ...t, id: i + 1 }));
@@ -45,7 +46,7 @@ export default function DashboardPage() {
       teas = teas.filter(t => t.source_type === "teahouse" && activeTeahouses.includes(t.source || ""));
     }
     if (showOnlyCollection) {
-      teas = teas.filter(t => teaStates[t.slug] && teaStates[t.slug] !== "empty");
+      teas = teas.filter(t => teaStates[t.slug] === "have");
     }
     return teas;
   }, [search, activeTypes, activeTeahouses, showOnlyCollection, teaStates, allTeas]);
@@ -103,7 +104,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-serif font-bold">Tea Dashboard</h1>
           <p className="text-muted text-sm mt-1">
-            {allTeas.length} teas · {collectionCount} in your collection
+            {allTeas.length} teas · {showOnlyCollection ? haveCount : collectionCount} in your collection
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -195,12 +196,12 @@ export default function DashboardPage() {
       <div className="rounded-2xl border p-2 sm:p-6 paper-card" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
         <div className="mb-4">
           <h2 className="text-sm font-semibold text-muted uppercase tracking-wide">Flavor Chart</h2>
-          <p className="text-xs text-muted mt-1 hidden sm:block">Click a dot to see tea details · Dot size reflects collection status</p>
+          <p className="text-xs text-muted mt-1 hidden sm:block">Click a dot to see tea details · {showOnlyCollection ? "Showing teas you have" : "Dot size reflects collection status"}</p>
         </div>
         {showOnlyCollection && filteredTeas.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center py-12" style={{ minHeight: 300 }}>
             <p className="text-muted text-sm mb-2">No teas in your collection yet</p>
-            <p className="text-muted text-xs">Mark teas as "have" or "tried" in the Database to see them here</p>
+            <p className="text-muted text-xs">Mark teas as "have" in the Database to see them here</p>
           </div>
         ) : (
         <div className="relative">
@@ -354,10 +355,18 @@ export default function DashboardPage() {
           </div>
         ))}
         <div className="flex items-center gap-2 sm:ml-4">
-          <span className="text-xs text-muted">●</span>
-          <span className="text-xs text-muted">Small = not in collection</span>
-          <span className="text-xs text-muted">●</span>
-          <span className="text-xs text-muted">Large = in collection</span>
+          {showOnlyCollection ? (
+            <>
+              <span className="text-xs text-muted">Teas you have in your collection</span>
+            </>
+          ) : (
+            <>
+              <span className="text-xs text-muted">●</span>
+              <span className="text-xs text-muted">Small = not in collection</span>
+              <span className="text-xs text-muted">●</span>
+              <span className="text-xs text-muted">Large = in collection</span>
+            </>
+          )}
         </div>
       </div>
 
