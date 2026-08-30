@@ -64,7 +64,7 @@ function CaffeineMeter({ level, onChange, editing }: { level: number; onChange?:
         {[0, 1, 2, 3, 4, 5].map((n) => (
           <motion.div
             key={n}
-            animate={{ backgroundColor: n <= level ? "#c4853f" : "var(--border)" }}
+            animate={{ backgroundColor: level === 0 ? "var(--muted)" : n <= level ? "#c4853f" : "var(--border)" }}
             transition={{ duration: 0.2 }}
             className="w-3 h-5 rounded-sm"
             style={{ cursor: editing ? "pointer" : "default" }}
@@ -166,7 +166,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
     if (c.includes("medium") || c.includes("moderate") || c === "3") return 3;
     if (c.includes("low") || c === "2") return 2;
     if (c.includes("none") || c.includes("no") || c.includes("decaf") || c === "0") return 0;
-    return 3;
+    return 0;
   }, [displayTea.caffeine_level, editedTea.caffeine_level, editing]);
 
   const avgRating = useMemo(() => {

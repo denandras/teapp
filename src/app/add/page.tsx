@@ -496,7 +496,7 @@ export default function AddTeaPage() {
               {CAFFEINE_LEVELS.map((n) => (
                 <motion.div
                   key={n}
-                  animate={{ backgroundColor: n <= caffeineIndex ? "#c4853f" : "var(--border)" }}
+                  animate={{ backgroundColor: caffeineIndex === 0 ? "var(--muted)" : n <= caffeineIndex ? "#c4853f" : "var(--border)" }}
                   transition={{ duration: 0.2 }}
                   className="w-3 h-5 rounded-sm"
                 />
