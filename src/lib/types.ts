@@ -67,12 +67,12 @@ export const TEA_TYPE_LABELS: Record<string, string> = {
 export const ALL_TEA_TYPES = ["green", "white", "black", "oolong", "pu-erh", "yellow", "tisane", "blend"];
 
 export const CAFFEINE_LABELS: Record<number, string> = {
-  0: "None",
-  1: "Very Low",
-  2: "Low",
-  3: "Medium",
-  4: "High",
-  5: "Very High",
+  0: "Unknown",
+  1: "None",
+  2: "Very Low",
+  3: "Low",
+  4: "Medium",
+  5: "High",
 };
 
 export const ACCENT_COLORS: string[] = [

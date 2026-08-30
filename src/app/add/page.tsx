@@ -134,7 +134,7 @@ export default function AddTeaPage() {
   const [tea_type, setTeaType] = useState("blend");
   const [category, setCategory] = useState("");
   const [origin, setOrigin] = useState("");
-  const [caffeineIndex, setCaffeineIndex] = useState(3);
+  const [caffeineIndex, setCaffeineIndex] = useState(0);
   const [brewing_temp_c, setBrewingTempC] = useState("");
   const [brewing_time_min, setBrewingTimeMin] = useState("");
   const [brewing_num_brews, setBrewingNumBrews] = useState("1");
