@@ -67,7 +67,7 @@ export const TEA_TYPE_LABELS: Record<string, string> = {
 export const ALL_TEA_TYPES = ["green", "white", "black", "oolong", "pu-erh", "yellow", "tisane", "blend"];
 
 export const CAFFEINE_LABELS: Record<number, string> = {
-  0: "Unknown",
+  0: "None",
   1: "Very Low",
   2: "Low",
   3: "Medium",

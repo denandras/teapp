@@ -58,13 +58,15 @@ function StarRating({ rating, onChange, size = 18, interactive = true }: {
 }
 
 function CaffeineMeter({ level, onChange, editing }: { level: number; onChange?: (n: number) => void; editing?: boolean }) {
+  const isUnknown = level < 0;
+  const isNone = level === 0;
   return (
     <div className="flex items-center gap-2">
       <div className="flex items-center gap-1">
         {[0, 1, 2, 3, 4, 5].map((n) => (
           <motion.div
             key={n}
-            animate={{ backgroundColor: level === 0 ? "var(--muted)" : n <= level ? "#c4853f" : "var(--border)" }}
+            animate={{ backgroundColor: isUnknown ? "var(--border)" : isNone ? "var(--muted)" : n <= level ? "#c4853f" : "var(--border)" }}
             transition={{ duration: 0.2 }}
             className="w-3 h-5 rounded-sm"
             style={{ cursor: editing ? "pointer" : "default" }}
@@ -72,7 +74,7 @@ function CaffeineMeter({ level, onChange, editing }: { level: number; onChange?:
           />
         ))}
       </div>
-      <span className="text-xs text-muted">{CAFFEINE_LABELS[level] || "Unknown"}</span>
+      <span className="text-xs text-muted">{isUnknown ? "Unknown" : CAFFEINE_LABELS[level]}</span>
     </div>
   );
 }
@@ -157,16 +159,17 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
   const hideTea = useTeaStore((s) => s.hideTea);
   const removeCustomTea = useTeaStore((s) => s.removeCustomTea);
 
-  // Parse caffeine level string to number
+  // Parse caffeine level string to number. -1 = unknown (null/empty), 0 = None (caffeine-free)
   const caffeineNum = useMemo(() => {
     const c = ((editing ? editedTea.caffeine_level : displayTea.caffeine_level) || "").toLowerCase();
+    if (!c) return -1;
     if (c.includes("very high") || c === "5") return 5;
     if (c.includes("very low") || c === "1") return 1;
     if (c.includes("high") || c === "4") return 4;
     if (c.includes("medium") || c.includes("moderate") || c === "3") return 3;
     if (c.includes("low") || c === "2") return 2;
     if (c.includes("none") || c.includes("no") || c.includes("decaf") || c === "0") return 0;
-    return 0;
+    return -1;
   }, [displayTea.caffeine_level, editedTea.caffeine_level, editing]);
 
   const avgRating = useMemo(() => {
