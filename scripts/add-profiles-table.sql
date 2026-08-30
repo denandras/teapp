@@ -83,7 +83,9 @@ DROP POLICY IF EXISTS teas_user_owner ON teas;
 DROP POLICY IF EXISTS teas_insert_user ON teas;
 DROP POLICY IF EXISTS teas_insert_teahouse ON teas;
 DROP POLICY IF EXISTS teas_update_owner ON teas;
+DROP POLICY IF EXISTS teas_update_admin ON teas;
 DROP POLICY IF EXISTS teas_delete_owner ON teas;
+DROP POLICY IF EXISTS teas_delete_admin ON teas;
 
 -- Default teas: everyone (including anon) can read
 CREATE POLICY teas_default_public ON teas
@@ -117,9 +119,21 @@ CREATE POLICY teas_insert_teahouse ON teas
 CREATE POLICY teas_update_owner ON teas
   FOR UPDATE USING (owner_id = auth.uid());
 
+-- Update: admin can update any tea (including default teas where owner_id is null)
+CREATE POLICY teas_update_admin ON teas
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = TRUE)
+  );
+
 -- Delete: owner only
 CREATE POLICY teas_delete_owner ON teas
   FOR DELETE USING (owner_id = auth.uid());
+
+-- Delete: admin can delete any tea
+CREATE POLICY teas_delete_admin ON teas
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = TRUE)
+  );
 
 -- ============================================================
 -- 5. Set admin user
