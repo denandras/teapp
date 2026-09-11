@@ -47,7 +47,9 @@ export const TEA_TYPE_COLORS: Record<string, string> = {
   white: "#C8C4B0",
   black: "#8B4513",
   oolong: "#D4852A",
-  "pu-erh": "#6B4226",
+  sheng_puerh: "#8A9A3B",
+  shou_puerh: "#6B4226",
+  dark: "#4A3225",
   yellow: "#E6C84E",
   tisane: "#C0856A",
   blend: "#B07D56",
@@ -58,13 +60,15 @@ export const TEA_TYPE_LABELS: Record<string, string> = {
   white: "White",
   black: "Black",
   oolong: "Oolong",
-  "pu-erh": "Pu-erh",
+  sheng_puerh: "Sheng Pu-erh",
+  shou_puerh: "Shou Pu-erh",
+  dark: "Dark (Heicha)",
   yellow: "Yellow",
   tisane: "Tisane/Herbal",
   blend: "Blend",
 };
 
-export const ALL_TEA_TYPES = ["green", "white", "black", "oolong", "pu-erh", "yellow", "tisane", "blend"];
+export const ALL_TEA_TYPES = ["green", "white", "black", "oolong", "sheng_puerh", "shou_puerh", "dark", "yellow", "tisane", "blend"];
 
 export const CAFFEINE_LABELS: Record<number, string> = {
   0: "Unknown",
