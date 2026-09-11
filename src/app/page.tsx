@@ -152,10 +152,9 @@ export default function DashboardPage() {
               key={type}
               onClick={() => toggleType(type)}
               initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.03, duration: 0.2 }}
-              whileTap={{ scale: 0.92 }}
-              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex-shrink-0"
+              animate={{ opacity: 1, scale: 1, transition: { delay: i * 0.03, duration: 0.2 } }}
+              whileTap={{ scale: 0.92, transition: { duration: 0.1 } }}
+              className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors border flex-shrink-0"
               style={{
                 backgroundColor: active ? TEA_TYPE_COLORS[type] : "transparent",
                 color: active ? "#fff" : "var(--muted)",
@@ -176,10 +175,9 @@ export default function DashboardPage() {
               key={name}
               onClick={() => toggleTeahouse(name)}
               initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: (ALL_TEA_TYPES.length + i) * 0.03, duration: 0.2 }}
-              whileTap={{ scale: 0.92 }}
-              className="px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex-shrink-0"
+              animate={{ opacity: 1, scale: 1, transition: { delay: (ALL_TEA_TYPES.length + i) * 0.03, duration: 0.2 } }}
+              whileTap={{ scale: 0.92, transition: { duration: 0.1 } }}
+              className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors border flex-shrink-0"
               style={{
                 backgroundColor: active ? SOURCE_COLORS.teahouse : "transparent",
                 color: active ? "#fff" : "var(--muted)",

@@ -33,10 +33,9 @@ function FilterPill({
     <motion.button
       onClick={onClick}
       initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.03, duration: 0.2 }}
-      whileTap={{ scale: 0.92 }}
-      className="px-2.5 py-1 rounded-full text-xs font-medium transition-all border flex-shrink-0"
+      animate={{ opacity: 1, x: 0, transition: { delay: index * 0.03, duration: 0.2 } }}
+      whileTap={{ scale: 0.92, transition: { duration: 0.1 } }}
+      className="px-2.5 py-1 rounded-full text-xs font-medium transition-colors border flex-shrink-0"
       style={{
         backgroundColor: active ? activeColor : "transparent",
         color: active ? "#fff" : "var(--muted)",
