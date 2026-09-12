@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Edit, Save, Trash2, Thermometer, Clock, Repeat, MapPin, Star, Heart, Coffee, AlertTriangle, Users } from "lucide-react";
-import { Tea, TeaStatus, TeaLog, CAFFEINE_LABELS, SOURCE_LABELS, SOURCE_COLORS, TEA_TYPE_COLORS } from "@/lib/types";
+import { Tea, TeaStatus, TeaLog, CAFFEINE_LABELS, SOURCE_LABELS, SOURCE_COLORS, TEA_TYPE_COLORS, TEA_TYPE_LABELS, ALL_TEA_TYPES } from "@/lib/types";
 import { useTeaStore, getCurrentUserId } from "@/lib/store";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/AuthProvider";
@@ -435,12 +435,32 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
 
                 {/* Brewing badges - inline right after name, before description */}
                 <div className="flex items-center gap-3 mt-2 flex-wrap">
-                  <span
-                    className="px-2 py-0.5 rounded-full text-xs font-medium"
-                    style={{ backgroundColor: ((editing ? editedTea.color_hex : displayTea.color_hex) || "#999") + "30", color: (editing ? editedTea.color_hex : displayTea.color_hex) || "#999" }}
-                  >
-                    {(editing ? editedTea.tea_type : displayTea.tea_type) || "unknown"}
-                  </span>
+                  {editing ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {ALL_TEA_TYPES.map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setEditedTea({ ...editedTea, tea_type: type })}
+                          className="px-2 py-0.5 rounded-full text-xs font-medium transition-all border"
+                          style={{
+                            backgroundColor: editedTea.tea_type === type ? TEA_TYPE_COLORS[type] : "transparent",
+                            color: editedTea.tea_type === type ? "#fff" : "var(--muted)",
+                            borderColor: editedTea.tea_type === type ? TEA_TYPE_COLORS[type] : "var(--border)",
+                          }}
+                        >
+                          {TEA_TYPE_LABELS[type]}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <span
+                      className="px-2 py-0.5 rounded-full text-xs font-medium"
+                      style={{ backgroundColor: ((editing ? editedTea.color_hex : displayTea.color_hex) || "#999") + "30", color: (editing ? editedTea.color_hex : displayTea.color_hex) || "#999" }}
+                    >
+                      {(editing ? editedTea.tea_type : displayTea.tea_type) || "unknown"}
+                    </span>
+                  )}
                   {/* Source badge */}
                   <span
                     className="px-2 py-0.5 rounded-full text-xs font-medium"
