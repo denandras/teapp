@@ -48,7 +48,7 @@ export const TEA_TYPE_COLORS: Record<string, string> = {
   black: "#8B4513",
   oolong: "#D4852A",
   sheng_puerh: "#8A9A3B",
-  shou_puerh: "#6B4226",
+  shou_puerh: "#DBBC70",
   dark: "#4A3225",
   yellow: "#E6C84E",
   tisane: "#C0856A",
