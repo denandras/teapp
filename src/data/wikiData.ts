@@ -876,6 +876,238 @@ export const TEA_TYPES_CATEGORY: WikiCategory = {
   ],
 };
 
+// ── Yixing Zisha Clays (based on the Yixing Zisha Series by Teapot And Tea) ──
+
+export const ZISHA_CATEGORY: WikiCategory = {
+  slug: "zisha",
+  name: "Yixing Zisha Clays",
+  description:
+    "Zisha (紫砂, 'purple sand') is the legendary clay mined around Yixing, Jiangsu — the material behind the famous unglazed teapots that 'remember' your tea. Each clay type fires to a different color and brings out different qualities in the cup.",
+  icon: "Mountain",
+  entries: [
+    {
+      slug: "zisha-overview",
+      name: "Yixing Zisha (Overview)",
+      original_name: "宜興紫砂",
+      romaji: "Yíxīng zǐshā",
+      description:
+        "Zisha (紫砂) — zi (紫, purple) + sha (沙, sand) — is the umbrella term for all raw clay materials found around Dingshuzhen (丁蜀鎮), a town near the city of Yixing (宜興) in Jiangsu (江苏) province, China. Most Zisha comes from a particular place called Huanglongshan (黄龙山, the Yellow Dragon Mountain); clay from this area is identified with the prefix 'Benshan' (本山), meaning 'Original Mountain'.",
+      params: [
+        { icon: "Mountain", label: "Source", value: "Huanglongshan (黄龙山) & surrounding mines, Yixing, Jiangsu" },
+        { icon: "Sparkles", label: "Distinct trait", value: "Unglazed, porous — absorbs tea oils, develops patina" },
+        { icon: "Package", label: "Main categories", value: "Zini, Hongni, Zhuni, Lüni, Duanni" },
+      ],
+      sections: [
+        {
+          heading: "The five main categories",
+          body: "",
+          bullets: [
+            "Zini 紫泥 (purple clay) — named for the color after firing; the most common and the original famous Yixing clay",
+            "Hongni 红泥 (red clay) — named for the color after firing; orange to red pots",
+            "Zhuni 朱泥 (vermillion clay) — named for the color after firing; dense, near-porcelain, hardest to make",
+            "Lüni 绿泥 (green clay) — named for the color of the raw ore (more gray than green); rarest of the common categories (~2% of all Zisha)",
+            "Duanni 段泥/团泥 (group/section clay) — originally Tuanni, 'mixed clay'; not a single type but a natural blend, usually of Zini with Lüni, or Lüni with Hongni",
+          ],
+        },
+        {
+          heading: "Why Zisha improves tea",
+          body: "Zisha's porous structure allows the unglazed clay to breathe and absorb tea oils over years of use, rounding out astringency and softening bitterness — historically it could even improve the taste of low-quality tea. The pot 'seasons' toward the tea family you brew in it, which is why one pot should be dedicated to one tea family. The clay also has good plasticity, high strength, and low shrinkage, which is what allowed historical potters to create the famous shapes still made today.",
+        },
+        {
+          heading: "Reference",
+          body: "The category descriptions here follow the Yixing Zisha Series by Youzi (Teapot And Tea blog), based on the book 'Yixing Zisha Mineral' (宜興紫砂礦料) by Zhu Zewei (朱泽伟) — often called 'The Zisha Standard', distinguishing 21 kinds of Zini alone.",
+        },
+      ],
+      tips: [
+        "Names usually come from the color of the fired clay — but Lüni is named for the raw ore, so a 'green clay' pot looks beige-yellow.",
+        "If you only buy one Yixing pot, a Dicaoqing Zini pot is the classic all-rounder recommendation.",
+        "Never wash a Zisha pot with soap — hot water rinse only, lid off to dry.",
+      ],
+      best_for: ["Choosing a first teapot", "Understanding clay names", "Gongfu brewing"],
+      icon: "Mountain",
+    },
+    {
+      slug: "zini",
+      name: "Zini (Purple Clay)",
+      original_name: "紫泥",
+      romaji: "zǐní",
+      description:
+        "Zini (紫泥) is the most popular and most common of all Yixing Zisha — the original clay which gave Yixing its fame centuries ago. In ancient times it was also called Qingni (青泥, greenish-blue clay). It fires to shades of brown and purple, has good plasticity, high strength and low shrinkage, and its porous structure noticeably rounds out astringency and bitterness.",
+      params: [
+        { icon: "Palette", label: "Fired color", value: "Various shades of brown and purple" },
+        { icon: "Scale", label: "Workability", value: "Good plasticity, high strength, low shrinkage — easiest Zisha to form" },
+        { icon: "Sparkles", label: "Patina", value: "Fast, deepening shine with use" },
+      ],
+      sections: [
+        {
+          heading: "Di Cao Qing 底槽清 (Bottom Trench Qing)",
+          body: "",
+          bullets: [
+            "The most celebrated Zini grade — named for being found at the bottom of mining trenches (di/底 = bottom, cao/槽 = trench), first in quantity at the No. 4 Mine of Huanglongshan, later also No. 5 Mine and Taixi Mine.",
+            "Raw ore is identified by greenish 1–5 cm dots called 'chicken eyes'; older ore = smaller dots, wider firing range, less shrinkage.",
+            "Shrinkage 3.5–5.5%, firing 1180–1250°C, porosity between Zhuni and Duanni. The wide firing range yields many colors: brownish orange, brown, dark brown, dark grey-brown.",
+            "Considered the gold standard of Zisha: keeps some aroma while reducing bitterness and astringency — an all-round clay good for any tea. Develops a beautiful patina quickly. If you plan to own just one Yixing pot, let it be this one.",
+          ],
+        },
+        {
+          heading: "Qing Hui Ni 青灰泥 (Grey-Green Clay)",
+          body: "Popular in the late Ming and early Qing dynasties but often forgotten today. Also called Shayupini (鲨鱼皮泥, 'shark skin clay') for how the fired surface feels to the touch. Found mainly in the Dashuitan (大水潭) mining area — the second most prized Zini variant after Tianqingni — with more sand-like particles than other Zini. Fires grayish-brown; shrinkage ~6%, firing 1180–1220°C, more porous than Zhuni but less than Duanni. Versatile with any tea; a new pot can be slightly muting at first but adapts with seasoning. Recommended for those who want the Ming/Qing dynasty teapot experience — pair with a classic traditional shape. (Don't confuse it with Qingshuini — they're entirely different.)",
+        },
+        {
+          heading: "Qing Shui Ni 清水泥 (Clear Water Clay)",
+          body: "The most loosely defined 'clay' in Yixing — because it is not an actual Zisha ore. During the factory era the phrase referred to clay that was not altered: after crushing, no other materials, chemicals or coloring oxides were added, so it was pure Zini ('clear water'). Since most factory-era Qingshuini pots were light brown, the word drifted into describing any pot of similar color and texture. On a modern teapot it tells you nothing about the material, only what the pot tries to look like — so be wary.",
+        },
+        {
+          heading: "Lao Zini 老紫泥 (Old Purple Clay)",
+          body: "Not an exact term — Lao (老, old) has two meanings among potters. (1) Aged clay: raw ore must be weathered, processed and aged (typically 3–6 months) for viscosity and plasticity; clay aged for years fires darker at higher temperatures with better durability. (2) Traditional processing: clay processed with old techniques shows more 'flaws' — sand and black iron specks, a less smooth surface — which Chinese customers often dislike, making such pots harder to find. When buying directly from an artist, ask what they mean by Lao.",
+        },
+        {
+          heading: "Tian Qing Ni 天青泥 (Heavenly Zini)",
+          body: "The legendary, most prized and rarest Zini — already rare during the Ming and Qing dynasties. Frequently translated 'Reddish Black' or 'Sky Blue Clay', but since Zini was itself called Qingni in ancient times, 'Heavenly/Sky Zini' reflects its status. Only two known teapots of it exist, both by Yang FengNian (楊鳳年), the most famous female Yixing artist (~1800–1850): one in Nanjing's museum, one at the Yixing Ceramics Museum. Mined at Dashuitan (大水潭) near Huanglongshan, which flooded at the end of the Qing dynasty and is now a small lake — the original ore is unmineable. Consensus holds it fires to a dark liver color; shrinkage 8%, firing 1160–1210°C. The market is full of fakes (even chemically colored blue pots); a verified Dashuitan Tianqingni pot costs far more than $1000.",
+        },
+      ],
+      tips: [
+        "Dicaoqing is the safest choice for a first (or only) Yixing pot — genuinely good with every tea family.",
+        "'Qingshuini' on a modern pot is a marketing color label, not a material guarantee.",
+        "A 'Tianqingni' pot sold cheap is by definition not Tianqingni — the original mine has been flooded for a century.",
+      ],
+      best_for: ["Any tea (esp. Dicaoqing)", "First Yixing pot", "Oolong", "Pu-erh"],
+      icon: "Mountain",
+    },
+    {
+      slug: "hongni",
+      name: "Hongni (Red Clay)",
+      original_name: "红泥",
+      romaji: "hóngní",
+      description:
+        "Hongni (红泥) is named for its color after firing — orange to shades of red. It is a general category divided by raw material into Zisha Hongni (紫砂红泥) and Zhuni Hongni (朱泥红泥); the entry here covers Zisha Hongni (Zhuni has its own page). In raw form it is reddish or yellow with a fairly uniform texture — dense but easy to break up, and unlike Zhuni it is not water-soluble.",
+      params: [
+        { icon: "Palette", label: "Fired color", value: "Orange and shades of red" },
+        { icon: "Scale", label: "Workability", value: "Behaves like Zini in forming and firing" },
+        { icon: "Droplets", label: "Porosity", value: "Slightly less porous than Zini" },
+      ],
+      sections: [
+        {
+          heading: "Famous variants",
+          body: "",
+          bullets: [
+            "Dahongni 大红泥 — the base red clay",
+            "Dahongpao 大红袍 — the 'legendary' red clay (clay name, not the Wuyi tea of the same name)",
+            "Xiaohongni 小红泥 — smaller-grained red clay",
+            "Hongpilong 红皮龙 ('red skin dragon')",
+            "Jiangponi 降坡泥 ('slope-reducing clay') — discovered while cutting a road near Huanglongshan",
+          ],
+        },
+        {
+          heading: "In the pot",
+          body: "Structurally and behaviorally close to Zini but slightly less porous. The fired color runs orange through the reds, from bright to dark. Pots made from Hongni suit aromatic teas where a touch more density and heat retention flatters the aroma — Dancong and other aromatic oolongs, roasted oolongs, and red teas are classic matches.",
+        },
+      ],
+      tips: [
+        "'Dahongpao clay' and the Dahongpao tea are unrelated — same famous name, different things.",
+        "Hongni pots show patina beautifully; expect the color to deepen over the first months of use.",
+      ],
+      best_for: ["Aromatic oolongs", "Red/black tea", "Roasted teas"],
+      icon: "Mountain",
+    },
+    {
+      slug: "zhuni",
+      name: "Zhuni (Vermillion Clay)",
+      original_name: "朱泥",
+      romaji: "zhūní",
+      description:
+        "Zhuni (朱泥) is the special one: the only Zisha not originally from Huanglongshan — it comes from Zhaozhuangshan (赵庄山). Raw Zhuni is yellow with a chalk-like texture, and uniquely among Zisha it is water-soluble. High shrinkage and comparatively low plasticity make it extremely difficult to work; in the past only the greatest masters could make pure Zhuni pots, and most clay was blended with Baini (白泥) or Duanni.",
+      params: [
+        { icon: "Palette", label: "Fired color", value: "Range of reds: brownish, bright, orange, dark" },
+        { icon: "Droplets", label: "Porosity", value: "Least porous of all Zisha — almost porcelain-like density" },
+        { icon: "Scale", label: "Difficulty", value: "Highest shrinkage, lowest plasticity, lowest firing yield" },
+      ],
+      sections: [
+        {
+          heading: "History and sources",
+          body: "During the Ming and Qing dynasties the main sources were Zhaozhuangshan and later the Hongwei (红卫) village mine; Huanglongshan Zhuni — from deeper ore layers, hard to mine — only became common in the 20th century, and its smaller shrinkage allows larger pots. In the second half of the 20th century the most prized Zhuni was found at Xiaomeiyao (小煤窑, 'Little Coal Mine'), occurring only in 5–20 cm patches among coal blocks and sandstone: extremely rare and extremely hard to work, with the largest shrinkage of all and a firing survival rate of just 6 out of 10 pots.",
+        },
+        {
+          heading: "In the pot",
+          body: "Modern electric kilns with precise temperature control have made Zhuni easier, but it remains the hardest Zisha to throw and fire. The result is a dense, glossy, almost porcelain-like body with a bright bell-like ring — prized for aroma-focused brewing, since low porosity keeps the tea's perfume vivid. Classic shape is the small, globular Shuiping (水平) pot.",
+        },
+      ],
+      tips: [
+        "Zhuni flatters aroma-forward teas: Yancha, Dancong, black tea. Its density mutes less than porous clays.",
+        "Expect a smaller pot — high shrinkage makes large Zhuni pots rare and fragile.",
+        "Genuine Xiaomeiyao Zhuni is very rare; most 'Zhuni' on the market is blended or from Huanglongshan.",
+      ],
+      best_for: ["Aromatic oolong & Yancha", "Red/black tea", "Aroma-focused gongfu"],
+      icon: "Mountain",
+    },
+    {
+      slug: "luni",
+      name: "Lüni (Green Clay)",
+      original_name: "绿泥",
+      romaji: "lǜní",
+      description:
+        "Lüni (绿泥) is the rarest of the common Zisha categories — only around 2% of all Zisha. It is named for the color of the raw ore, though the ore is arguably more gray than green. Like most Zisha it comes from Huanglongshan, so it is mostly sold as Benshan Lüni (本山绿泥, 'Original Mountain green clay').",
+      params: [
+        { icon: "Palette", label: "Fired color", value: "Pastel yellow, satin, beige" },
+        { icon: "Droplets", label: "Porosity", value: "Best air permeability and heat preservation of all Zisha" },
+        { icon: "Flame", label: "Firing", value: "Must be high-fired" },
+      ],
+      sections: [
+        {
+          heading: "In the pot",
+          body: "Lüni must be high-fired — otherwise the pot can 'spit black' (吐黑, tuhei: dark specks blooming on the surface) or crack from use. Its standout properties are the best air permeability and heat preservation of all Zisha, which suit delicate teas that need gentle, even heat. The finished color is a soft pastel yellow/beige satin that takes patina gracefully. Exact properties vary by mine and the depth the material was dug from.",
+        },
+        {
+          heading: "Where you meet it",
+          body: "Pure Lüni pots are rare; Lüni most often appears as half of a Duanni blend (with Zini or Hongni), or as slip (surface coating) on Zini bodies. A 'Benshan Lüni' label on a well-made pot is a sign the maker knows their material — it is the least forgiving Zisha to fire.",
+        },
+      ],
+      tips: [
+        "If a 'Lüni' pot looks bright green, be suspicious — real Lüni fires pastel yellow-beige.",
+        "Great for delicate greens and lightly oxidized oolongs thanks to its gentle heat retention.",
+        "'Spitting black' on a cheap pot is a sign of under-firing.",
+      ],
+      best_for: ["Green tea", "Light oolongs", "Delicate teas"],
+      icon: "Mountain",
+    },
+    {
+      slug: "duanni",
+      name: "Duanni (Mixed Clay)",
+      original_name: "段泥 / 团泥",
+      romaji: "duànní (formerly tuánní)",
+      description:
+        "Duanni (段泥) is not a single type of Zisha but a mixture of the others — usually Zini with Lüni, or Lüni with Hongni. It was originally called Tuanni (团泥, 'group clay') for being a blend; in the Yixing dialect Tuan and Duan sound similar, the characters drifted, and the 'satin' color (缎) of the fired clay reinforced the change. Because it can combine the parent clays in any proportion, Duanni is the most diverse and complex of the Zisha types.",
+      params: [
+        { icon: "Palette", label: "Fired color", value: "Anything in the range of, and between, the parent clays" },
+        { icon: "Droplets", label: "Porosity", value: "Variable — depends on the blend" },
+        { icon: "Shuffle", label: "Character", value: "Can carry the attributes of Zini, Lüni and Hongni in any ratio" },
+      ],
+      sections: [
+        {
+          heading: "Notable varieties",
+          body: "",
+          bullets: [
+            "Sesame Duanni (Zhimaduanni, 芝麻段泥) — speckled like sesame seeds",
+            "Gold Duanni (Jinduanni, 金段泥) — warm golden beige",
+            "Crab Yellow Duanni (Xiehuangduanni, 蟹黄段泥) — the famous 'crab roe' yellow",
+          ],
+        },
+        {
+          heading: "In the pot",
+          body: "A well-made Duanni pot behaves like a dialogue between its parents: Lüni's permeability and gentle heat with Zini's or Hongni's structure and strength. It is a favorite for lighter teas — greens, whites, lightly roasted oolongs — though a Zini-heavy Duanni comfortably handles oolong and pu-erh too. Since the blend varies, let the pot prove itself with one tea family and stay there.",
+        },
+      ],
+      tips: [
+        "Duanni is where potters show color artistry — the 'crab yellow' pots are among the most recognisable Yixing aesthetics.",
+        "Two Duanni pots can behave quite differently; judge the pot, not the category.",
+        "Traditionally a friendly choice for green and light teas where porous Zini would be too assertive.",
+      ],
+      best_for: ["Green & white tea", "Light oolongs", "Collectors of color"],
+      icon: "Mountain",
+    },
+  ],
+};
+
 // ── Master category list ─────────────────────────────────────────────
 
 export const WIKI_CATEGORIES: WikiCategory[] = [
@@ -883,4 +1115,5 @@ export const WIKI_CATEGORIES: WikiCategory[] = [
   POURING_CATEGORY,
   ACCESSORIES_CATEGORY,
   TEA_TYPES_CATEGORY,
+  ZISHA_CATEGORY,
 ];
