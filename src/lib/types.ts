@@ -2,7 +2,7 @@ export interface Tea {
   id?: number;
   name: string;
   slug: string;
-  phonetic_name: string;
+  translation: string;
   original_name: string;
   description: string;
   origin: string;

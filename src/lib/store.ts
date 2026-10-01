@@ -92,7 +92,7 @@ interface CustomTea {
   id: string;
   name: string;
   slug?: string;
-  phonetic_name?: string;
+  translation?: string;
   original_name?: string;
   description: string;
   origin: string;
@@ -222,7 +222,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
     const insertRow = {
       name: tea.name,
       slug,
-      phonetic_name: tea.phonetic_name ?? "",
+      translation: tea.translation ?? "",
       original_name: tea.original_name ?? "",
       description: tea.description,
       origin: tea.origin,
@@ -546,7 +546,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
               id: -1,
               name: row.name,
               slug: row.slug || `custom-${row.id}`,
-              phonetic_name: "",
+              translation: "",
               original_name: "",
               description: row.description || "",
               origin: row.origin || "",

@@ -220,7 +220,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
             .from("teas")
             .update({
               name: editedTea.name,
-              phonetic_name: editedTea.phonetic_name,
+              translation: editedTea.translation,
               original_name: editedTea.original_name,
               description: editedTea.description,
               origin: editedTea.origin,
@@ -243,7 +243,7 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
             .from("teas")
             .update({
               name: editedTea.name,
-              phonetic_name: editedTea.phonetic_name,
+              translation: editedTea.translation,
               original_name: editedTea.original_name,
               description: editedTea.description,
               origin: editedTea.origin,
@@ -416,19 +416,19 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                       style={{ borderColor: "var(--border)" }}
                     />
                     <input
-                      value={editedTea.phonetic_name}
-                      onChange={(e) => setEditedTea({ ...editedTea, phonetic_name: e.target.value })}
-                      placeholder="Phonetic name"
+                      value={editedTea.translation}
+                      onChange={(e) => setEditedTea({ ...editedTea, translation: e.target.value })}
+                      placeholder="Translation"
                       className="text-sm text-muted bg-transparent border-b w-full"
                       style={{ borderColor: "var(--border)" }}
                     />
                   </div>
                 ) : (
-                  (displayTea.original_name || displayTea.phonetic_name) && (
+                  (displayTea.original_name || displayTea.translation) && (
                     <p className="text-muted text-sm mt-1">
                       {displayTea.original_name && <span className="font-serif text-lg">{displayTea.original_name}</span>}
-                      {displayTea.original_name && displayTea.phonetic_name && " · "}
-                      {displayTea.phonetic_name && <span>{displayTea.phonetic_name}</span>}
+                      {displayTea.original_name && displayTea.translation && " · "}
+                      {displayTea.translation && <span>{displayTea.translation}</span>}
                     </p>
                   )
                 )}

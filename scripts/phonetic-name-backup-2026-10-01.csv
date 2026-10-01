@@ -1,0 +1,102 @@
+id,slug,phonetic_name
+8a8ad622-1427-4b4d-bef6-a449068d2f1d,xinyang-maojian,Xìnyáng Máojiān
+aae5cf27-31f1-423d-988b-4d40a5487f17,nanjing-yuhua,Nánjīng Yǔhuā Chá
+7934e14e-ca5c-47b6-9e49-4cd9030deefa,beigang-maojian,Běigǎng Máojiān
+9918fb50-ea8b-4605-9274-61a05ecd03cb,enshi-yulu,Ēnshī Yùlù
+ae2c4707-2971-42eb-ae01-caf77dc7ce66,weishan-maojian,Wéishān Máojiān
+e10efee3-74da-4b29-a767-442e4a1958c1,mogan-huangya,Mògān Huángyá
+d29582a8-e40d-49e2-8559-835c45d44047,pingyang-huangtang,Píngyáng Huángtāng
+c7367971-fb82-40c7-8b13-603ba0514f31,wenzhou-huangtang,Wēnzhōu Huángtāng
+2b46feb6-e96d-4e85-a653-97ea8f9dfb69,yuanan-luyuan,Yuǎn'ān Lùyuàn
+891aac1b-22b8-486c-bb13-17371fec726e,ben-shan,Běnshān
+4eedf975-93a5-4c95-b520-bb859eb5a9f8,alishan-oolong,Ālǐshān Gāoshān Wūlóng
+85bd13fb-d920-41b7-bdb8-7cd48db52c57,gongmei,Gòngméi
+f661dda4-3a22-4c1e-905d-934b12f5e07b,jianyang-shui-xian-bai,Jiànyáng Shuǐxiān Bái
+1b7b111b-b373-4ed9-b806-eb1c0c159172,zhangping-shui-xian,Zhāngpíng Shuǐxiān
+e4880fd6-a4bf-4463-a094-2e932f9ba025,lishan-oolong,Líshān Gāoshān Wūlóng
+6a8ecd48-d1df-4dc6-9269-b597a8054378,tan-yang-gongfu,Tǎnyáng Gōngfū
+9a14a9b5-c76c-4cec-bd57-e484d3fa05ed,gyeolmyeongja-cha,Cassia seed
+63ec279f-a692-4e2f-8fc0-7291e86aee1a,jiuqu-hongmei,Jiǔqū Hóngméi
+4784641a-d901-481c-852c-c387bb632459,bai-lin-gongfu,Báilín Gōngfū
+7b96fc47-a8d8-468e-b0e2-33a7cd667771,yihong,Yíhóng
+2fca4e40-31e2-44bb-a99e-8c3f92bcba0d,zhenghe-gongfu,Zhènghé Gōngfū
+62774675-2e6c-45ca-a0bb-c2b1dded2ad5,ninghong-gongfu,Nínghóng Gōngfū
+45ae1cd4-bb68-4f03-95af-8d80665b965a,menghai-7572,Měnghǎi 7572 Shú
+bd961c3c-fced-49ab-ba39-40c6497a1ba9,chuanhong-gongfu,Chuānhóng Gōngfū
+5add8aa3-c454-46a4-888c-5fc4b34f7705,yuehong-gongfu,Yuèhóng Gōngfū
+85267094-fea4-4159-94f4-07dd45ab678e,kunming-7581,Kūnmíng 7581 Zhuān
+90ab49df-4c8d-4541-92ce-89a4521d2fe9,fu-brick,Fúzhuān Chá
+70a6c8fa-1ffb-4736-937f-8101e3db1ea2,xiaguan-8663,Xiàguān 8663 Shú
+d8272f99-b20f-40c5-84aa-5f1156db1d46,huazhuan-brick,Huāzhuān Chá
+e1f5e977-869a-4c55-876e-a8b5adec5e3e,tteokcha,Tteokcha / Byeongcha
+2984d209-fe91-41ef-825d-1b32fecbc6ce,sunrouge,soon-roozh
+87eccac5-9db7-49ca-996b-dd04783b1066,four-seasons-of-spring,Four Seasons of Spring
+95e09759-e6d2-4411-a646-6d81d29b164f,lao-cha-tou,Lǎo Chá Tóu
+37d03092-a557-4ae5-b53f-ed63096d6785,heizhuan-brick,Hēizhuān Chá
+f5a4be4c-4a3a-4db5-a9fe-9013341f948d,lao-banzhang-sheng,Lǎo Bānzhāng Shēng
+d85a7b57-ff3d-4f15-b511-7f6e8f058b4b,anhua-heicha,Ānhuà Hēichá
+90518644-4cde-40c4-a505-22b5f35375b8,tianjian,Tiānjiān
+e5a2a3b4-61f3-4931-9f9c-b230dc994118,qianliang-cha,Qiānliǎng Chá
+d7ae5c91-7556-4c6d-85da-5ee271b214b9,hubei-qingzhuan,Húběi Qīngzhuān Chá
+e27728c2-23ed-43d0-a1f3-acdb98b06c6e,kang-brick,Kāngzhuān Chá
+627f0c54-e40d-4968-8ca9-2dc33c1ef999,yaan-zangcha,Yǎ'ān Zàngchá
+76ed4cfc-b16b-4b91-9cdc-213775b00059,liu-bao,Liù Bǎo Chá
+1acaed54-b2c5-4ac2-837d-893bfc6c5eec,menghai-7542,Měnghǎi 7542
+8b947ca2-c3c5-494b-b94c-c4b30c9f02c5,lao-mane-sheng,Lǎo Màn'é Shēng
+bd65194a-0fa7-40c6-9f68-9f7559c28b98,bingdao-sheng,Bīngdǎo Shēng
+986b3ef6-45f7-4285-902d-7d3498775677,rougui-tea,Ròu Guì
+189e879c-677b-47c3-8401-b60e256ff3fd,gongjian,Gòng Jiān
+4d76cd9c-a412-4cca-b839-96fd7feeb08e,shengjian,Shēng Jiān
+308de892-3113-43a3-a1dd-ae0a2cc494f2,jinjian,Jīn Jiān
+b04264f3-3934-4f89-87fd-15381160bd67,nannuo-sheng,Nán Nuò Shān Shēng
+e81d4c2d-4dbe-4d4c-8193-e64534ee7b3a,awabancha,Awa Bancha
+74a28656-3c87-43a1-95c9-f52d6b48abae,ishizuchi-kurocha,Ishizuchi Kurocha
+a509bae7-d657-4703-8840-2a1f1a2d9399,xiaguan-jia-ji-tuo,Xiàguān Jiǎjí Tuó
+add6fd1c-3c86-4d83-967b-0b7e5392e1e1,da-xue-shan-sheng,Dà Xuě Shān Shēng
+ff6e7f57-0b5e-4353-ba40-e4173d2824dc,bulang-shou,Bùlǎng Shān Shúchá
+391ffeb0-2b47-4002-8e94-a7fd16d03e1a,yiwu-sheng,Yìwǔ Shēng
+8358683d-0443-46e2-ac0d-94fdf33de337,jingmai-sheng,Jǐngmài Shēng
+ef6d3a81-52d0-4740-99d6-89c520902bba,tong-mu-guan-lapsang-souchong,Tóng Mù Guān Zhèng Shān Xiǎo Zhǒng
+5517f51c-fe0b-42dc-904c-a3c3a05dabf4,xiaguan-xiao-fa-tuo,Xiàguān Xiāo Fǎ Tuó
+aee05d19-b205-4811-915c-81c7c8a5e16c,dayi-v93,Dàyì V93 Shú Tuó
+f366b78e-b92f-477c-a0e5-b4b94e81691f,lahpet,Lahpet / Laphet
+85d17c4d-ad9b-4b1d-b19e-af1deb8c8d5d,miang,Miang
+e5499157-54e7-4be5-bc07-990893982722,yueguang-bai,Yuèguāng Bái
+f336610b-5f54-467d-82aa-2ca2126dfaba,bada-manmai-shou,Bādá Mànmài Shú
+ccff1582-1584-4f86-815e-d7fa3d3afd02,zhenghe-lao-bai-mudan,Zhènghé Lǎo Bái Mǔdān
+8b37db84-39c6-444e-b979-53cd61453fa2,zhenghe-lao-cong-shou-mei,Zhènghé Lǎo Cōng Shòuméi
+901fb11d-b899-41f7-81ac-ea99723cf23f,zhenghe-bai-mudan,Zhènghé Bái Mǔdān
+d4e11be4-d0e4-4e66-b4b2-a2582299c172,zhenghe-huangye-bai-mudan,Zhènghé Huāngyě Bái Mǔdān
+5682bfd1-13b8-4d1d-825e-7873afed3c01,zhenghe-huangye-shou-mei,Zhènghé Huāngyě Shòuméi
+54583701-843c-40cb-b7b1-6f2e30f42589,zhenghe-yuanya-bai-mudan,Zhènghé Yuǎnyá Bái Mǔdān
+688ab3b8-dc1a-4dd8-a9a9-fedc096ebf83,fuding-lao-cong-bai-mudan,Fúdǐng Lǎo Cōng Bái Mǔdān
+873d511d-2a29-4d01-b1ca-3d1ffa525081,lao-man-e-guoyoulin-sheng,Lǎomàn'è Guóyǒulín Shēng
+5b23d497-5659-419b-b5e8-f90541f931da,wangong-gu-shu-sheng,Wāngōng Gǔshù Shēng
+71b62c66-7431-4338-8b4d-f6f0aaec1ec4,ban-pen-mao-cha,Bān Pén Máochá
+df17d492-ace4-45bf-8d9f-a569325128f9,dinghu-alishan-oolong,Dǐnghú Ālǐshān Wūlóng
+73629551-f2c3-4a2b-a1bd-b944003fe727,fushou-shan-oolong,Fúshòushān Wūlóng
+b3ae03e3-bea5-41d7-8a30-a45810cddbbf,huoshan-wild-huangya,Huòshān Huāngyě Huángyá
+721c15b7-4b14-44b3-b12c-cc51c0343075,lao-chuan-huang-da-cha,Lǎochuān Huángdàchá
+1e0f4948-5521-4bbf-8b9b-7a2b3113aa7c,long-feng-xia-oolong,Lóng Fèng Xiá Wūlóng
+b2756c5b-fa93-43bd-904a-3ad2a709ab72,luo-shui-dong-mao-cha,Luò Shuǐ Dòng Máochá
+998e2793-9d28-4fed-8986-d8ada0544091,meng-ding-huang-xiao-cha,Méngdǐng Huángxiǎochá
+2f189a8e-afa8-49f0-9d00-7bd1a611a3d1,sheng-liu-bao,Shēng Liùbǎo
+8b8f1b81-f60d-46ee-93d1-b00230f68237,ba-xian-dan-cong,Bāxiān Dāncóng
+b699995a-6e7f-4258-8cd8-1a6b86ac6c6c,gao-cong-shui-xian,Gāocōng Shuǐxiān
+c07a7019-a124-4211-ab7f-3077486a2259,lao-cong-shui-xian,Lǎocōng Shuǐxiān
+edaefdb7-f14e-49c4-a4bd-04a6859e5eee,qingyan-lapsang-souchong,Qīngyān Zhèngshān Xiǎozhǒng
+b0b9325b-44d5-435d-acd5-8ca26ffaaa2c,meng-ding-mao-feng,Méngdǐng Máofēng
+55ac6fd9-383a-4660-887e-7a94bbcc221d,qimen-jin-zhen,Qímén Jīnzhēn
+412524e5-23e0-4c5f-9e1a-a88124b982b6,qimen-mao-feng,Qímén Máofēng
+dad0a3b6-771d-4839-90b2-2dcc7d9dc826,wudong-lao-cong-shui-xian,Wūdōng Lǎocōng Shuǐxiān
+2177da40-4f1f-40f7-b51b-2386fb7fbc01,miaolian-shui-xian,Miàolián Shuǐxiān
+7199ed6a-e436-41f9-94f3-3539de22ffb3,da-keng-kou-lao-cong-shui-xian,Dàkēngkǒu Lǎocōng Shuǐxiān
+de38cab0-febd-4278-8c34-003523c75a2f,hui-yuan-keng-100-year-shui-xian,Huìyuàn Kēng Bǎinián Lǎocōng Shuǐxiān
+5686677f-a409-4b8b-af9d-6f0b28c35fea,guanyin-yan-rougui,Guānyīn Yán Ròuguì
+f1fe9f27-7d63-48b9-8418-1221cde1399c,hui-yuan-keng-rougui,Huìyuàn Kēng Ròuguì
+25d37c22-051f-45e8-8d95-cbdf05573187,dao-shui-keng-rougui,Dàoshuǐ Kēng Ròuguì
+b1a46eb7-9884-4964-9a7e-f8579571c5a6,zhuke-aijiao-wulong,Zhúkē Āijiǎo Wūlóng
+3759ee68-f8fe-4432-909d-e2386b498fa8,shijiao-lao-cong-mei-zhan,Shíjiǎo Lǎocōng Méizhàn
+df4a8bc6-cbc0-46f0-99c1-8f8403245939,ma-tou-yan-tie-luo-han,Mǎtóuyán Tiě Luóhàn
+7148ade6-43d7-4ec0-86f8-73d26eb58174,hui-yuan-keng-beidou-da-hong-pao,Huìyuàn Kēng Běidǒu Dàhóngpáo
+f3121fd2-8737-474b-a505-27714a9c9dd1,alishan-jin-xuan,Ālǐshān Jīnxuān

@@ -36,7 +36,7 @@ export default function DashboardPage() {
       teas = teas.filter(t =>
         t.name.toLowerCase().includes(q) ||
         t.original_name?.toLowerCase().includes(q) ||
-        t.phonetic_name?.toLowerCase().includes(q)
+        t.translation?.toLowerCase().includes(q)
       );
     }
     if (activeTypes.length > 0) {

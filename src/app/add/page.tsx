@@ -128,7 +128,7 @@ export default function AddTeaPage() {
   const [adminCreateAs, setAdminCreateAs] = useState<"default" | "user">("default");
 
   const [name, setName] = useState("");
-  const [phonetic_name, setPhoneticName] = useState("");
+  const [translation, setTranslation] = useState("");
   const [original_name, setOriginalName] = useState("");
   const [description, setDescription] = useState("");
   const [tea_type, setTeaType] = useState("blend");
@@ -181,7 +181,7 @@ export default function AddTeaPage() {
     addCustomTea({
       name: name.trim(),
       slug,
-      phonetic_name: phonetic_name.trim(),
+      translation: translation.trim(),
       original_name: original_name.trim(),
       description: description.trim(),
       origin: origin.trim(),
@@ -392,13 +392,13 @@ export default function AddTeaPage() {
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4">
-          {/* Phonetic name */}
+          {/* Translation */}
           <div>
-            <SectionLabel>Phonetic Name</SectionLabel>
+            <SectionLabel>Translation</SectionLabel>
             <TextInput
-              value={phonetic_name}
-              onChange={(e) => setPhoneticName(e.target.value)}
-              placeholder="e.g. Dong Ding"
+              value={translation}
+              onChange={(e) => setTranslation(e.target.value)}
+              placeholder="e.g. Frost Summit"
             />
           </div>
           {/* Original name */}

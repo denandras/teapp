@@ -85,7 +85,7 @@ export default function DatabasePage() {
       teas = teas.filter(t =>
         t.name.toLowerCase().includes(q) ||
         t.original_name?.toLowerCase().includes(q) ||
-        t.phonetic_name?.toLowerCase().includes(q)
+        t.translation?.toLowerCase().includes(q)
       );
     }
     if (activeTypes.length > 0) {
@@ -168,7 +168,7 @@ export default function DatabasePage() {
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <input
           type="text"
-          placeholder="Search by name, phonetic, or original name..."
+          placeholder="Search by name, translation, or original name..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9 pr-9 w-full py-2.5 rounded-lg text-sm border outline-none"
@@ -328,11 +328,11 @@ export default function DatabasePage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-3 mt-0.5">
-                          {(tea.original_name || tea.phonetic_name) && (
+                          {(tea.original_name || tea.translation) && (
                             <span className="text-xs text-muted truncate">
                               {tea.original_name && <span className="font-serif">{tea.original_name}</span>}
-                              {tea.original_name && tea.phonetic_name && " · "}
-                              {tea.phonetic_name}
+                              {tea.original_name && tea.translation && " · "}
+                              {tea.translation}
                             </span>
                           )}
                           {/* Inline brewing data — separated by dots, no line breaks */}
