@@ -873,6 +873,86 @@ export const TEA_TYPES_CATEGORY: WikiCategory = {
       best_for: ["After meals", "Digestion", "Aging/collecting", "Cold weather"],
       icon: "Box",
     },
+    {
+      slug: "gaba-tea",
+      name: "GABA Tea",
+      original_name: "佳葉龍茶",
+      romaji: "GABA chá / jiāyè lóng chá / gabaron (Japanese)",
+      description:
+        "GABA tea is not a leaf variety but a processing technology: fresh leaves are held in an oxygen-free (nitrogen or vacuum) environment during oxidation, which forces the leaf to accumulate gamma-aminobutyric acid instead of the normal catechins. Developed in Japan in the 1980s by Dr. Tsushida Tojiro (initially marketed as 'Gabaron' for relaxation), the technique was adopted and refined by Taiwan, which now produces the finest examples. Works on any base tea — most famously oolongs — yielding an unusually smooth, sweet, low-astringency cup.",
+      params: [
+        { icon: "Wind", label: "Key step", value: "Nitrogen / vacuum anaerobic oxidation (6–10 h)" },
+        { icon: "Sparkles", label: "Effect", value: "GABA ≥150 mg/100g — smooth, sweet, low astringency" },
+        { icon: "Clock", label: "Brewing", value: "90–95°C, gongfu 20–40s, multiple steeps" },
+      ],
+      sections: [
+        {
+          heading: "How it works",
+          body: "Under normal oxidation the leaf's glutamic acid converts into catechins and aroma compounds. Deprived of oxygen, the enzyme pathway switches and glutamic acid is instead converted into GABA (gamma-aminobutyric acid). Leaves are placed in vacuum or nitrogen-flushed drums for 6–10 hours at controlled temperature, then processed like normal oolong — rolled, oxidized briefly, and fired.",
+        },
+        {
+          heading: "History",
+          body: "Japanese researchers led by Tsushida Tojiro at the National Food Research Institute published the method in the late 1980s while seeking GABA-enriched foods. Japan marketed the result as Gabaron, a stress-relief drink; Taiwan took the technology in the 1990s and pushed quality far ahead — today Taiwanese GABA oolongs set the standard, with Japan (Miyazaki, Gokase) and mainland China also producing. The official certification threshold is 150 mg of GABA per 100 g of leaf.",
+        },
+        {
+          heading: "Well-known examples",
+          body: "",
+          bullets: [
+            "Taiwan GABA oolong — classic Mingjian style: sweet-tangy, currant and citrus notes",
+            "Baiyu (White Jade) GABA — lighter, white-processed variant; creamy, orchid",
+            "Lishan GABA — high-mountain leaf from 1,600 m+: pear-flower sweetness",
+            "Miyazaki Gaba Uroncha — Japanese pan-fired style from Gokase, Kyushu",
+            "Red Jade GABA — GABA process on Taiwan's Ruby #18 cultivar, mint-cinnamon undertone",
+          ],
+        },
+      ],
+      tips: [
+        "The 'calming' reputation comes from GABA, though brewed GABA levels in the cup are small — treat it as a smooth, delicious tea rather than a supplement.",
+        "Character giveaway: a distinctive tangy-sweet fruitiness (sultana, dried fruit) plus unusual softness — astringency almost disappears.",
+        "Brew hotter than regular green tea: 90–95°C suits the heavy processing.",
+      ],
+      best_for: ["Evening", "Stress relief", "Smooth sweetness", "Gongfu"],
+      icon: "Wind",
+    },
+    {
+      slug: "cha-gao",
+      name: "Cha Gao (Tea Resin)",
+      original_name: "茶膏",
+      romaji: "chá gāo",
+      description:
+        "Cha gao — 'tea paste' — is pu-erh distilled to an essence: brewed leaves are simmered and the strained liquor is slowly reduced until it hardens into a rock-like resin. Dissolved back in hot water, one small piece gives a full, smooth cup of pu-erh in seconds. Documented from the Tang dynasty and perfected as an exclusive Qing-dynasty imperial tribute, production lapsed for a century and has revived with modern low-temperature (freeze/vacuum) extraction.",
+      params: [
+        { icon: "FlaskConical", label: "Method", value: "Brew → strain → reduce (slow boil, now low-temp vacuum)" },
+        { icon: "History", label: "Peak era", value: "Qing dynasty imperial tribute (1644–1911)" },
+        { icon: "Clock", label: "Brewing", value: "Dissolve ~1g in 200–300ml at 95–100°C" },
+      ],
+      sections: [
+        {
+          heading: "Traditional process",
+          body: "Leaves are brewed and strained repeatedly; the liquor is simmered over low heat while the surface film is scraped and collected, a painstaking process that yields a few grams of resin from kilograms of tea. The Qing Imperial Household Department refined this into a tribute exclusive — court records survive, so the history is well documented, unlike most tea lore.",
+        },
+        {
+          heading: "Modern revival",
+          body: "After 1911 the craft nearly vanished. Recent decades brought low-temperature vacuum extraction, which preserves aroma the old boiling destroyed. Modern cha gao is sold in individually wrapped 'coins': quick-dissolving, travel-friendly instant pu-erh that keeps the genuine deep-earthy shou (or bright sheng) character rather than a reconstituted flavoring.",
+        },
+        {
+          heading: "Sheng vs shou resin",
+          body: "",
+          bullets: [
+            "Sheng cha gao — from raw pu-erh: brighter, sharper, honey-woody",
+            "Shou cha gao — from ripe pu-erh: deep, earthy, sweet, almost chocolate",
+            "Blended versions exist (e.g. with chenpi, aged tangerine peel)",
+          ],
+        },
+      ],
+      tips: [
+        "Use one coin per 200–400ml; pour water over it and stir — full dissolution takes under a minute.",
+        "Quality check: genuine cha gao dissolves completely with no grit and no film; cheap versions carry dust and filler.",
+        "Because it is a concentrate, caffeine per gram is high — a little goes a long way.",
+      ],
+      best_for: ["Travel", "Quick cups", "After meals", "Office tea"],
+      icon: "FlaskConical",
+    },
   ],
 };
 
@@ -915,12 +995,11 @@ export const ZISHA_CATEGORY: WikiCategory = {
         },
         {
           heading: "Reference",
-          body: "The category descriptions here follow the Yixing Zisha Series by Youzi (Teapot And Tea blog), based on the book 'Yixing Zisha Mineral' (宜興紫砂礦料) by Zhu Zewei (朱泽伟) — often called 'The Zisha Standard', distinguishing 21 kinds of Zini alone.",
+          body: "Based on the Yixing Zisha Series by Youzi (Teapot And Tea blog), following the book 'Yixing Zisha Mineral' (宜興紫砂礦料) by Zhu Zewei (朱泽伟).",
         },
       ],
       tips: [
         "Names usually come from the color of the fired clay — but Lüni is named for the raw ore, so a 'green clay' pot looks beige-yellow.",
-        "If you only buy one Yixing pot, a Dicaoqing Zini pot is the classic all-rounder recommendation.",
         "Never wash a Zisha pot with soap — hot water rinse only, lid off to dry.",
       ],
       best_for: ["Choosing a first teapot", "Understanding clay names", "Gongfu brewing"],
@@ -940,38 +1019,16 @@ export const ZISHA_CATEGORY: WikiCategory = {
       ],
       sections: [
         {
-          heading: "Di Cao Qing 底槽清 (Bottom Trench Qing)",
-          body: "",
-          bullets: [
-            "The most celebrated Zini grade — named for being found at the bottom of mining trenches (di/底 = bottom, cao/槽 = trench), first in quantity at the No. 4 Mine of Huanglongshan, later also No. 5 Mine and Taixi Mine.",
-            "Raw ore is identified by greenish 1–5 cm dots called 'chicken eyes'; older ore = smaller dots, wider firing range, less shrinkage.",
-            "Shrinkage 3.5–5.5%, firing 1180–1250°C, porosity between Zhuni and Duanni. The wide firing range yields many colors: brownish orange, brown, dark brown, dark grey-brown.",
-            "Considered the gold standard of Zisha: keeps some aroma while reducing bitterness and astringency — an all-round clay good for any tea. Develops a beautiful patina quickly. If you plan to own just one Yixing pot, let it be this one.",
-          ],
-        },
-        {
-          heading: "Qing Hui Ni 青灰泥 (Grey-Green Clay)",
-          body: "Popular in the late Ming and early Qing dynasties but often forgotten today. Also called Shayupini (鲨鱼皮泥, 'shark skin clay') for how the fired surface feels to the touch. Found mainly in the Dashuitan (大水潭) mining area — the second most prized Zini variant after Tianqingni — with more sand-like particles than other Zini. Fires grayish-brown; shrinkage ~6%, firing 1180–1220°C, more porous than Zhuni but less than Duanni. Versatile with any tea; a new pot can be slightly muting at first but adapts with seasoning. Recommended for those who want the Ming/Qing dynasty teapot experience — pair with a classic traditional shape. (Don't confuse it with Qingshuini — they're entirely different.)",
-        },
-        {
-          heading: "Qing Shui Ni 清水泥 (Clear Water Clay)",
-          body: "The most loosely defined 'clay' in Yixing — because it is not an actual Zisha ore. During the factory era the phrase referred to clay that was not altered: after crushing, no other materials, chemicals or coloring oxides were added, so it was pure Zini ('clear water'). Since most factory-era Qingshuini pots were light brown, the word drifted into describing any pot of similar color and texture. On a modern teapot it tells you nothing about the material, only what the pot tries to look like — so be wary.",
-        },
-        {
-          heading: "Lao Zini 老紫泥 (Old Purple Clay)",
-          body: "Not an exact term — Lao (老, old) has two meanings among potters. (1) Aged clay: raw ore must be weathered, processed and aged (typically 3–6 months) for viscosity and plasticity; clay aged for years fires darker at higher temperatures with better durability. (2) Traditional processing: clay processed with old techniques shows more 'flaws' — sand and black iron specks, a less smooth surface — which Chinese customers often dislike, making such pots harder to find. When buying directly from an artist, ask what they mean by Lao.",
-        },
-        {
-          heading: "Tian Qing Ni 天青泥 (Heavenly Zini)",
-          body: "The legendary, most prized and rarest Zini — already rare during the Ming and Qing dynasties. Frequently translated 'Reddish Black' or 'Sky Blue Clay', but since Zini was itself called Qingni in ancient times, 'Heavenly/Sky Zini' reflects its status. Only two known teapots of it exist, both by Yang FengNian (楊鳳年), the most famous female Yixing artist (~1800–1850): one in Nanjing's museum, one at the Yixing Ceramics Museum. Mined at Dashuitan (大水潭) near Huanglongshan, which flooded at the end of the Qing dynasty and is now a small lake — the original ore is unmineable. Consensus holds it fires to a dark liver color; shrinkage 8%, firing 1160–1210°C. The market is full of fakes (even chemically colored blue pots); a verified Dashuitan Tianqingni pot costs far more than $1000.",
+          heading: "In the pot",
+          body: "Zini is the easiest Zisha to form and fire — good plasticity, high strength and low shrinkage — which is why most classic pot shapes are made from it. Its porous structure noticeably rounds out astringency and bitterness while keeping some aroma, making it an excellent all-round clay: superb with oolong and pu-erh, friendly to any other tea family. It develops a deep patina quickly with use.",
         },
       ],
       tips: [
-        "Dicaoqing is the safest choice for a first (or only) Yixing pot — genuinely good with every tea family.",
-        "'Qingshuini' on a modern pot is a marketing color label, not a material guarantee.",
-        "A 'Tianqingni' pot sold cheap is by definition not Tianqingni — the original mine has been flooded for a century.",
+        "The classic recommendation for a first (or only) Yixing pot — genuinely good with every tea family.",
+        "Patina develops fast and deep — Zini pots reward daily use.",
+        "Never wash with soap — hot water rinse only, lid off to dry.",
       ],
-      best_for: ["Any tea (esp. Dicaoqing)", "First Yixing pot", "Oolong", "Pu-erh"],
+      best_for: ["Any tea", "First Yixing pot", "Oolong", "Pu-erh"],
       icon: "Mountain",
     },
     {
@@ -988,23 +1045,11 @@ export const ZISHA_CATEGORY: WikiCategory = {
       ],
       sections: [
         {
-          heading: "Famous variants",
-          body: "",
-          bullets: [
-            "Dahongni 大红泥 — the base red clay",
-            "Dahongpao 大红袍 — the 'legendary' red clay (clay name, not the Wuyi tea of the same name)",
-            "Xiaohongni 小红泥 — smaller-grained red clay",
-            "Hongpilong 红皮龙 ('red skin dragon')",
-            "Jiangponi 降坡泥 ('slope-reducing clay') — discovered while cutting a road near Huanglongshan",
-          ],
-        },
-        {
           heading: "In the pot",
           body: "Structurally and behaviorally close to Zini but slightly less porous. The fired color runs orange through the reds, from bright to dark. Pots made from Hongni suit aromatic teas where a touch more density and heat retention flatters the aroma — Dancong and other aromatic oolongs, roasted oolongs, and red teas are classic matches.",
         },
       ],
       tips: [
-        "'Dahongpao clay' and the Dahongpao tea are unrelated — same famous name, different things.",
         "Hongni pots show patina beautifully; expect the color to deepen over the first months of use.",
       ],
       best_for: ["Aromatic oolongs", "Red/black tea", "Roasted teas"],
@@ -1024,10 +1069,6 @@ export const ZISHA_CATEGORY: WikiCategory = {
       ],
       sections: [
         {
-          heading: "History and sources",
-          body: "During the Ming and Qing dynasties the main sources were Zhaozhuangshan and later the Hongwei (红卫) village mine; Huanglongshan Zhuni — from deeper ore layers, hard to mine — only became common in the 20th century, and its smaller shrinkage allows larger pots. In the second half of the 20th century the most prized Zhuni was found at Xiaomeiyao (小煤窑, 'Little Coal Mine'), occurring only in 5–20 cm patches among coal blocks and sandstone: extremely rare and extremely hard to work, with the largest shrinkage of all and a firing survival rate of just 6 out of 10 pots.",
-        },
-        {
           heading: "In the pot",
           body: "Modern electric kilns with precise temperature control have made Zhuni easier, but it remains the hardest Zisha to throw and fire. The result is a dense, glossy, almost porcelain-like body with a bright bell-like ring — prized for aroma-focused brewing, since low porosity keeps the tea's perfume vivid. Classic shape is the small, globular Shuiping (水平) pot.",
         },
@@ -1035,7 +1076,6 @@ export const ZISHA_CATEGORY: WikiCategory = {
       tips: [
         "Zhuni flatters aroma-forward teas: Yancha, Dancong, black tea. Its density mutes less than porous clays.",
         "Expect a smaller pot — high shrinkage makes large Zhuni pots rare and fragile.",
-        "Genuine Xiaomeiyao Zhuni is very rare; most 'Zhuni' on the market is blended or from Huanglongshan.",
       ],
       best_for: ["Aromatic oolong & Yancha", "Red/black tea", "Aroma-focused gongfu"],
       icon: "Mountain",
@@ -1084,21 +1124,12 @@ export const ZISHA_CATEGORY: WikiCategory = {
       ],
       sections: [
         {
-          heading: "Notable varieties",
-          body: "",
-          bullets: [
-            "Sesame Duanni (Zhimaduanni, 芝麻段泥) — speckled like sesame seeds",
-            "Gold Duanni (Jinduanni, 金段泥) — warm golden beige",
-            "Crab Yellow Duanni (Xiehuangduanni, 蟹黄段泥) — the famous 'crab roe' yellow",
-          ],
-        },
-        {
           heading: "In the pot",
           body: "A well-made Duanni pot behaves like a dialogue between its parents: Lüni's permeability and gentle heat with Zini's or Hongni's structure and strength. It is a favorite for lighter teas — greens, whites, lightly roasted oolongs — though a Zini-heavy Duanni comfortably handles oolong and pu-erh too. Since the blend varies, let the pot prove itself with one tea family and stay there.",
         },
       ],
       tips: [
-        "Duanni is where potters show color artistry — the 'crab yellow' pots are among the most recognisable Yixing aesthetics.",
+        "Duanni is where potters show color artistry — fired colors range across the parent clays.",
         "Two Duanni pots can behave quite differently; judge the pot, not the category.",
         "Traditionally a friendly choice for green and light teas where porous Zini would be too assertive.",
       ],
