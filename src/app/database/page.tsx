@@ -402,7 +402,7 @@ export default function DatabasePage() {
                         >
                           <div className="px-4 pb-4 pt-1 space-y-2">
                             <p className="text-sm leading-relaxed">{tea.description || "No description available."}</p>
-                            {tea.origin && <p className="text-xs text-muted">Origin: {tea.origin}</p>}
+                            {tea.origin && <p className="text-xs text-muted">Origin: <a className="underline decoration-dotted underline-offset-2 hover:text-foreground" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tea.origin)}`}>{tea.origin}</a></p>}
                             {tea.caffeine_level && <p className="text-xs text-muted">Caffeine: {tea.caffeine_level}</p>}
                             {tea.characteristics.length > 0 && (
                               <div className="flex flex-wrap gap-1.5 mt-2">

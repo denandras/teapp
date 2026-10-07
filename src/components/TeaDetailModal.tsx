@@ -613,7 +613,15 @@ export default function TeaDetailModal({ tea, onClose }: Props) {
                       style={{ borderColor: "var(--border)" }}
                     />
                   ) : (
-                    <span>{displayTea.origin || "Unknown"}</span>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(displayTea.origin)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-accent underline decoration-dotted underline-offset-2"
+                      style={{ color: "inherit" }}
+                    >
+                      {displayTea.origin || "Unknown"}
+                    </a>
                   )}
                 </div>
               </div>

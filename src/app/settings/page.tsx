@@ -503,7 +503,7 @@ export default function SettingsPage() {
               <div key={ct.id} className="flex items-center justify-between rounded-lg border p-3" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
                 <div>
                   <p className="font-medium text-sm">{ct.name}</p>
-                  <p className="text-xs text-muted">{ct.origin || "Unknown origin"} · {ct.tea_type}</p>
+                  <p className="text-xs text-muted">{ct.origin ? <a className="underline decoration-dotted underline-offset-2 hover:text-foreground" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ct.origin)}`}>{ct.origin}</a> : "Unknown origin"} · {ct.tea_type}</p>
                 </div>
                 <button
                   onClick={() => useTeaStore.getState().removeCustomTea(ct.id)}
