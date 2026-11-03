@@ -144,41 +144,39 @@ export default function DashboardPage() {
 
       {/* Type + Teahouse filters */}
       <div className="flex items-center gap-2 flex-wrap overflow-x-auto pb-1">
-        {ALL_TEA_TYPES.map((type, i) => {
+        {ALL_TEA_TYPES.map((type) => {
           const active = activeTypes.includes(type);
           return (
-            <motion.button
+            <button
               key={type}
               onClick={() => toggleType(type)}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1, transition: { delay: i * 0.03, duration: 0.2 } }}
-              whileTap={{ scale: 0.92, transition: { duration: 0.1 } }}
               className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors border flex-shrink-0"
               style={{
                 backgroundColor: active ? TEA_TYPE_COLORS[type] : "transparent",
                 color: active ? "#fff" : "var(--muted)",
                 borderColor: active ? TEA_TYPE_COLORS[type] : "var(--border)",
+                touchAction: "manipulation",
               }}
             >
               {TEA_TYPE_LABELS[type]}
-            </motion.button>
+            </button>
           );
         })}
         {shops.length > 0 && (
           <>
             <span className="w-px h-5 mx-1" style={{ backgroundColor: "var(--border)" }} />
-            <motion.button
+            <button
               onClick={() => setShowShops(prev => !prev)}
-              whileTap={{ scale: 0.92, transition: { duration: 0.1 } }}
               className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors border flex-shrink-0"
               style={{
                 backgroundColor: showShops ? SOURCE_COLORS.shop : "transparent",
                 color: showShops ? "#fff" : "var(--muted)",
                 borderColor: showShops ? SOURCE_COLORS.shop : "var(--border)",
+                touchAction: "manipulation",
               }}
             >
               Shop teas
-            </motion.button>
+            </button>
           </>
         )}
 

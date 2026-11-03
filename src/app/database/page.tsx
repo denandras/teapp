@@ -24,27 +24,26 @@ function SourceBadge({ tea }: { tea: Tea }) {
   );
 }
 
-// Compact filter pill
+// Compact filter pill — plain button: no entrance/tap animation, so rapid clicks
+// never get swallowed by in-flight motion animations or hit a moving target
 function FilterPill({
-  active, onClick, children, activeColor, index = 0,
+  active, onClick, children, activeColor,
 }: {
-  active: boolean; onClick: () => void; children: React.ReactNode; activeColor: string; index?: number;
+  active: boolean; onClick: () => void; children: React.ReactNode; activeColor: string;
 }) {
   return (
-    <motion.button
+    <button
       onClick={onClick}
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0, transition: { delay: index * 0.03, duration: 0.2 } }}
-      whileTap={{ scale: 0.92, transition: { duration: 0.1 } }}
       className="px-2.5 py-1 rounded-full text-xs font-medium transition-colors border flex-shrink-0"
       style={{
         backgroundColor: active ? activeColor : "transparent",
         color: active ? "#fff" : "var(--muted)",
         borderColor: active ? activeColor : "var(--border)",
+        touchAction: "manipulation",
       }}
     >
       {children}
-    </motion.button>
+    </button>
   );
 }
 
@@ -196,7 +195,7 @@ export default function DatabasePage() {
           {ALL_TEA_TYPES.map((type, i) => (
             <FilterPill
               key={type}
-              index={i}
+
               active={activeTypes.includes(type)}
               onClick={() => toggleType(type)}
               activeColor={TEA_TYPE_COLORS[type]}
@@ -212,7 +211,7 @@ export default function DatabasePage() {
           {(["have", "tried", "empty"] as const).map((s, i) => (
             <FilterPill
               key={s}
-              index={ALL_TEA_TYPES.length + i}
+
               active={activeStatuses.includes(s)}
               onClick={() => toggleStatus(s)}
               activeColor={statusConfig[s].color}
@@ -228,7 +227,7 @@ export default function DatabasePage() {
           {(["all", "default", "user"] as const).map((s, i) => (
             <FilterPill
               key={s}
-              index={ALL_TEA_TYPES.length + 4 + i}
+
               active={sourceFilter === s}
               onClick={() => setSourceFilter(s)}
               activeColor={SOURCE_COLORS[s === "all" ? "default" : s]}
@@ -258,7 +257,7 @@ export default function DatabasePage() {
           {(["name", "type", "rating"] as const).map((s, i) => (
             <FilterPill
               key={s}
-              index={ALL_TEA_TYPES.length + 12 + i}
+
               active={sortBy === s}
               onClick={() => { setSortBy(s); if (s === "rating") setSortDir("desc"); }}
               activeColor="var(--accent)"
