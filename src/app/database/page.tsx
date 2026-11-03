@@ -221,7 +221,7 @@ export default function DatabasePage() {
         {/* Row 3: Source */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1 w-12">Source</span>
-          {(["all", "default", "teahouse", "user"] as const).map((s, i) => (
+          {(["all", "default", "teahouse", "user", "shop"] as const).map((s, i) => (
             <FilterPill
               key={s}
               index={ALL_TEA_TYPES.length + 4 + i}
@@ -229,7 +229,7 @@ export default function DatabasePage() {
               onClick={() => setSourceFilter(s)}
               activeColor={SOURCE_COLORS[s === "all" ? "default" : s]}
             >
-              {s === "all" ? "All" : s === "default" ? "Default" : s === "teahouse" ? "Tea House" : "Custom"}
+              {s === "all" ? "All" : s === "default" ? "Default" : s === "teahouse" ? "Tea House" : s === "user" ? "Custom" : SOURCE_LABELS[s]}
             </FilterPill>
           ))}
         </div>
