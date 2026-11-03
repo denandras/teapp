@@ -4,6 +4,7 @@ import { create } from "zustand";
 import type { Tea, TeaStatus, TeaLog } from "./types";
 import { SOURCE_LABELS, TEA_TYPE_COLORS } from "./types";
 import { supabase } from "./supabaseClient";
+import { fetchAllPaged } from "./paged";
 
 // Dynamic user ID — set by AuthProvider when auth state changes
 let currentUserId: string | null = null;
@@ -140,6 +141,8 @@ interface TeaStore {
   accentColor: string;
   setAccentColor: (color: string) => void;
   allTeas: Tea[];
+  /** Server-reported total tea count from the paged fetch; -1 = not yet known. */
+  allTeasTotal: number;
   updateTeaInStore: (slug: string, updates: Partial<Tea>) => void;
   syncFromSupabase: (userId: string) => Promise<void>;
   migrateFromLocalStorage: (userId: string) => Promise<void>;
@@ -424,6 +427,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
 
   accentColor: typeof window !== "undefined" ? (loadAccentCache() || "#c4853f") : "#c4853f",
   allTeas: [],
+  allTeasTotal: -1,
   setAccentColor: (color) => {
     set({ accentColor: color });
     saveAccentCache(color);
@@ -458,33 +462,37 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         theme: data.theme || "cozy-dark",
         accentColor: demoAccent,
         allTeas: [],  // Will be loaded from Supabase; demo mode fetches public teas read-only
+        allTeasTotal: 0,
       });
     } else {
       // Fresh demo — start empty
-      set({ teaStates: {}, teaLogs: {}, customTeas: [], hiddenTeas: [], theme: "cozy-dark", accentColor: "#c4853f", allTeas: [] });
+      set({ teaStates: {}, teaLogs: {}, customTeas: [], hiddenTeas: [], theme: "cozy-dark", accentColor: "#c4853f", allTeas: [], allTeasTotal: 0 });
     }
 
     // Demo mode can still READ from Supabase (anon key allows public teas).
     // Fetch all teas — RLS policies ensure only visible teas are returned
     // (default teas are public, teahouse teas are public if is_public=true,
     // user teas are private to their owner).
-    supabase
-      .from("teas")
-      .select("*")
-      .order("name")
-      .then(({ data: publicTeas, error }) => {
-        if (!error && publicTeas) {
-          const normalized = (publicTeas as Tea[]).map((t) => ({
-            ...t,
-            source_type: (t.source_type as Tea["source_type"]) || "default",
-            source: t.source || SOURCE_LABELS[(t.source_type as Tea["source_type"]) || "default"] || "Teapp",
-            is_custom: (t.source_type as Tea["source_type"]) !== "default",
-            color_hex: TEA_TYPE_COLORS[t.tea_type] || t.color_hex || "#999",
-          }));
-          set({ allTeas: normalized });
-        } else if (error) {
-          console.error("loadDemoData: failed to fetch teas:", error.message);
+    // Paged fetch — the Supabase REST API truncates unpaginated responses at
+    // 1000 rows. Order matters for paging correctness (name, tiebreak id).
+    fetchAllPaged<Tea>("teas", { orderBy: "name", tiebreak: "id" })
+      .then((res) => {
+        if (res.total !== -1 && res.rows.length < res.total) {
+          console.error(
+            `loadDemoData: incomplete tea fetch (${res.rows.length}/${res.total}) — some teas are missing`
+          );
         }
+        const normalized = (res.rows as Tea[]).map((t) => ({
+          ...t,
+          source_type: (t.source_type as Tea["source_type"]) || "default",
+          source: t.source || SOURCE_LABELS[(t.source_type as Tea["source_type"]) || "default"] || "Teapp",
+          is_custom: (t.source_type as Tea["source_type"]) !== "default",
+          color_hex: TEA_TYPE_COLORS[t.tea_type] || t.color_hex || "#999",
+        }));
+        set({ allTeas: normalized, allTeasTotal: res.total });
+      })
+      .catch((e) => {
+        console.error("loadDemoData: failed to fetch teas:", e?.message || e);
       });
   },
 
@@ -498,11 +506,19 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       let allTeas: Tea[] = [];
       let teaIdToSlug: Record<string, string> = {};
       let userTeaRows: Tea[] = [];
+      let teasTotal = -1;
       try {
-        const { data: teasData, error: teasErr } = await supabase
-          .from("teas")
-          .select("*");
-        if (!teasErr && teasData) {
+        // Paged fetch — Supabase REST truncates unpaginated responses at 1000
+        // rows (db.max_rows). Order by id for a deterministic page order.
+        const teasRes = await fetchAllPaged<Tea>("teas", { orderBy: "id", tiebreak: "id" });
+        const teasData = teasRes.rows;
+        teasTotal = teasRes.total;
+        if (teasRes.total !== -1 && teasRes.rows.length < teasRes.total) {
+          console.error(
+            `syncFromSupabase: incomplete tea fetch (${teasRes.rows.length}/${teasRes.total}) — some teas are missing`
+          );
+        }
+        if (teasData) {
           allTeas = (teasData as Tea[]).map((t) => ({
             ...t,
             source_type: (t.source_type as Tea["source_type"]) || "default",
@@ -521,10 +537,15 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         // `teas` table select failed (e.g. source_type column missing). Fall back
         // to id+slug-only select and legacy custom_teas for user teas.
         console.error("syncFromSupabase: failed to select all teas, falling back:", e);
-        const { data: teasData, error: teasErr } = await supabase
-          .from("teas")
-          .select("id, slug");
-        if (!teasErr && teasData) {
+        // Fallback fetch must also be paged (same 1000-row truncation applies).
+        const fallbackRes = await fetchAllPaged<{ id: number; slug: string }>("teas", {
+          select: "id, slug",
+          orderBy: "id",
+          tiebreak: "id",
+        });
+        const teasData = fallbackRes.rows;
+        teasTotal = fallbackRes.total;
+        if (teasData) {
           teaIdToSlug = {};
           for (const row of teasData) {
             teaIdToSlug[row.id] = row.slug;
@@ -583,13 +604,20 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       }
 
       // 1. Load user_teas (flat — no join, resolve slug via mapping)
-      const { data: userTeas, error: utErr } = await supabase
-        .from("user_teas")
-        .select("tea_id, status, hidden")
-        .eq("user_id", userId);
+      // Paged: a heavy user with >1000 collected teas would silently lose states.
+      const userTeasRes = await fetchAllPaged<{ tea_id: number; status: TeaStatus; hidden: boolean }>(
+        "user_teas",
+        {
+          select: "tea_id, status, hidden",
+          filters: (q) => q.eq("user_id", userId),
+          orderBy: "tea_id",
+          tiebreak: "tea_id",
+        }
+      );
+      const userTeas = userTeasRes.rows;
       const teaStates: TeaStateMap = {};
       const hiddenTeas: string[] = [];
-      if (!utErr && userTeas) {
+      if (userTeas) {
         for (const row of userTeas) {
           const slug = teaIdToSlug[row.tea_id];
           if (!slug) continue;
@@ -599,19 +627,29 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       }
 
       // 2. Load tea_logs (flat — no join, resolve slug via mapping)
-      const { data: logs, error: logsErr } = await supabase
-        .from("tea_logs")
-        .select("id, tea_id, rating, note, created_at")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+      // Paged: same 1000-row truncation would silently drop old logs.
+      const logsRes = await fetchAllPaged<{
+        id: number;
+        tea_id: number;
+        rating: number | null;
+        note: string | null;
+        created_at: string;
+      }>("tea_logs", {
+        select: "id, tea_id, rating, note, created_at",
+        filters: (q) => q.eq("user_id", userId),
+        orderBy: "created_at",
+        ascending: false,
+        tiebreak: "id",
+      });
+      const logs = logsRes.rows;
       const teaLogs: TeaLogsMap = {};
-      if (!logsErr && logs) {
+      if (logs) {
         for (const row of logs) {
           const slug = teaIdToSlug[row.tea_id];
           if (!slug) continue;
           const log: TeaLog = {
             id: String(row.id),
-            rating: row.rating,
+            rating: row.rating ?? 0,
             note: row.note || "",
             timestamp: row.created_at,
           };
@@ -654,7 +692,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         created_at: new Date().toISOString(),
       }));
 
-      set({ teaStates, teaLogs, customTeas, hiddenTeas, theme, accentColor, allTeas });
+      set({ teaStates, teaLogs, customTeas, hiddenTeas, theme, accentColor, allTeas, allTeasTotal: teasTotal });
     } catch (err) {
       console.error("syncFromSupabase error:", err);
     }

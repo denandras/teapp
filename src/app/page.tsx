@@ -5,6 +5,7 @@ import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, ResponsiveCo
 import { Tea, TEA_TYPE_COLORS, TEA_TYPE_LABELS, ALL_TEA_TYPES, SOURCE_COLORS, SOURCE_LABELS } from "@/lib/types";
 import { useTeaStore } from "@/lib/store";
 import TeaDetailModal from "@/components/TeaDetailModal";
+import SourceDropdown from "@/components/SourceDropdown";
 import { Search, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -12,7 +13,7 @@ export default function DashboardPage() {
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
-  const [activeTeahouses, setActiveTeahouses] = useState<string[]>([]);
+  const [hiddenShops, setHiddenShops] = useState<string[]>([]);
   const [showOnlyCollection, setShowOnlyCollection] = useState(false);
   const [hoveredTea, setHoveredTea] = useState<{ tea: Tea; x: number; y: number; px: number; py: number } | null>(null);
   const chartAreaRef = useRef<HTMLDivElement>(null);
@@ -42,14 +43,14 @@ export default function DashboardPage() {
     if (activeTypes.length > 0) {
       teas = teas.filter(t => activeTypes.includes(t.tea_type));
     }
-    if (activeTeahouses.length > 0) {
-      teas = teas.filter(t => t.source_type === "teahouse" && activeTeahouses.includes(t.source || ""));
+    if (hiddenShops.length > 0) {
+      teas = teas.filter(t => !(t.source_type === "shop" && hiddenShops.includes(t.source || "")));
     }
     if (showOnlyCollection) {
       teas = teas.filter(t => teaStates[t.slug] === "have");
     }
     return teas;
-  }, [search, activeTypes, activeTeahouses, showOnlyCollection, teaStates, allTeas]);
+  }, [search, activeTypes, hiddenShops, showOnlyCollection, teaStates, allTeas]);
 
   // Convert 0-100 flavor coordinates to centered -50..+50 range
   const chartData = useMemo(() =>
@@ -67,17 +68,17 @@ export default function DashboardPage() {
     setActiveTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
   };
 
-  // Unique teahouse names from visible teas
-  const teahouses = useMemo(() => {
+  // Unique shop names (real vendors, e.g. White2Tea) — excludeable from the chart
+  const shops = useMemo(() => {
     const names = new Set<string>();
     allTeas.forEach(t => {
-      if (t.source_type === "teahouse" && t.source) names.add(t.source);
+      if (t.source_type === "shop" && t.source) names.add(t.source);
     });
     return Array.from(names).sort();
   }, [allTeas]);
 
-  const toggleTeahouse = (name: string) => {
-    setActiveTeahouses(prev => prev.includes(name) ? prev.filter(t => t !== name) : [...prev, name]);
+  const toggleShop = (name: string) => {
+    setHiddenShops(prev => prev.includes(name) ? prev.filter(s => s !== name) : [...prev, name]);
   };
 
   // Bubble animation: pop dots out, swap data, pop dots back in
@@ -165,29 +166,16 @@ export default function DashboardPage() {
             </motion.button>
           );
         })}
-        {teahouses.length > 0 && (
+        {shops.length > 0 && (
           <span className="w-px h-5 mx-1" style={{ backgroundColor: "var(--border)" }} />
         )}
-        {teahouses.map((name, i) => {
-          const active = activeTeahouses.includes(name);
-          return (
-            <motion.button
-              key={name}
-              onClick={() => toggleTeahouse(name)}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1, transition: { delay: (ALL_TEA_TYPES.length + i) * 0.03, duration: 0.2 } }}
-              whileTap={{ scale: 0.92, transition: { duration: 0.1 } }}
-              className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors border flex-shrink-0"
-              style={{
-                backgroundColor: active ? SOURCE_COLORS.teahouse : "transparent",
-                color: active ? "#fff" : "var(--muted)",
-                borderColor: active ? SOURCE_COLORS.teahouse : "var(--border)",
-              }}
-            >
-              {name}
-            </motion.button>
-          );
-        })}
+        <SourceDropdown
+          label={`Hide shops${hiddenShops.length > 0 ? ` (${hiddenShops.length})` : ""}`}
+          options={shops}
+          selected={hiddenShops}
+          onToggle={toggleShop}
+          color={SOURCE_COLORS.shop}
+        />
       </div>
 
       {/* Chart */}

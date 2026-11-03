@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabaseClient";
+import { fetchAllPaged } from "@/lib/paged";
 import type { Profile, EnrollmentStatus } from "@/lib/profiles";
 
 type TeahouseProfile = Profile & { created_at: string };
@@ -63,31 +64,33 @@ export default function AdminPage() {
     if (!profile?.is_admin) return;
 
     const [pendingRes, teahouseRes, teasCountRes, usersCountRes] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select(
-          "id, display_name, profile_type, teahouse_name, teahouse_contact_email, teahouse_address, country, enrollment_status, is_admin, created_at"
-        )
-        .eq("profile_type", "teahouse")
-        .eq("enrollment_status", "pending")
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("profiles")
-        .select(
-          "id, display_name, profile_type, teahouse_name, teahouse_contact_email, teahouse_address, country, enrollment_status, is_admin, created_at"
-        )
-        .eq("profile_type", "teahouse")
-        .order("created_at", { ascending: false }),
+      // Paged fetches — a >1000-row profiles table would silently truncate.
+      fetchAllPaged<TeahouseProfile>("profiles", {
+        select:
+          "id, display_name, profile_type, teahouse_name, teahouse_contact_email, teahouse_address, country, enrollment_status, is_admin, created_at",
+        filters: (q) =>
+          q.eq("profile_type", "teahouse").eq("enrollment_status", "pending"),
+        orderBy: "created_at",
+        tiebreak: "id",
+      }),
+      fetchAllPaged<TeahouseProfile>("profiles", {
+        select:
+          "id, display_name, profile_type, teahouse_name, teahouse_contact_email, teahouse_address, country, enrollment_status, is_admin, created_at",
+        filters: (q) => q.eq("profile_type", "teahouse"),
+        orderBy: "created_at",
+        ascending: false,
+        tiebreak: "id",
+      }),
       supabase.from("teas").select("id", { count: "exact", head: true }),
       supabase.from("profiles").select("id", { count: "exact", head: true }),
     ]);
 
-    setPending((pendingRes.data as TeahouseProfile[] | null) ?? []);
-    setAllTeahouses((teahouseRes.data as TeahouseProfile[] | null) ?? []);
+    setPending((pendingRes.rows as TeahouseProfile[]) ?? []);
+    setAllTeahouses((teahouseRes.rows as TeahouseProfile[]) ?? []);
     setStats({
       totalTeas: teasCountRes.count,
       totalUsers: usersCountRes.count,
-      totalTeahouses: teahouseRes.data?.length ?? 0,
+      totalTeahouses: teahouseRes.rows?.length ?? 0,
     });
     setLoading(false);
   }, [profile?.is_admin]);
