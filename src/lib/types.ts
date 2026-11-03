@@ -28,10 +28,11 @@ export interface Tea {
   // teahouse name for teahouse teas.
   source_type?: TeaSourceType;
   owner_id?: string | null;
+  shop_id?: string | null;
   is_public?: boolean;
 }
 
-export type TeaSourceType = "default" | "user" | "teahouse";
+export type TeaSourceType = "default" | "user" | "teahouse" | "shop";
 
 export type TeaStatus = "empty" | "have" | "tried";
 
@@ -98,10 +99,12 @@ export const SOURCE_LABELS: Record<TeaSourceType, string> = {
   default: "Teapp",
   user: "User",
   teahouse: "Tea House",
+  shop: "Shop",
 };
 
 export const SOURCE_COLORS: Record<TeaSourceType, string> = {
   default: "var(--muted)",
   user: "#7BA05B",
   teahouse: "#c4853f",
+  shop: "#8a63c9",
 };
