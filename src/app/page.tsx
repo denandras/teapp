@@ -82,6 +82,12 @@ export default function DashboardPage() {
   // Bubble animation: pop dots out, swap data, pop dots back in
   const [scatterPhase, setScatterPhase] = useState<"idle" | "pop-out" | "pop-in">("idle");
 
+  // Clear stale hover bubble when filters/search/collection change — the dot it
+  // follows may vanish, leaving a bubble pinned to the mouse with no dot
+  useEffect(() => {
+    setHoveredTea(null);
+  }, [search, activeTypes, showShops, showOnlyCollection]);
+
   const handleCollectionToggle = () => {
     // Phase 1: fade existing dots out
     setScatterPhase("pop-out");
