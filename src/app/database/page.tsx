@@ -94,6 +94,9 @@ export default function DatabasePage() {
     }
     if (activeShops.length > 0) {
       teas = teas.filter(t => t.source_type === "shop" && activeShops.includes(t.source || ""));
+    } else {
+      // Shop teas hidden by default — opt in via the Shop dropdown
+      teas = teas.filter(t => t.source_type !== "shop");
     }
     if (activeStatuses.length > 0) {
       teas = teas.filter(t => activeStatuses.includes(teaStates[t.slug] || "empty"));
@@ -235,12 +238,12 @@ export default function DatabasePage() {
           ))}
         </div>
 
-        {/* Row 4: Shop filter — dropdown of real shop names (only if shop teas exist) */}
+        {/* Row 4: Shop filter — dropdown of real shop names; nothing selected = shop teas hidden */}
         {shops.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] uppercase tracking-wide font-semibold text-muted flex-shrink-0 mr-1 w-12">Shop</span>
             <SourceDropdown
-              label="Shops"
+              label="Show shop teas"
               options={shops}
               selected={activeShops}
               onToggle={toggleShop}

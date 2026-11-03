@@ -5,7 +5,7 @@ import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, ResponsiveCo
 import { Tea, TEA_TYPE_COLORS, TEA_TYPE_LABELS, ALL_TEA_TYPES, SOURCE_COLORS, SOURCE_LABELS } from "@/lib/types";
 import { useTeaStore } from "@/lib/store";
 import TeaDetailModal from "@/components/TeaDetailModal";
-import SourceDropdown from "@/components/SourceDropdown";
+
 import { Search, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -13,7 +13,7 @@ export default function DashboardPage() {
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
   const [search, setSearch] = useState("");
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
-  const [hiddenShops, setHiddenShops] = useState<string[]>([]);
+  const [showShops, setShowShops] = useState(false);
   const [showOnlyCollection, setShowOnlyCollection] = useState(false);
   const [hoveredTea, setHoveredTea] = useState<{ tea: Tea; x: number; y: number; px: number; py: number } | null>(null);
   const chartAreaRef = useRef<HTMLDivElement>(null);
@@ -43,14 +43,15 @@ export default function DashboardPage() {
     if (activeTypes.length > 0) {
       teas = teas.filter(t => activeTypes.includes(t.tea_type));
     }
-    if (hiddenShops.length > 0) {
-      teas = teas.filter(t => !(t.source_type === "shop" && hiddenShops.includes(t.source || "")));
+    if (!showShops) {
+      // Shop teas hidden by default in the chart — opt in via the "Shop teas" pill
+      teas = teas.filter(t => t.source_type !== "shop");
     }
     if (showOnlyCollection) {
       teas = teas.filter(t => teaStates[t.slug] === "have");
     }
     return teas;
-  }, [search, activeTypes, hiddenShops, showOnlyCollection, teaStates, allTeas]);
+  }, [search, activeTypes, showShops, showOnlyCollection, teaStates, allTeas]);
 
   // Convert 0-100 flavor coordinates to centered -50..+50 range
   const chartData = useMemo(() =>
@@ -77,9 +78,6 @@ export default function DashboardPage() {
     return Array.from(names).sort();
   }, [allTeas]);
 
-  const toggleShop = (name: string) => {
-    setHiddenShops(prev => prev.includes(name) ? prev.filter(s => s !== name) : [...prev, name]);
-  };
 
   // Bubble animation: pop dots out, swap data, pop dots back in
   const [scatterPhase, setScatterPhase] = useState<"idle" | "pop-out" | "pop-in">("idle");
@@ -167,15 +165,23 @@ export default function DashboardPage() {
           );
         })}
         {shops.length > 0 && (
-          <span className="w-px h-5 mx-1" style={{ backgroundColor: "var(--border)" }} />
+          <>
+            <span className="w-px h-5 mx-1" style={{ backgroundColor: "var(--border)" }} />
+            <motion.button
+              onClick={() => setShowShops(prev => !prev)}
+              whileTap={{ scale: 0.92, transition: { duration: 0.1 } }}
+              className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors border flex-shrink-0"
+              style={{
+                backgroundColor: showShops ? SOURCE_COLORS.shop : "transparent",
+                color: showShops ? "#fff" : "var(--muted)",
+                borderColor: showShops ? SOURCE_COLORS.shop : "var(--border)",
+              }}
+            >
+              Shop teas
+            </motion.button>
+          </>
         )}
-        <SourceDropdown
-          label={`Hide shops${hiddenShops.length > 0 ? ` (${hiddenShops.length})` : ""}`}
-          options={shops}
-          selected={hiddenShops}
-          onToggle={toggleShop}
-          color={SOURCE_COLORS.shop}
-        />
+
       </div>
 
       {/* Chart */}
