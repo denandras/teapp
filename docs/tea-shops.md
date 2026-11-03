@@ -54,6 +54,14 @@ Seed row: `('White2Tea', 'white2tea', 'https://white2tea.com', is_manual = true)
 
 Default-tea behavior with `shop_id IS NULL` is byte-identical to before: all existing 614 rows keep `source_type='default'`, the check constraint passes vacuously, and every `=== 'default'` branch is untouched.
 
-## 5. Future import path (out of scope here)
+## 5. Import path (done 2026-11-03)
 
-White2Tea webshop teas are later inserted as: `source_type='shop'`, `shop_id=(SELECT id FROM tea_shops WHERE slug='white2tea')`, `source='White2Tea'`, same field conventions as in the teapp-data skill (unique descriptions, curated characteristics, flavor coords). They appear in browsing/filters under the shop source but never inherit default-tea status.
+Imported via `scripts/import_white2tea.py` (catalog snapshot `data/white2tea_teas.json`; re-scrape docs: White2Tea scrape task / `python3 scrape.py [--refresh]`):
+
+```bash
+python3 scripts/import_white2tea.py [--catalog data/white2tea_teas.json] [--dry-run]
+```
+
+- Upserts on unique slug `white2tea-<handle>` → idempotent, update-in-place on re-run; shop teas missing from the catalog are removed as stale. Prices, variant sizes, availability and source URL are preserved inside the description's `[White2Tea shop listing: …]` provenance line (schema has no metadata column).
+- 2026-11-03 run: 1028 catalog products → 793 tea rows (235 `Non-Tea` teaware skipped); verified twice-run idempotent, 793/793 unique descriptions, defaults 614 unchanged, anon REST sees 793 shop teas / 614 defaults.
+- Guard: script asserts `shop_id IS NOT NULL ⇒ source_type='shop'` (also enforced by CHECK `teas_shop_requires_shop_type`) and aborts if the default count changed.
