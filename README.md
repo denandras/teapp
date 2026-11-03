@@ -59,6 +59,9 @@ Teahouse owners can see aggregate ratings for their published teas. Individual r
 - 12 accent colors with animated color flow transition
 - Theme support (cozy-dark default)
 
+### Tea Shops (vendors)
+Third-party vendor catalogs (e.g. White2Tea) live as separate non-default teas: `source_type='shop'` + `tea_shops` record, excluded from the curated defaults by a DB CHECK constraint. See `docs/tea-shops.md` for the model, the import/re-scrape procedure, and the verification script (`scripts/verify_tea_shops.py`).
+
 ## Supabase Setup
 
 ### Tables

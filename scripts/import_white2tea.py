@@ -152,9 +152,18 @@ def build_rows(products):
 
 
 def dedupe_coords(cur, rows):
-    """Nudge flavor coords until each row is >=1.5 from every existing tea and sibling."""
-    cur.execute("SELECT flavor_x, flavor_y FROM teas WHERE flavor_x IS NOT NULL")
-    taken = [(r[0], r[1]) for r in cur.fetchall()]
+    """Nudge flavor coords until each row is >=1.5 from every existing tea and sibling.
+
+    Obstacles exclude rows that this batch will upsert anyway (their position is
+    replaced), which keeps re-runs idempotent: deterministic base + fixed
+    obstacle set => same output on every run.
+    """
+    batch_slugs = {r["slug"] for r in rows}
+    cur.execute("SELECT slug, flavor_x, flavor_y FROM teas WHERE flavor_x IS NOT NULL")
+    def _tuple(r):
+        return r if isinstance(r, tuple) else (r["slug"], r["flavor_x"], r["flavor_y"])
+    taken = [(fx, fy) for slug, fx, fy in (_tuple(r) for r in cur.fetchall())
+             if slug not in batch_slugs]
     for row in rows:
         x, y = row["flavor_x"], row["flavor_y"]
         k = 0

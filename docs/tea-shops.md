@@ -65,3 +65,29 @@ python3 scripts/import_white2tea.py [--catalog data/white2tea_teas.json] [--dry-
 - Upserts on unique slug `white2tea-<handle>` → idempotent, update-in-place on re-run; shop teas missing from the catalog are removed as stale. Prices, variant sizes, availability and source URL are preserved inside the description's `[White2Tea shop listing: …]` provenance line (schema has no metadata column).
 - 2026-11-03 run: 1028 catalog products → 793 tea rows (235 `Non-Tea` teaware skipped); verified twice-run idempotent, 793/793 unique descriptions, defaults 614 unchanged, anon REST sees 793 shop teas / 614 defaults.
 - Guard: script asserts `shop_id IS NOT NULL ⇒ source_type='shop'` (also enforced by CHECK `teas_shop_requires_shop_type`) and aborts if the default count changed.
+
+## 6. Verification & default-tea regression check (2026-11-03)
+
+Read-only verification script: `python3 scripts/verify_tea_shops.py` (10 checks, exit 0 = all pass). Run it after any re-import, catalog refresh, or schema change.
+
+### Pre/post-import comparison (baseline captured before the first import)
+
+| Metric | Pre-import | Post-import | Result |
+|---|---|---|---|
+| Default teas (md5 of full row dump `id\|slug\|name\|source_type\|owner_id\|created_at`) | 614, `4eb74dd1aa38cd4e33d8c45a3b609b90` | 614, same md5 | **byte-identical** |
+| Shop teas (`source_type='shop'`, shop_id set) | 0 | 793 | — |
+| CHECK violations (`shop_id` w/ non-shop type) | 0 | 0 | pass |
+| Shop descriptions / slugs unique | — | 793/793, 793/793 | pass |
+
+Verified through the anon REST path too (`/rest/v1/teas`): `source_type=eq.default` → `0-613/614`; `shop_id=eq.<white2tea uuid>` → `0-792/793`; same via `source_type=eq.shop`; zero rows where source_type='shop' outside the shop.
+
+### Edge cases
+
+- **Multiple size variants:** 473 shop teas list ≥2 sizes (price range + `2 size(s): …` in the provenance line).
+- **Unavailable/sold-out:** 153 `sold out as of 2026-11-03`, 640 in stock — recorded in the description provenance line.
+- **Identical names:** one pair ("Basics Puer Tea Sample Set" + its sold-out re-listing `…-soldout`) — same display name, distinct slugs and descriptions, so both remain retrievable.
+- **Idempotency:** re-runs of `scripts/import_white2tea.py` produce a byte-identical DB state (`inserted=0`, no drift in slug/name/description/coords). NOTE: an earlier version re-jittered flavor coordinates on every re-run because `dedupe_coords` counted the batch's own current rows as obstacles; fixed 2026-11-03 to exclude the upsert batch from the obstacle set (verified: two consecutive runs → identical dumps).
+
+### CI status
+
+This repo has no CI pipeline (no `.github/workflows`) — the acceptance "tests pass in CI" translates here to "verification script exits 0 locally on the live DB" (current status: all 10 checks pass). Adding a workflow requires a GitHub PAT with `workflow` scope, which the current token lacks.
