@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronLeft, Pause, Play, RotateCcw, Search, X } from "lucide-react";
-import { ALL_TEA_TYPES, TEA_TYPE_COLORS, TEA_TYPE_LABELS, type Tea } from "@/lib/types";
+import { Check, ChevronLeft, Pause, Play, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { TEA_TYPE_COLORS, TEA_TYPE_LABELS, type Tea } from "@/lib/types";
 import { useTeaStore } from "@/lib/store";
 import {
   SESSION_STORAGE_KEY,
+  armSteep,
   capSteep,
   currentSteep,
   discardCurrentSteep,
@@ -25,7 +26,8 @@ import {
   startSteep,
   type BrewSession,
 } from "@/lib/brew/session";
-import SteepWheel from "@/components/experience/SteepWheel";
+import { dueSeconds } from "@/lib/brew/steepwheel";
+import SteepDial from "@/components/experience/SteepDial";
 import BrewLogSheet from "@/components/experience/BrewLogSheet";
 
 type Stage = "types" | "teas" | "card" | "steeps" | "log";
@@ -33,9 +35,12 @@ type Stage = "types" | "teas" | "card" | "steeps" | "log";
 /**
  * The Brew page.
  *
- * Pick a type, pick a tea, steep it. Two plain lists, colour-coded: the type's colour
- * appears on its category row and is carried through to every tea beneath it, so the
- * eye follows one line from category to cup. No radial menu.
+ * Pick a type, pick a tea, then steep it. Two plain lists, colour-coded: the type's
+ * colour appears on its category row and is carried through to every tea beneath it.
+ *
+ * The timer never starts by itself. Brewing readies the dial (state "armed"); the
+ * clock begins on a deliberate press of Start, because a person — not an app —
+ * decides when the water goes in.
  */
 export default function BrewPage() {
   const allTeas = useTeaStore((s) => s.allTeas);
@@ -68,22 +73,19 @@ export default function BrewPage() {
     [allTeas, teaStates, showAll]
   );
 
-  /**
-   * The types that actually hold teas right now. Rows are ordered by the canonical
-   * type order, not by count, so a category keeps its place between visits.
-   */
+  /** The types that actually hold teas right now, A to Z by their label. */
   const types = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const t of pool) {
       if (!t.tea_type) continue;
       counts[t.tea_type] = (counts[t.tea_type] ?? 0) + 1;
     }
-    const ordered = ALL_TEA_TYPES.filter((t) => counts[t]);
-    for (const k of Object.keys(counts)) if (!ordered.includes(k)) ordered.push(k);
-    return ordered.map((k) => ({ key: k, label: TEA_TYPE_LABELS[k] ?? k, count: counts[k] }));
+    return Object.keys(counts)
+      .sort((a, b) => (TEA_TYPE_LABELS[a] ?? a).localeCompare(TEA_TYPE_LABELS[b] ?? b))
+      .map((k) => ({ key: k, label: TEA_TYPE_LABELS[k] ?? k, count: counts[k] }));
   }, [pool]);
 
-  /** The chosen type's teas, sweetest first, filtered by the search box. */
+  /** The chosen type's teas, A to Z. */
   const typeTeas = useMemo(() => {
     if (!activeType) return [];
     const list = pool.filter((t) => t.tea_type === activeType);
@@ -159,27 +161,66 @@ export default function BrewPage() {
     persist(session);
   }, [session, persist]);
 
-  const live = session ? currentSteep(session) : null;
-  const running = session?.state === "running";
-  const liveSecs = session ? liveSeconds(session, now) : 0;
+  /**
+   * The tea on screen. On a cold reload the session restores from localStorage before
+   * the tea library has finished loading, so the stored `selectedTea` can be null for
+   * a moment. Deriving it from the session's slug means the tea — and therefore its
+   * steep time — is picked up the instant the library lands.
+   */
+  const activeTea: Tea | null = selectedTea ?? (session ? teaBySlug.get(session.slug) ?? null : null);
 
-  const begin = (tea: Tea) => {
-    const s = startSteep(newSession(tea.slug, Date.now()), Date.now());
+  const live = session ? currentSteep(session) : null;
+  const mode: "armed" | "running" | "paused" | "done" =
+    session?.state === "armed"
+      ? "armed"
+      : session?.state === "running"
+      ? "running"
+      : session?.state === "paused"
+      ? "paused"
+      : "done";
+  const liveSecs = session ? liveSeconds(session, now) : 0;
+  const baseSecs = activeTea?.brewing_time_min ? Math.round(activeTea.brewing_time_min * 60) : null;
+  const doneCount = session?.steeps.filter((s) => s.endedAt !== undefined).length ?? 0;
+  const steepNo = live?.index ?? doneCount + 1;
+  const dueNow = dueSeconds(baseSecs, steepNo);
+
+  /** Ready the next steep — the clock stays stopped until Start. */
+  const arm = (tea: Tea, existing: BrewSession | null) => {
+    const s = armSteep(existing ?? newSession(tea.slug, Date.now()), Date.now());
     setSession(s);
     setSelectedTea(tea);
     setStage("steeps");
   };
 
+  const onStart = () => session && setSession(startSteep(session, Date.now()));
   const onDone = () => {
     if (!session) return;
     const t = Date.now();
     setSession(finishSteep(session, t));
     setNow(t);
   };
-  const onNextSteep = () => session && setSession(startSteep(session, Date.now()));
   const onPause = () => session && setSession(pauseSteep(session, Date.now()));
-  const onResume = () => session && setSession(startSteep(session, Date.now()));
   const onReset = () => session && setSession(resetCurrentSteep(session, Date.now()));
+
+  /**
+   * Throw away the steep in progress and stay where you are.
+   *
+   * If that was the only steep, there is no session left to show — go back to the
+   * tea's own type so the next cup is one tap away, rather than leaving an empty
+   * list on screen with nothing to pick.
+   */
+  const onDiscardSteep = () => {
+    if (!session) return;
+    const next = discardCurrentSteep(session, Date.now());
+    setSession(next);
+    if (next.steeps.length === 0) {
+      persist(null);
+      setSession(null);
+      setQuery("");
+      setStage(activeTea?.tea_type ? "teas" : "types");
+    }
+  };
+
   const toLog = () => session && setSession(endSession(session, Date.now())) && setStage("log");
   const abandon = () => {
     persist(null);
@@ -189,10 +230,10 @@ export default function BrewPage() {
   };
 
   const saveLog = async (rating: number, note: string) => {
-    if (!session || !selectedTea) return;
+    if (!session || !activeTea) return;
     setSaving(true);
     const payload = sessionPayload(session, Date.now());
-    const ok = await addTeaLog(selectedTea.slug, rating, note, {
+    const ok = await addTeaLog(activeTea.slug, rating, note, {
       brews: payload.brews,
       duration_s: payload.duration_s,
       steep_s: payload.steep_s,
@@ -203,8 +244,8 @@ export default function BrewPage() {
       return;
     }
     // brewing a tea puts it in the collection — that is what "have" means here
-    if (teaStates[selectedTea.slug] === undefined) {
-      useTeaStore.getState().setTeaStatus?.(selectedTea.slug, "have");
+    if (teaStates[activeTea.slug] === undefined) {
+      useTeaStore.getState().setTeaStatus?.(activeTea.slug, "have");
     }
     persist(null);
     setSession(null);
@@ -213,8 +254,8 @@ export default function BrewPage() {
   };
 
   const previousLogs = useMemo(
-    () => (selectedTea ? (teaLogs[selectedTea.slug] ?? []).slice(0, 4) : []),
-    [teaLogs, selectedTea]
+    () => (activeTea ? (teaLogs[activeTea.slug] ?? []).slice(0, 4) : []),
+    [teaLogs, activeTea]
   );
 
   const back = () => {
@@ -228,27 +269,30 @@ export default function BrewPage() {
 
   const heading =
     stage === "steeps" || stage === "log"
-      ? selectedTea?.name
+      ? activeTea?.name
       : stage === "teas"
       ? TEA_TYPE_LABELS[activeType ?? ""] ?? activeType
       : "Brew";
 
   return (
-    <main className="mx-auto w-full max-w-[720px] px-4 sm:px-6 pb-28">
-      <div className="flex items-center justify-between pt-5 pb-1">
+    <main className="mx-auto w-full max-w-[680px] px-5 sm:px-8 pb-32">
+      {/* ── header ─────────────────────────────────────────────────────── */}
+      <header className="flex items-center justify-between gap-3 pt-6 pb-2">
         <div className="flex items-center gap-3 min-w-0">
           {stage !== "types" && (
             <button
               onClick={back}
-              className="flex items-center gap-1 text-xs shrink-0"
-              style={{ color: "var(--muted)" }}
+              aria-label="Back"
+              className="grid place-items-center w-9 h-9 rounded-full shrink-0"
+              style={{ color: "var(--muted)", border: "1px solid var(--border)" }}
             >
-              <ChevronLeft size={14} /> back
+              <ChevronLeft size={17} />
             </button>
           )}
-          <h1 className="font-serif text-lg truncate">{heading}</h1>
+          <h1 className="font-serif text-[22px] leading-tight truncate">{heading}</h1>
         </div>
-        <div className="flex items-center gap-4 shrink-0">
+
+        <div className="flex items-center gap-2.5 shrink-0">
           {(stage === "types" || stage === "teas") && (
             <button
               onClick={() => {
@@ -256,65 +300,73 @@ export default function BrewPage() {
                 setQuery("");
               }}
               aria-pressed={showAll}
-              className="flex items-center gap-2 text-[11px] uppercase tracking-wider"
-              style={{ color: showAll ? "var(--accent)" : "var(--muted)" }}
+              className="flex items-center gap-2.5 h-9 pl-3 pr-3.5 rounded-full text-[12px]"
+              style={{
+                border: "1px solid var(--border)",
+                color: showAll ? "var(--accent)" : "var(--muted)",
+              }}
             >
               <span
-                className="inline-block rounded-full transition-colors"
+                aria-hidden
+                className="relative inline-block rounded-full transition-colors"
                 style={{
-                  width: 26,
-                  height: 14,
+                  width: 30,
+                  height: 16,
                   backgroundColor: showAll ? "var(--accent)" : "var(--border)",
-                  position: "relative",
                 }}
               >
                 <span
                   className="absolute rounded-full transition-all"
                   style={{
-                    width: 10,
-                    height: 10,
+                    width: 12,
+                    height: 12,
                     top: 2,
-                    left: showAll ? 14 : 2,
+                    left: showAll ? 16 : 2,
                     backgroundColor: showAll ? "var(--bg)" : "var(--muted)",
                   }}
                 />
               </span>
-              all teas
+              All teas
             </button>
           )}
-          <Link href="/" aria-label="Leave the brew page" style={{ color: "var(--muted)" }}>
-            <X size={18} />
+          <Link
+            href="/"
+            aria-label="Leave the brew page"
+            className="grid place-items-center w-9 h-9 rounded-full"
+            style={{ color: "var(--muted)", border: "1px solid var(--border)" }}
+          >
+            <X size={17} />
           </Link>
         </div>
-      </div>
+      </header>
 
-      {/* restore prompt */}
+      {/* ── restore prompt ─────────────────────────────────────────────── */}
       <AnimatePresence>
         {restore && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="rounded-xl border p-4 mb-3"
+            className="rounded-2xl border p-5 mt-3"
             style={{ borderColor: "var(--accent)", backgroundColor: "var(--card)" }}
           >
-            <p className="text-sm">
+            <p className="text-[15px] leading-relaxed">
               {restore.warning === "long-gap"
                 ? `A steep of ${teaBySlug.get(restore.session.slug)?.name ?? "this tea"} has been running since you closed the app.`
                 : "The device clock moved while this steep was open."}
             </p>
-            <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>
+            <p className="text-[13px] mt-1.5 leading-relaxed" style={{ color: "var(--muted)" }}>
               {restore.warning === "long-gap"
                 ? "Tea does not keep steeping while you sleep. Choose what to record."
                 : "Nothing is trusted from that gap — resume when you are ready."}
             </p>
-            <div className="flex flex-wrap gap-2 mt-3">
+            <div className="flex flex-wrap gap-2 mt-4">
               <button
                 onClick={() => {
                   adopt(restore.session);
                   setRestore(null);
                 }}
-                className="px-3 h-9 rounded-lg text-xs"
+                className="px-4 h-10 rounded-full text-[13px] font-medium"
                 style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
               >
                 Keep as it is
@@ -325,7 +377,7 @@ export default function BrewPage() {
                     adopt(capSteep(restore.session, 20 * 60, Date.now()));
                     setRestore(null);
                   }}
-                  className="px-3 h-9 rounded-lg text-xs border"
+                  className="px-4 h-10 rounded-full text-[13px] border"
                   style={{ borderColor: "var(--border)" }}
                 >
                   Cap at 20:00
@@ -342,7 +394,7 @@ export default function BrewPage() {
                     setRestore(null);
                   }
                 }}
-                className="px-3 h-9 rounded-lg text-xs border"
+                className="px-4 h-10 rounded-full text-[13px] border"
                 style={{ borderColor: "var(--border)", color: "var(--muted)" }}
               >
                 Discard that steep
@@ -352,194 +404,230 @@ export default function BrewPage() {
         )}
       </AnimatePresence>
 
-      {stage === "card" && selectedTea ? (
-        <TeaCard tea={selectedTea} onBrew={() => begin(selectedTea)} onBack={() => setStage("teas")} />
-      ) : stage === "steeps" && session ? (
-        <div className="w-full aspect-square max-h-[46vh] mx-auto">
-          <SteepWheel
-            session={session}
-            now={now}
-            centre={
-              <div className="flex flex-col items-center justify-center text-center px-3">
-                <span className="font-serif tabular-nums" style={{ fontSize: 40, lineHeight: 1 }}>
-                  {formatClock(liveSecs)}
-                </span>
-                <span className="text-[10px] uppercase tracking-[0.18em] mt-1" style={{ color: "var(--muted)" }}>
-                  {live ? `steep ${live.index}` : running ? "paused" : "steep done"}
-                </span>
-                {selectedTea?.brewing_temp_c && (
-                  <span className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>
-                    {selectedTea.brewing_temp_c} °C
-                  </span>
-                )}
+      {/* ── body ───────────────────────────────────────────────────────── */}
+      <div className="mt-4">
+        {stage === "card" && activeTea ? (
+          <TeaCard tea={activeTea} onBrew={() => arm(activeTea, null)} onBack={() => setStage("teas")} />
+        ) : stage === "steeps" && session ? (
+          <div className="pt-1">
+            <SteepDial
+              seconds={liveSecs}
+              target={baseSecs ?? 30}
+              due={dueNow}
+              mode={mode}
+              steepNumber={steepNo}
+              note={activeTea?.brewing_temp_c ? `${activeTea.brewing_temp_c} °C` : undefined}
+            />
+
+            {/* done steeps, as a quiet record under the dial */}
+            {doneCount > 0 && (
+              <div className="flex items-center justify-center gap-2 mt-5 flex-wrap">
+                {session.steeps
+                  .filter((s) => s.endedAt !== undefined)
+                  .map((s) => (
+                    <span
+                      key={s.index}
+                      className="px-3 h-8 inline-flex items-center rounded-full text-[12px] tabular-nums"
+                      style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
+                    >
+                      {s.index} · {formatClock(Math.round((s.endedAt! - s.startedAt) / 1000))}
+                    </span>
+                  ))}
               </div>
-            }
-          />
-        </div>
-      ) : stage === "log" ? null : stage === "types" ? (
-        types.length === 0 ? (
-          <div
-            className="rounded-2xl border p-6 text-center mt-8"
-            style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}
-          >
-            <p className="font-serif text-lg">Nothing to brew yet</p>
-            <p className="text-xs mt-2" style={{ color: "var(--muted)" }}>
-              {showAll
-                ? "No teas are loaded yet — the library is still syncing."
-                : "Your collection is empty. Mark teas as owned, or browse the whole library."}
-            </p>
-            {!showAll && (
-              <button
-                onClick={() => setShowAll(true)}
-                className="mt-4 px-4 h-10 rounded-xl text-sm"
-                style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
-              >
-                Show all teas
-              </button>
             )}
           </div>
-        ) : (
-          <ul className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-            {types.map((t) => (
-              <li key={t.key}>
+        ) : stage === "log" ? null : stage === "types" ? (
+          types.length === 0 ? (
+            <div
+              className="rounded-2xl border p-8 text-center mt-6"
+              style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}
+            >
+              <p className="font-serif text-xl">Nothing to brew yet</p>
+              <p className="text-[13px] mt-2 leading-relaxed" style={{ color: "var(--muted)" }}>
+                {showAll
+                  ? "No teas are loaded yet — the library is still syncing."
+                  : "Your collection is empty. Mark teas as owned, or browse the whole library."}
+              </p>
+              {!showAll && (
                 <button
-                  onClick={() => {
-                    setActiveType(t.key);
-                    setQuery("");
-                    setStage("teas");
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-3.5 text-left"
-                  style={{ borderBottom: "1px solid var(--border)" }}
+                  onClick={() => setShowAll(true)}
+                  className="mt-5 px-5 h-11 rounded-full text-[14px] font-medium"
+                  style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
                 >
-                  <span
-                    aria-hidden
-                    className="w-2.5 h-2.5 rounded-sm shrink-0"
-                    style={{ backgroundColor: TEA_TYPE_COLORS[t.key] ?? "var(--accent)" }}
-                  />
-                  <span className="flex-1 min-w-0 text-sm">{t.label}</span>
-                  <span className="text-xs tabular-nums" style={{ color: "var(--muted)" }}>
-                    {t.count}
-                  </span>
-                  <ChevronLeft
-                    size={15}
-                    style={{ transform: "rotate(180deg)", color: "var(--muted)" }}
-                  />
+                  Show all teas
                 </button>
-              </li>
-            ))}
-          </ul>
-        )
-      ) : (
-        <>
-          <div className="relative mb-3">
-            <Search
-              size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2"
-              style={{ color: "var(--muted)" }}
-            />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Search ${TEA_TYPE_LABELS[activeType ?? ""] ?? "teas"}`}
-              aria-label="Search teas in this type"
-              className="w-full h-11 rounded-lg pl-9 pr-3 text-sm outline-none"
-              style={{
-                backgroundColor: "var(--card)",
-                border: "1px solid var(--border)",
-                color: "var(--text)",
-              }}
-            />
-          </div>
-
-          {typeTeas.length === 0 ? (
-            <p className="text-sm py-10 text-center" style={{ color: "var(--muted)" }}>
-              No tea matches “{query}”.
-            </p>
+              )}
+            </div>
           ) : (
-            <ul className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
-              {typeTeas.map((t) => (
-                <li key={t.slug}>
+            <ul className="flex flex-col gap-2">
+              {types.map((t) => (
+                <li key={t.key}>
                   <button
                     onClick={() => {
-                      setSelectedTea(t);
-                      setStage("card");
+                      setActiveType(t.key);
+                      setQuery("");
+                      setStage("teas");
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-3 text-left"
-                    style={{ borderBottom: "1px solid var(--border)" }}
+                    className="w-full flex items-center gap-4 px-4 h-[62px] rounded-2xl text-left"
+                    style={{ backgroundColor: "var(--card)", border: "1px solid var(--border)" }}
                   >
-                    {/* the type's colour, carried down from the category row */}
                     <span
                       aria-hidden
-                      className="w-1 self-stretch rounded-full shrink-0"
-                      style={{ backgroundColor: typeColor }}
+                      className="w-3 h-3 rounded-full shrink-0"
+                      style={{ backgroundColor: TEA_TYPE_COLORS[t.key] ?? "var(--accent)" }}
                     />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm truncate">{t.name}</span>
-                      {(t.original_name || t.origin) && (
-                        <span className="block text-[11px] truncate" style={{ color: "var(--muted)" }}>
-                          {[t.original_name, t.origin].filter(Boolean).join(" · ")}
-                        </span>
-                      )}
+                    <span className="flex-1 min-w-0 text-[15px]">{t.label}</span>
+                    <span
+                      className="text-[13px] tabular-nums px-2.5 h-7 inline-flex items-center rounded-full"
+                      style={{ color: "var(--muted)", backgroundColor: "var(--bg)" }}
+                    >
+                      {t.count}
                     </span>
-                    {teaStates[t.slug] === "have" && (
-                      <span
-                        className="text-[10px] uppercase tracking-wider shrink-0"
-                        style={{ color: typeColor }}
-                      >
-                        in stock
-                      </span>
-                    )}
+                    <ChevronLeft
+                      size={17}
+                      style={{ transform: "rotate(180deg)", color: "var(--muted)", flexShrink: 0 }}
+                    />
                   </button>
                 </li>
               ))}
             </ul>
-          )}
-        </>
-      )}
+          )
+        ) : (
+          <>
+            <div className="relative mb-4">
+              <Search
+                size={16}
+                className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
+                style={{ color: "var(--muted)" }}
+              />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={`Search ${TEA_TYPE_LABELS[activeType ?? ""] ?? "teas"}`}
+                aria-label="Search teas in this type"
+                className="w-full h-12 rounded-2xl pl-11 pr-4 text-[15px] outline-none"
+                style={{
+                  backgroundColor: "var(--card)",
+                  border: "1px solid var(--border)",
+                  color: "var(--text)",
+                }}
+              />
+            </div>
 
-      {/* timer controls */}
+            {typeTeas.length === 0 ? (
+              <p className="text-[14px] py-12 text-center" style={{ color: "var(--muted)" }}>
+                No tea matches “{query}”.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {typeTeas.map((t) => (
+                  <li key={t.slug}>
+                    <button
+                      onClick={() => {
+                        setSelectedTea(t);
+                        setStage("card");
+                      }}
+                      className="w-full flex items-stretch gap-4 px-4 py-3.5 rounded-2xl text-left"
+                      style={{ backgroundColor: "var(--card)", border: "1px solid var(--border)" }}
+                    >
+                      {/* the type's colour, carried down from the category row */}
+                      <span
+                        aria-hidden
+                        className="w-1 rounded-full shrink-0"
+                        style={{ backgroundColor: typeColor }}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[15px] leading-snug truncate">{t.name}</span>
+                        {(t.original_name || t.origin) && (
+                          <span
+                            className="block text-[12.5px] leading-snug mt-0.5 truncate"
+                            style={{ color: "var(--muted)" }}
+                          >
+                            {[t.original_name, t.origin].filter(Boolean).join(" · ")}
+                          </span>
+                        )}
+                      </span>
+                      {teaStates[t.slug] === "have" && (
+                        <span
+                          className="text-[10.5px] uppercase tracking-[0.12em] shrink-0 self-center"
+                          style={{ color: typeColor }}
+                        >
+                          in stock
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── controls ───────────────────────────────────────────────────── */}
       {stage === "steeps" && session && (
-        <div className="mt-4">
-          <div className="flex items-center justify-center gap-2">
-            {live ? (
+        <div className="mt-7">
+          <div className="flex items-center justify-center gap-2.5">
+            {mode === "armed" && (
+              <button
+                onClick={onStart}
+                className="flex items-center gap-2.5 px-9 h-[52px] rounded-full text-[15px] font-semibold"
+                style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
+              >
+                <Play size={17} /> Start
+              </button>
+            )}
+
+            {mode === "running" && (
               <>
                 <button
-                  onClick={running ? onPause : onResume}
-                  className="flex items-center gap-2 px-4 h-11 rounded-xl text-sm font-medium"
+                  onClick={onPause}
+                  className="flex items-center gap-2 px-6 h-[52px] rounded-full text-[15px] font-medium"
                   style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
                 >
-                  {running ? <Pause size={15} /> : <Play size={15} />}
-                  {running ? "Pause" : "Resume"}
+                  <Pause size={16} /> Pause
                 </button>
                 <button
                   onClick={onDone}
-                  className="flex items-center gap-2 px-4 h-11 rounded-xl text-sm border"
+                  className="flex items-center gap-2 px-6 h-[52px] rounded-full text-[15px] border"
                   style={{ borderColor: "var(--border)" }}
                 >
-                  <Check size={15} /> Done
-                </button>
-                <button
-                  onClick={onReset}
-                  aria-label="Reset this steep"
-                  className="w-11 h-11 rounded-xl border flex items-center justify-center"
-                  style={{ borderColor: "var(--border)", color: "var(--muted)" }}
-                >
-                  <RotateCcw size={15} />
+                  <Check size={16} /> Done
                 </button>
               </>
-            ) : (
+            )}
+
+            {mode === "paused" && (
               <>
                 <button
-                  onClick={onNextSteep}
-                  className="flex items-center gap-2 px-5 h-11 rounded-xl text-sm font-medium"
+                  onClick={onStart}
+                  className="flex items-center gap-2 px-6 h-[52px] rounded-full text-[15px] font-medium"
                   style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
                 >
-                  <Play size={15} /> Steep{" "}
-                  {session.steeps.filter((s) => s.endedAt !== undefined).length + 1}
+                  <Play size={16} /> Resume
+                </button>
+                <button
+                  onClick={onDone}
+                  className="flex items-center gap-2 px-6 h-[52px] rounded-full text-[15px] border"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <Check size={16} /> Done
+                </button>
+              </>
+            )}
+
+            {mode === "done" && (
+              <>
+                <button
+                  onClick={() => activeTea && arm(activeTea, session)}
+                  className="flex items-center gap-2 px-7 h-[52px] rounded-full text-[15px] font-semibold"
+                  style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
+                >
+                  <Play size={16} /> Steep {doneCount + 1}
                 </button>
                 <button
                   onClick={toLog}
-                  className="px-4 h-11 rounded-xl text-sm border"
+                  className="px-6 h-[52px] rounded-full text-[15px] border"
                   style={{ borderColor: "var(--border)" }}
                 >
                   End session
@@ -547,20 +635,34 @@ export default function BrewPage() {
               </>
             )}
           </div>
-          <button
-            onClick={abandon}
-            className="block mx-auto mt-3 text-[11px]"
-            style={{ color: "var(--muted)" }}
-          >
-            discard this session
-          </button>
+
+          {/* the escapes: always reachable, never in the way */}
+          <div className="flex items-center justify-center gap-6 mt-4">
+            {mode === "running" && (
+              <button
+                onClick={onReset}
+                className="flex items-center gap-1.5 h-9 text-[12.5px]"
+                style={{ color: "var(--muted)" }}
+              >
+                <RotateCcw size={13} /> restart
+              </button>
+            )}
+            <button
+              onClick={onDiscardSteep}
+              className="flex items-center gap-1.5 h-9 text-[12.5px]"
+              style={{ color: "var(--muted)" }}
+            >
+              <Trash2 size={13} />
+              {mode === "armed" ? "cancel" : "discard steep"}
+            </button>
+          </div>
         </div>
       )}
 
-      {stage === "log" && selectedTea && session && (
-        <div className="mt-4">
+      {stage === "log" && activeTea && session && (
+        <div className="mt-2">
           <BrewLogSheet
-            tea={selectedTea}
+            tea={activeTea}
             session={session}
             now={now}
             previous={previousLogs}
@@ -577,67 +679,67 @@ export default function BrewPage() {
 
 function TeaCard({ tea, onBrew, onBack }: { tea: Tea; onBrew: () => void; onBack: () => void }) {
   const colour = TEA_TYPE_COLORS[tea.tea_type] ?? "var(--accent)";
+  const firstSteep = dueSeconds(tea.brewing_time_min ? Math.round(tea.brewing_time_min * 60) : null, 1);
   return (
     <div
-      className="rounded-2xl border p-5"
+      className="rounded-2xl border p-6"
       style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
     >
-      <div className="flex items-start gap-2">
-        <span className="mt-1.5 w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colour }} />
+      <div className="flex items-start gap-3">
+        <span className="mt-2 w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: colour }} />
         <div className="min-w-0">
-          <h2 className="font-serif text-xl leading-tight">{tea.name}</h2>
+          <h2 className="font-serif text-[26px] leading-tight">{tea.name}</h2>
           {tea.original_name && (
-            <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
+            <p className="text-[14px] mt-1" style={{ color: "var(--muted)" }}>
               {tea.original_name}
             </p>
           )}
           {tea.translation && (
-            <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
+            <p className="text-[13px] mt-0.5" style={{ color: "var(--muted)" }}>
               {tea.translation}
             </p>
           )}
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-3 mt-4 text-xs">
+      <dl className="grid grid-cols-2 gap-x-5 gap-y-4 mt-6">
         <div>
-          <dt className="uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+          <dt className="text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
             Type
           </dt>
-          <dd className="mt-0.5" style={{ color: colour }}>
+          <dd className="mt-1 text-[14px]" style={{ color: colour }}>
             {TEA_TYPE_LABELS[tea.tea_type] ?? tea.tea_type}
           </dd>
         </div>
         <div>
-          <dt className="uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+          <dt className="text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
             Origin
           </dt>
-          <dd className="mt-0.5">{tea.origin || "—"}</dd>
+          <dd className="mt-1 text-[14px]">{tea.origin || "—"}</dd>
         </div>
         <div>
-          <dt className="uppercase tracking-wider" style={{ color: "var(--muted)" }}>
+          <dt className="text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
             Water
           </dt>
-          <dd className="mt-0.5">{tea.brewing_temp_c ? `${tea.brewing_temp_c} °C` : "—"}</dd>
+          <dd className="mt-1 text-[14px]">{tea.brewing_temp_c ? `${tea.brewing_temp_c} °C` : "—"}</dd>
         </div>
         <div>
-          <dt className="uppercase tracking-wider" style={{ color: "var(--muted)" }}>
-            Steep
+          <dt className="text-[11px] uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>
+            First steep
           </dt>
-          <dd className="mt-0.5">
-            {tea.brewing_time_min ? formatClock(tea.brewing_time_min * 60) : "—"} ·{" "}
-            {tea.brewing_num_brews ?? 1}×
+          <dd className="mt-1 text-[14px] tabular-nums">
+            {formatClock(firstSteep)} · {tea.brewing_num_brews ?? 1}×
           </dd>
         </div>
       </dl>
 
-      {tea.characteristics?.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-4">
+      {tea.characteristics && tea.characteristics.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-6">
           {tea.characteristics.slice(0, 6).map((c) => (
             <span
               key={c}
-              className="text-[10px] px-2 py-0.5 rounded-full border"
-              style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+              className="text-[12px] px-2.5 h-7 inline-flex items-center rounded-full"
+              style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
             >
               {c}
             </span>
@@ -646,22 +748,22 @@ function TeaCard({ tea, onBrew, onBack }: { tea: Tea; onBrew: () => void; onBack
       )}
 
       {tea.description && (
-        <p className="text-xs mt-4 leading-relaxed" style={{ color: "var(--muted)" }}>
+        <p className="text-[13.5px] mt-6 leading-relaxed" style={{ color: "var(--muted)" }}>
           {tea.description.length > 320 ? `${tea.description.slice(0, 320)}…` : tea.description}
         </p>
       )}
 
-      <div className="flex gap-2 mt-5">
+      <div className="flex gap-2.5 mt-7">
         <button
           onClick={onBrew}
-          className="flex-1 h-11 rounded-xl text-sm font-medium"
+          className="flex-1 h-[52px] rounded-full text-[15px] font-semibold"
           style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
         >
           Brew this
         </button>
         <button
           onClick={onBack}
-          className="px-4 h-11 rounded-xl text-sm border"
+          className="px-6 h-[52px] rounded-full text-[15px] border"
           style={{ borderColor: "var(--border)" }}
         >
           Back

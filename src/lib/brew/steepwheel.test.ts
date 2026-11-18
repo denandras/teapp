@@ -1,150 +1,79 @@
-import { describe, it, expect } from "vitest";
-import { newSession, startSteep, finishSteep } from "@/lib/brew/session";
-import { bandGeometry, steepBands, VIEW, HUB_R, OUTER_R, MIN_BAND } from "@/lib/brew/steepwheel";
+import { describe, expect, it } from "vitest";
+import { BASE_R, LAP_STEP, MAX_LAPS, RIM_R, dialState, dueSeconds, lapArc } from "@/lib/brew/steepwheel";
 
-const T0 = 1_700_000_000_000;
-
-/** A session with n finished steeps of the given lengths (seconds). */
-function sessionWith(lengths: number[]) {
-  let s = newSession("genmaicha", T0);
-  let t = T0;
-  for (const len of lengths) {
-    s = startSteep(s, t);
-    t += len * 1000;
-    s = finishSteep(s, t);
-  }
-  return { session: s, now: t };
-}
-
-const totalSpan = (bands: { startDeg: number; endDeg: number }[]) =>
-  bands.reduce((sum, b) => sum + Math.abs(b.startDeg - b.endDeg), 0);
-
-describe("steep bands — the wheel must always claim the whole turn", () => {
-  it("a single running steep fills the full 360", () => {
-    const s = startSteep(newSession("genmaicha", T0), T0);
-    const bands = steepBands(s, T0 + 3000);
-    expect(bands).toHaveLength(1);
-    expect(totalSpan(bands)).toBeCloseTo(360, 4);
+describe("steep timer dial", () => {
+  it("starts empty on one lap", () => {
+    const d = dialState(0, 180);
+    expect(d.laps).toHaveLength(1);
+    expect(d.laps[0].fill).toBe(0);
+    expect(d.over).toBe(false);
   });
 
-  it("never leaves a gap however many steeps there are", () => {
-    for (const n of [1, 2, 3, 4, 5, 8]) {
-      const { session, now } = sessionWith(Array.from({ length: n }, () => 45));
-      const bands = steepBands(session, now);
-      expect(bands).toHaveLength(n);
-      expect(totalSpan(bands)).toBeCloseTo(360, 4);
-    }
+  it("is half of the base lap half way through the recommended time", () => {
+    const d = dialState(90, 180);
+    expect(d.laps).toHaveLength(1);
+    expect(d.laps[0].fill).toBeCloseTo(0.5, 5);
+    expect(d.passed).toBe(0);
+    expect(d.over).toBe(false);
   });
 
-  it("never lets an early live steep swallow the turn", () => {
-    // two finished steeps (6s, 9s) and a live steep that is only 4s old.
-    // The live band used to receive "all the remainder" and covered ~85% of the
-    // circle, which read as a broken ring with a stray sliver.
-    let s = sessionWith([6, 9]).session;
-    const startedAt = T0 + 15_000;
-    s = startSteep(s, startedAt);
-    const bands = steepBands(s, startedAt + 4000);
-    const liveBand = bands.find((b) => b.live)!;
-    const liveShare = Math.abs(liveBand.startDeg - liveBand.endDeg);
-    expect(liveShare).toBeLessThan(110); // 4s of 19s is ~76deg, plus slack
-    expect(totalSpan(bands)).toBeCloseTo(360, 4);
+  it("closes the first lap at the target and opens a second", () => {
+    const d = dialState(180, 180);
+    expect(d.laps).toHaveLength(2);
+    expect(d.laps[0].fill).toBe(1);
+    expect(d.laps[1].fill).toBeCloseTo(0, 6);
+    expect(d.over).toBe(true);
   });
 
-  it("gives a longer steep a bigger share than a shorter one", () => {
-    const { session, now } = sessionWith([40, 120]);
-    const bands = steepBands(session, now);
-    const first = Math.abs(bands[0].startDeg - bands[0].endDeg);
-    const second = Math.abs(bands[1].startDeg - bands[1].endDeg);
-    expect(second).toBeGreaterThan(first);
+  it("layers a larger lap when the steep over-runs", () => {
+    const d = dialState(270, 180); // 1.5 targets
+    expect(d.laps).toHaveLength(2);
+    expect(d.laps[1].fill).toBeCloseTo(0.5, 5);
+    expect(d.laps[1].r - d.laps[0].r).toBe(LAP_STEP);
+    expect(d.passed).toBe(1);
+    expect(d.overBy).toBeCloseTo(90, 5);
   });
 
-  it("keeps every finished steep wide enough to read", () => {
-    // one steep of 5s next to one of 300s: the short one must not vanish
-    const { session, now } = sessionWith([5, 300]);
-    const bands = steepBands(session, now);
-    for (const b of bands) {
-      expect(Math.abs(b.startDeg - b.endDeg)).toBeGreaterThan(10);
-    }
+  it("keeps layering while the clock climbs", () => {
+    const d = dialState(555, 180); // 3.08 targets
+    expect(d.laps).toHaveLength(4);
+    expect(d.laps[3].fill).toBeCloseTo(0.0833, 3);
   });
 
-  it("nests each steep inside the previous one", () => {
-    const { session, now } = sessionWith([40, 50, 60]);
-    const bands = steepBands(session, now);
-    expect(bands[0].r1).toBeCloseTo(OUTER_R, 5);
-    for (let i = 1; i < bands.length; i++) {
-      expect(bands[i].r1).toBeLessThanOrEqual(bands[i - 1].r0 + 0.001);
-    }
+  it("never draws past the rim, however long the steep runs", () => {
+    const d = dialState(60 * 60, 60); // an hour against a one-minute tea
+    expect(d.laps.length).toBeLessThanOrEqual(MAX_LAPS);
+    const outermost = d.laps[d.laps.length - 1];
+    expect(outermost.r).toBeLessThan(RIM_R);
+    expect(d.passed).toBe(60);
   });
 
-  it("never nests through the hub, however long the session", () => {
-    const { session, now } = sessionWith(Array.from({ length: 12 }, () => 30));
-    for (const b of steepBands(session, now)) {
-      expect(b.r0).toBeGreaterThanOrEqual(HUB_R - 0.001);
-      expect(b.r1 - b.r0).toBeGreaterThanOrEqual(MIN_BAND - 0.001);
-    }
+  it("marks only the final lap active", () => {
+    const d = dialState(400, 120);
+    const active = d.laps.filter((l) => l.active);
+    expect(active).toHaveLength(1);
+    expect(active[0].index).toBe(d.laps.length - 1);
   });
 
-  it("stays inside the view box", () => {
-    const { session, now } = sessionWith([40, 50]);
-    for (const b of steepBands(session, now)) {
-      expect(b.r1).toBeLessThanOrEqual(VIEW);
-      expect(b.r0).toBeGreaterThan(0);
-    }
+  it("falls back to 30 s when the tea carries no time", () => {
+    expect(dialState(15, 0).laps[0].fill).toBeCloseTo(0.5, 5);
+    expect(dueSeconds(null, 1)).toBe(30);
   });
 
-  it("marks exactly one band live while a steep is running", () => {
-    let s = sessionWith([40])["session"];
-    s = startSteep(s, T0 + 60_000);
-    const bands = steepBands(s, T0 + 70_000);
-    expect(bands.filter((b) => b.live)).toHaveLength(1);
-    expect(bands.filter((b) => b.done)).toHaveLength(1);
+  it("adds fifteen seconds for every steep after the first", () => {
+    expect(dueSeconds(180, 1)).toBe(180);
+    expect(dueSeconds(180, 2)).toBe(195);
+    expect(dueSeconds(180, 3)).toBe(210);
   });
 
-  it("gives each steep a stable colour that differs from its neighbour", () => {
-    const { session, now } = sessionWith([40, 50, 60]);
-    const bands = steepBands(session, now);
-    for (let i = 1; i < bands.length; i++) {
-      expect(bands[i].color).not.toBe(bands[i - 1].color);
-    }
-  });
-});
-
-describe("band geometry", () => {
-  it("sweeps clockwise on screen (sweep-flag 1 on the outer arc)", () => {
-    // two finished steeps: neither is a full turn, so each is a 3-command wedge
-    const { session, now } = sessionWith([40, 60]);
-    const g = bandGeometry(steepBands(session, now)[0]);
-    const parts = g.d.split(" A ");
-    expect(parts).toHaveLength(3);
-    expect(parts[1].split(" ")[4]).toBe("1"); // outer: clockwise
-    expect(parts[2].split(" ")[4]).toBe("0"); // inner: back the other way
+  it("starts every lap at twelve o'clock", () => {
+    const quarter = lapArc(0, 0, BASE_R, 90, 0);
+    expect(quarter.startsWith(`M 0 -${BASE_R}`)).toBe(true);
   });
 
-  it("handles a full turn without collapsing to an empty path", () => {
-    const s = startSteep(newSession("genmaicha", T0), T0);
-    const g = bandGeometry(steepBands(s, T0 + 5000)[0]);
-    expect(g.d).not.toContain("NaN");
-    // a 360 arc is impossible in one command, so it must be drawn as two
-    expect(g.d.split(" A ").length).toBe(5);
-  });
-
-  it("keeps the label inside the band's own radius", () => {
-    const { session, now } = sessionWith([40, 50]);
-    const bands = steepBands(session, now);
-    for (const b of bands) {
-      const g = bandGeometry(b);
-      const r = Math.hypot(g.labelX, g.labelY);
-      expect(r).toBeGreaterThan(b.r0 - 1);
-      expect(r).toBeLessThan(b.r1 + 1);
-    }
-  });
-
-  it("never writes a label upside down", () => {
-    const { session, now } = sessionWith([40, 50, 60]);
-    for (const b of steepBands(session, now)) {
-      const rot = bandGeometry(b).labelRot;
-      expect(rot).toBeGreaterThanOrEqual(-90);
-      expect(rot).toBeLessThanOrEqual(90);
-    }
+  it("draws a full lap as two arcs, never one empty one", () => {
+    // a lap is drawn from 12 o'clock to 12 o'clock, i.e. 90 down to -270
+    const full = lapArc(0, 0, BASE_R, 90, -270);
+    expect(full.split("A").length - 1).toBe(2);
   });
 });

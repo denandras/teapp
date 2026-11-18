@@ -1,229 +1,150 @@
 import { currentSteep, formatClock, steepSeconds, type BrewSession } from "@/lib/brew/session";
 
 /**
- * Geometry for the steep wheel.
+ * Geometry for the steep timer dial.
  *
- * Steep 1 is the outermost ring and each further steep sits INSIDE it, all the way
- * to the hub — reading outside-in, the way a leaf gives out. Each steep is not a
- * gauge arc but a BUTTON: a band of known angular width, filled, with its own time
- * written inside the band.
+ * One live steep is drawn as a stack of complete laps: each lap is a full turn
+ * against the tea's base steep time, and a steep that runs past it starts another,
+ * slightly larger lap. So a 4:30 steep of a 3:00 tea reads as a closed ring plus
+ * half a second ring — over-brewing is visible as depth, not as a broken arc.
  *
- * Angular width is the important decision: a completed steep keeps the share of the
- * wheel its own duration earned (so a long second steep visibly occupies more), and
- * the live steep always holds the rest of the arc so the ring never has dead space.
+ * The laps are the only moving geometry. The centre clock and the outer hairline
+ * are fixed, so the dial is still while a steep runs, which is what a stopwatch
+ * should be.
  */
 
 /** View box half-size. The SVG is drawn from -VIEW..VIEW on both axes. */
 export const VIEW = 340;
 
-/** The hub where the live clock sits. */
-export const HUB_R = 96;
+/** The clock's disc. */
+export const HUB_R = 104;
 
-/** Outermost ring band. */
-export const OUTER_R = 318;
+/** Innermost lap radius — sits a comfortable gap outside the clock. */
+export const BASE_R = 236;
 
-/** How thin a steep band may get before we stop nesting and let it overlap. */
-export const MIN_BAND = 22;
+/** Each extra lap adds this much radius, so stacked laps stay distinguishable. */
+export const LAP_STEP = 20;
 
-/** Fraction of the turn a finished steep is guaranteed, so its time is readable. */
-const MIN_SHARE = 0.045;
+/** How far a lap may reach before the ring would clip its hairline at the rim. */
+export const RIM_R = 326;
 
-/**
- * Gap between neighbouring bands, in user units. Bands are separated by a hairline
- * of background rather than touching: parallel arcs at different radii with a
- * visible seam read as separate buttons, which is the point of the ring.
- */
-export const BAND_GAP = 4;
+/** Laps drawn at most; beyond this the ring is full and the centre carries the truth. */
+export const MAX_LAPS = 4;
 
-export interface SteepBand {
+/** Ring thickness of a lap. Thinner than the gap is not: the depth must read. */
+export const LAP_WIDTH = 10;
+
+/** What the resting state shows: a barely-there guide, never a promise. */
+export const IDLE_R = BASE_R;
+
+export interface Lap {
+  /** 0-based; lap 0 is the base time, each further lap is one more of it */
   index: number;
-  /** inner and outer radius of this band */
-  r0: number;
-  r1: number;
-  /** where the band starts and ends, degrees, screen convention (90 = top) */
-  startDeg: number;
-  endDeg: number;
+  r: number;
+  /** 0..1 of this lap that is filled */
+  fill: number;
+  /** true when this is the lap the timer is currently drawing into */
+  active: boolean;
+}
+
+export interface DialState {
+  /** seconds on the clock for the current steep */
   seconds: number;
-  done: boolean;
-  live: boolean;
-  /** colour for this steep, stable for the session */
-  color: string;
-}
-
-/** A palette that reads well on the dark theme and distinguishes ~6 steeps. */
-export const STEEP_COLORS = [
-  "var(--accent)",
-  "#c98f4a",
-  "#a8724a",
-  "#8a6a52",
-  "#7d6a5c",
-  "#6f6459",
-];
-
-export function steepColor(index: number): string {
-  return STEEP_COLORS[(index - 1) % STEEP_COLORS.length];
+  /** the recommended length this ring is measured against */
+  target: number;
+  laps: Lap[];
+  /** true once the steep has passed its target */
+  over: boolean;
+  /** how many targets have been passed, e.g. 2 = twice the recommended time */
+  passed: number;
+  /** seconds past the current target, 0 while still filling */
+  overBy: number;
 }
 
 /**
- * Lay out the wheels for a session.
+ * The dial for a live steep.
  *
- * Radius: band i occupies [OUTER_R - (i+1)*band, OUTER_R - i*band]. If the bands
- * would get thinner than MIN_BAND, later steeps reuse the innermost band and the
- * caller renders them stacked — an over-brew is visible as a second lap on the
- * same radius rather than silently disappearing.
- *
- * Angle: each steep's share is its own seconds against the session total; the live
- * steep takes whatever is left so the turn is always fully claimed.
+ * `target` is the tea's base steep time: the ring fills against it, and every
+ * further full turn of the same length adds a lap. That is deliberately NOT the
+ * per-steep recommendation (base + 15 s × n) — the recommendation tells you when to
+ * pour, the ring shows how far the clock has gone, and mixing the two makes the
+ * layers mean nothing.
  */
-export function steepBands(session: BrewSession, now: number): SteepBand[] {
-  const steeps = session.steeps;
-  if (steeps.length === 0) return [];
-  const live = currentSteep(session);
-
-  const secs = steeps.map((s) => steepSeconds(s, now));
-  const total = secs.reduce((a, b) => a + b, 0);
-
-  // Bands from outside in, stopping at MIN_BAND.
-  const count = steeps.length;
-  const usable = OUTER_R - HUB_R;
-  let band = Math.min(usable / count, 46); // never fatter than 46
-  const maxBands = Math.max(1, Math.floor(usable / MIN_BAND));
-  if (count > maxBands) band = usable / maxBands;
-
-  // Shares.
-  //
-  // Two rules keep the ring whole and readable:
-  //   1. a steep's share follows its own duration, so a long steep is visibly longer;
-  //   2. no steep shrinks below MIN_SHARE, so a 5-second steep next to a 5-minute one
-  //      still has room for its time.
-  //
-  // The total must be EXACTLY 1 — this is what stops the ring showing an empty wedge.
-  //
-  // Important: the LIVE steep is only given the arc its own elapsed time has earned
-  // so far, not "everything that is left". Giving it the remainder made the ring
-  // perfect but meant a 4-second-old live steep occupied nearly the whole circle,
-  // which reads as a broken ring with a stray sliver.
-  const lived = steeps.map((s, i) => {
-    const isDone = s.endedAt !== undefined;
-    if (total > 0) return secs[i] / total;
-    // nothing has elapsed yet: split evenly rather than favouring one steep
-    return 1 / count;
-  });
-
-  let shares = lived.map((v) => Math.max(MIN_SHARE, v));
-  const sumNow = () => shares.reduce((a, b) => a + b, 0);
-
-  // Trim (or grow) proportionally so the total is exactly 1, without ever pushing a
-  // share below the floor. Iterate because trimming can re-break the floor.
-  for (let pass = 0; pass < 8; pass++) {
-    const sum = sumNow();
-    if (Math.abs(sum - 1) < 1e-9) break;
-    const over = shares.filter((s) => s > MIN_SHARE + 1e-9);
-    const room = over.reduce((a, b) => a + b, 0); // total headroom to redistribute
-    if (over.length === 0 || room <= 0) break;
-    const target = 1 - MIN_SHARE * (shares.length - over.length);
-    const k = target / room;
-    shares = shares.map((s) => (s > MIN_SHARE + 1e-9 ? s * k : s));
-  }
-  // final guard — floating point must never leave a sliver of uncovered ring
-  const finalSum = sumNow();
-  shares = shares.map((s) => s / finalSum);
-
-  // the shares below are ready: every steep has its own proportional slice and the
-  // turn is exactly covered
-
-  // Convert shares into arcs, starting at 12 o'clock and running clockwise.
-  const out: SteepBand[] = [];
-  let cursor = 90; // degrees, screen convention: clockwise decreases
-  for (let i = 0; i < count; i++) {
-    const span = shares[i] * 360;
-    const r1 = OUTER_R - Math.min(i, maxBands - 1) * band;
-    const r0 = r1 - band;
-    out.push({
-      index: steeps[i].index,
-      r0,
-      r1,
-      startDeg: cursor,
-      endDeg: cursor - span,
-      seconds: secs[i],
-      done: steeps[i].endedAt !== undefined,
-      live: !!live && live.index === steeps[i].index,
-      color: steepColor(steeps[i].index),
+export function dialState(seconds: number, target: number): DialState {
+  const base = target > 0 ? target : 30;
+  const safe = Math.max(0, seconds);
+  const raw = safe / base;
+  const passed = Math.floor(raw);
+  const fill = raw - passed;
+  const shownLaps = Math.min(passed + 1, MAX_LAPS);
+  const laps: Lap[] = [];
+  for (let i = 0; i < shownLaps; i++) {
+    const isLast = i === shownLaps - 1;
+    laps.push({
+      index: i,
+      r: BASE_R + i * LAP_STEP,
+      // earlier laps are complete; the final one carries the running fill
+      fill: isLast ? fill : 1,
+      active: isLast,
     });
-    cursor -= span;
   }
-  return out;
-}
-
-export interface SteepGeometry {
-  d: string;
-  labelX: number;
-  labelY: number;
-  /** label rotation in degrees, always readable (never upside down) */
-  labelRot: number;
+  return {
+    seconds: safe,
+    target: base,
+    laps,
+    over: raw >= 1,
+    passed,
+    overBy: raw >= 1 ? safe - passed * base : 0,
+  };
 }
 
 /**
- * A band segment as a path, plus where to put its label.
- *
- * Same sweep-flag rule as the tea wheel: screen angles run counter-clockwise while
- * SVG user space is y-down, so a wedge going clockwise on screen needs sweep=1 on
- * the outer arc and sweep=0 on the inner return. Getting this backwards draws the
- * shape the long way round and inverts it.
+ * A lap as a stroke path. Angles use the screen convention (90 = 12 o'clock,
+ * decreasing clockwise) and start at the top, the way a stopwatch sweep does.
  */
-export function bandGeometry(b: SteepBand): SteepGeometry {
-  const a0 = (b.startDeg * Math.PI) / 180;
-  const a1 = (b.endDeg * Math.PI) / 180;
-  const p = (deg: number, r: number) => ({
-    x: r * Math.cos((deg * Math.PI) / 180),
-    y: -r * Math.sin((deg * Math.PI) / 180),
-  });
-  const o1 = p(b.startDeg, b.r1);
-  const o2 = p(b.endDeg, b.r1);
-  const i1 = p(b.startDeg, b.r0);
-  const i2 = p(b.endDeg, b.r0);
-  const span = Math.abs(b.startDeg - b.endDeg);
+export function lapArc(cx: number, cy: number, r: number, fromDeg: number, toDeg: number): string {
+  const span = Math.abs(fromDeg - toDeg);
+  // Round tiny floating-point residue to zero: at 12 o'clock cos(90°) is 1.4e-14,
+  // which renders as "M 1.44e-14 -236" — fine for SVG, useless in a path to compare.
+  const snap = (n: number) => (Math.abs(n) < 1e-9 ? 0 : Number(n.toFixed(6)));
+  const p = (deg: number) => {
+    const a = (deg * Math.PI) / 180;
+    return { x: snap(cx + r * Math.cos(a)), y: snap(cy - r * Math.sin(a)) };
+  };
+  const s = p(fromDeg);
+  const e = p(toDeg);
+  if (span >= 359.99) {
+    const mid = p(fromDeg - 180);
+    // two half turns: a single 360° arc collapses to nothing
+    return `M ${s.x} ${s.y} A ${r} ${r} 0 1 1 ${mid.x} ${mid.y} A ${r} ${r} 0 1 1 ${s.x} ${s.y}`;
+  }
   const large = span > 180 ? 1 : 0;
-
-  const d =
-    span >= 359.9
-      ? // a full turn needs two arcs; a single 360 arc collapses to nothing
-        [
-          `M ${o1.x} ${o1.y}`,
-          `A ${b.r1} ${b.r1} 0 1 1 ${-o1.x} ${-o1.y}`,
-          `A ${b.r1} ${b.r1} 0 1 1 ${o1.x} ${o1.y}`,
-          `L ${i1.x} ${i1.y}`,
-          `A ${b.r0} ${b.r0} 0 1 0 ${-i1.x} ${-i1.y}`,
-          `A ${b.r0} ${b.r0} 0 1 0 ${i1.x} ${i1.y}`,
-          "Z",
-        ].join(" ")
-      : [
-          `M ${o1.x} ${o1.y}`,
-          `A ${b.r1} ${b.r1} 0 ${large} 1 ${o2.x} ${o2.y}`,
-          `L ${i2.x} ${i2.y}`,
-          `A ${b.r0} ${b.r0} 0 ${large} 0 ${i1.x} ${i1.y}`,
-          "Z",
-        ].join(" ");
-
-  // Put the label on the band's own mid-angle so it sits inside the band, not on
-  // a shared seam. Small bands get pushed further out where the band is widest.
-  const midDeg = (b.startDeg + b.endDeg) / 2;
-  const rMid = (b.r0 + b.r1) / 2;
-  const at = p(midDeg, rMid);
-
-  // Rotation: tangent to the rim, flipped on the left half so nothing is upside down.
-  // Screen angle 90 is the top; a label there must read horizontally. Rotating by
-  // (90 - midDeg) turns text tangential to the rim. On the left half that would be
-  // upside down, so flip it and let the flip land inside [-90, 90].
-  let rot = 90 - midDeg;
-  rot = ((rot + 180) % 360) - 180; // normalise to (-180, 180]
-  if (rot > 90) rot -= 180;
-  if (rot < -90) rot += 180;
-
-  return { d, labelX: at.x, labelY: at.y, labelRot: rot };
+  return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`;
 }
 
-/** Total seconds of a whole steep as one string for the centre reading. */
-export function bandLabel(b: SteepBand): string {
-  return formatClock(b.seconds);
+/** m:ss for the centre, but with the tenths kept off — a stopwatch, not a lab meter. */
+export function dialClock(seconds: number): string {
+  return formatClock(seconds);
+}
+
+/**
+ * When the current steep is due, given the tea's base time and the steep number.
+ * The +15 s per steep rule gives the pour point; the ring itself still measures
+ * against the base time so the laps stay meaningful.
+ */
+export function dueSeconds(baseSeconds: number | null | undefined, index: number): number {
+  const base = baseSeconds && baseSeconds > 0 ? baseSeconds : 30;
+  return Math.max(5, base + 15 * Math.max(0, index - 1));
+}
+
+/** Convenience for a session: how long the current steep should run. */
+export function dueForSession(session: BrewSession, baseSeconds: number | null | undefined): number {
+  const live = currentSteep(session);
+  const index = live?.index ?? session.steeps.length;
+  return dueSeconds(baseSeconds, index);
+}
+
+/** The finished steeps of a session as compact rows for the summary line. */
+export function steepSummary(session: BrewSession, now: number): { index: number; seconds: number }[] {
+  return session.steeps.map((s) => ({ index: s.index, seconds: steepSeconds(s, now) }));
 }

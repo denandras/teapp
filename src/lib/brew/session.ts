@@ -9,11 +9,14 @@
  * Pure functions only — the component owns rendering and storage.
  */
 
-export type SteepState = "idle" | "running" | "paused" | "ended";
+export type SteepState = "idle" | "armed" | "running" | "paused" | "ended";
 
 export interface Steep {
   index: number;
-  /** epoch ms */
+  /**
+   * epoch ms. On an ARMED steep this is a placeholder and must not be read as a
+   * start time — the clock only begins when the user presses Start.
+   */
   startedAt: number;
   /** epoch ms; present once Done was pressed */
   endedAt?: number;
@@ -54,6 +57,23 @@ export function makeId(): string {
   return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
 }
 
+/**
+ * Put the next steep on the dial WITHOUT starting its clock.
+ *
+ * Brewing is the user's action, not the app's: tapping "Brew this" or "Steep 3"
+ * readies the timer and leaves the actual start to a deliberate press. The armed
+ * steep is already in the list so the dial can draw the upcoming lap, but nothing
+ * is ticking and no time is being recorded.
+ */
+export function armSteep(session: BrewSession, now: number): BrewSession {
+  const steeps = [...session.steeps];
+  const last = steeps[steeps.length - 1];
+  if (!last || last.endedAt !== undefined) {
+    steeps.push({ index: steeps.length + 1, startedAt: now });
+  }
+  return { ...session, steeps, state: "armed", lastSeen: now };
+}
+
 /** Start the next steep (or resume the current one), stamping the heartbeat. */
 export function startSteep(session: BrewSession, now: number): BrewSession {
   const steeps = [...session.steeps];
@@ -65,6 +85,9 @@ export function startSteep(session: BrewSession, now: number): BrewSession {
     // time does not include the pause.
     const pausedFor = now - session.lastSeen;
     steeps[steeps.length - 1] = { ...last, startedAt: last.startedAt + Math.max(0, pausedFor) };
+  } else if (session.state === "armed") {
+    // First press of Start: the clock begins now, not when the steep was armed.
+    steeps[steeps.length - 1] = { ...last, startedAt: now };
   }
   return { ...session, steeps, state: "running", lastSeen: now };
 }
@@ -103,9 +126,11 @@ export function resetCurrentSteep(session: BrewSession, now: number): BrewSessio
   return { ...session, steeps, state: "running", lastSeen: now };
 }
 
-/** Seconds elapsed in a steep; 0 when it has not started. */
+/** Seconds elapsed in a steep; 0 when it has not started yet. */
 export function steepSeconds(steep: Steep | undefined, now: number): number {
   if (!steep) return 0;
+  // an armed steep has a placeholder startedAt and nothing has ticked
+  if (steep.endedAt === undefined && steep.startedAt > now) return 0;
   const end = steep.endedAt ?? now;
   return Math.max(0, Math.round((end - steep.startedAt) / 1000));
 }
@@ -119,6 +144,7 @@ export function currentSteep(session: BrewSession): Steep | undefined {
 export function liveSeconds(session: BrewSession, now: number): number {
   const steep = currentSteep(session);
   if (!steep) return 0;
+  if (session.state === "armed") return 0;
   return steepSeconds(steep, now);
 }
 
@@ -128,6 +154,30 @@ export function completedSteeps(session: BrewSession): Steep[] {
 
 export function sessionTotalSeconds(session: BrewSession, now: number): number {
   return session.steeps.reduce((sum, s) => sum + steepSeconds(s, now), 0);
+}
+
+// ── recommended times ──────────────────────────────────────────────────────
+//
+// A gongfu session lengthens each steep: the leaf has given up its easy
+// aromatics and needs a little longer to yield the same cup. Fifteen seconds per
+// steep is the working rule.
+
+/** Extra time each steep gains over the one before it. */
+export const STEEP_STEP_S = 15;
+
+/**
+ * The recommended length of `index` (1-based). Falls back to 30 s when the tea
+ * carries no time of its own, so the ring always has something to fill against.
+ */
+export function recommendedSeconds(baseSeconds: number | null | undefined, index: number): number {
+  const base = baseSeconds && baseSeconds > 0 ? baseSeconds : 30;
+  return Math.max(5, base + STEEP_STEP_S * Math.max(0, index - 1));
+}
+
+/** How many steep steps the tea suggests, at least one. */
+export function plannedSteeps(tea: { brewing_num_brews?: number | null }): number {
+  const n = tea.brewing_num_brews ?? 1;
+  return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
 /** The payload the log row needs — one row per session. */
@@ -183,7 +233,9 @@ export function parseSession(raw: string | null): BrewSession | null {
       slug: v.slug,
       startedAt: typeof v.startedAt === "number" ? v.startedAt : Date.now(),
       steeps,
-      state: (["idle", "running", "paused", "ended"] as SteepState[]).includes(v.state) ? v.state : "idle",
+      state: (["idle", "armed", "running", "paused", "ended"] as SteepState[]).includes(v.state)
+        ? v.state
+        : "idle",
       lastSeen: typeof v.lastSeen === "number" ? v.lastSeen : Date.now(),
     };
   } catch {
@@ -205,12 +257,14 @@ export function restoreSession(
   // A clock that ran BACKWARDS is detectable and always wrong. A clock that
   // ran forwards while the app was closed is indistinguishable from real
   // elapsed time — that case is handled honestly by the long-gap guard.
+  if (session.state === "armed") return { session, warning: null };
   if (now < session.lastSeen || now < steep.startedAt) {
     return { session: { ...session, state: "paused" }, warning: "clock-skew" };
   }
   if (session.state !== "running" && session.state !== "paused") {
     return { session, warning: null };
   }
+
   if (session.state === "running" && now - steep.startedAt > LONG_GAP_MS) {
     return { session: { ...session, state: "paused" }, warning: "long-gap" };
   }
@@ -226,7 +280,13 @@ export function capSteep(session: BrewSession, seconds: number, now: number): Br
   return { ...session, steeps, lastSeen: now };
 }
 
-/** Drop the current unfinished steep entirely. */
+/**
+ * Drop the current unfinished (or armed) steep entirely, keeping the finished ones.
+ *
+ * This is the one-tap escape from "I started this by mistake": at any point in the
+ * session the user can throw away the steep in progress without being pushed back
+ * to the tea picker and without losing the steeps already recorded.
+ */
 export function discardCurrentSteep(session: BrewSession, now: number): BrewSession {
   const steeps = session.steeps.filter((s) => s.endedAt !== undefined);
   return { ...session, steeps, state: "idle", lastSeen: now };
