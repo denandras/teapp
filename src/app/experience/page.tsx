@@ -33,7 +33,7 @@ import {
   type BrewSession,
 } from "@/lib/brew/session";
 import WheelMenu, { type WheelButton } from "@/components/experience/WheelMenu";
-import SteepRing from "@/components/experience/SteepRing";
+import SteepWheel from "@/components/experience/SteepWheel";
 import BrewLogSheet from "@/components/experience/BrewLogSheet";
 
 type Stage = "types" | "teas" | "card" | "steeps" | "log";
@@ -191,7 +191,6 @@ export default function TeaExperiencePage() {
     persist(session);
   }, [session, persist]);
 
-  const expected = selectedTea?.brewing_time_min ? Math.round(selectedTea.brewing_time_min * 60) : 0;
   const live = session ? currentSteep(session) : null;
   const running = session?.state === "running";
   const liveSecs = session ? liveSeconds(session, now) : 0;
@@ -420,7 +419,7 @@ export default function TeaExperiencePage() {
         <TeaCard tea={selectedTea} onBrew={() => begin(selectedTea)} onBack={() => setStage("teas")} />
       ) : stage === "steeps" && session ? (
         <div className="w-full aspect-square max-h-[46vh] mx-auto">
-          <SteepRing session={session} now={now} expectedSeconds={expected} centre={medallion} />
+          <SteepWheel session={session} now={now} centre={medallion} />
         </div>
       ) : stage === "log" ? null : typeWedges.length === 0 ? (
         <div
