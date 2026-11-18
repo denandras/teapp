@@ -6,12 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, Leaf, Pause, Play, RotateCcw, X } from "lucide-react";
 import { ALL_TEA_TYPES, TEA_TYPE_LABELS, type Tea } from "@/lib/types";
 import { useTeaStore } from "@/lib/store";
-import {
-  wheelLayout,
-  flavourLayout,
-  maxWheelSlots,
-  type Wedge,
-} from "@/lib/brew/wheel";
+import { wheelLayout, flavourLayout, type Wedge } from "@/lib/brew/wheel";
 import {
   SESSION_STORAGE_KEY,
   capSteep,
@@ -39,6 +34,12 @@ import BrewLogSheet from "@/components/experience/BrewLogSheet";
 type Stage = "types" | "teas" | "card" | "steeps" | "log";
 
 /**
+ * Above this many teas a drilled group is drawn by coordinate instead of in equal
+ * slices, because equal slices would be thinner than a clickable button.
+ */
+const EQUAL_SLICE_LIMIT = 20;
+
+/**
  * The Tea Experience page.
  *
  * Layout is a weapon wheel: the ring is made of button wedges, the labels live
@@ -55,13 +56,12 @@ export default function TeaExperiencePage() {
   const [activeType, setActiveType] = useState<string | null>(null);
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
   const [showAll, setShowAll] = useState(false);
-  const [page, setPage] = useState(0);
   /**
    * A merged wedge (drawn as "Gyokuro +1") stands for several teas that share an
    * angle. Tapping it opens those teas as their own ring, the way a weapon wheel's
    * sub-slot does — so no tea is ever hidden behind a count.
    */
-  const [drill, setDrill] = useState<{ label: string; slugs: string[] } | null>(null);
+  const [drill, setDrill] = useState<{ label: string; slugs: string[]; parent: string[] | null } | null>(null);
 
   const [session, setSession] = useState<BrewSession | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -105,26 +105,22 @@ export default function TeaExperiencePage() {
   );
 
   /**
-   * The wheel holds at most maxWheelSlots buttons. When a type has more teas than
-   * that, they are chunked into *ranges of the flavour axis* so each page is a
-   * contiguous arc, then each chunk is laid out by coordinate.
+   * A whole type goes on ONE wheel, however many teas it holds.
+   *
+   * Paging used to split a type into ranges of the flavour axis, which meant the
+   * user scrolled wheels and the coordinates they could compare were only ever the
+   * ones on the current page. Instead, teas whose coordinates collide merge into a
+   * single button and that button opens its own ring (see `drill`), so the top-level
+   * wheel stays one readable instrument at any size.
    */
-  const slots = maxWheelSlots();
-  const sortedTeas = useMemo(
-    () => [...typeTeas].sort((a, b) => (b.flavor_y ?? 50) - (a.flavor_y ?? 50) || (a.slug < b.slug ? -1 : 1)),
-    [typeTeas]
-  );
-  const pageCount = Math.max(1, Math.ceil(sortedTeas.length / slots));
-  const pageTeas = useMemo(
-    () => sortedTeas.slice(page * slots, (page + 1) * slots),
-    [sortedTeas, page, slots]
-  );
 
-  /** The teas the wheel is currently showing: the page, or a drilled-in group. */
+  /** The teas the wheel is currently showing: the whole type, or a drilled-in group. */
   const shownTeas = useMemo(
-    () => (drill ? drill.slugs.map((s) => teaBySlug.get(s)).filter((t): t is Tea => !!t) : pageTeas),
-    [drill, pageTeas, teaBySlug]
+    () => (drill ? drill.slugs.map((s) => teaBySlug.get(s)).filter((t): t is Tea => !!t) : typeTeas),
+    [drill, typeTeas, teaBySlug]
   );
+  // label of the ring the current drill sits inside, for the hub and the back button
+  const drillParent = drill?.parent ?? null;
 
   /**
    * Wedges for the teas on show, plus the map from a merged button back to the teas
@@ -143,7 +139,12 @@ export default function TeaExperiencePage() {
     }));
 
     const groups = new Map<string, string[]>();
-    const wedges = (drill ? wheelLayout(buttons) : flavourLayout(buttons)) as Wedge<WheelButton>[];
+    // A group is laid out in equal slices only while it is small enough that every
+    // member still gets a clickable wedge. A large group keeps the coordinate layout,
+    // so its own collisions become buttons you can drill into again — the stack of
+    // rings ends when the teas stop colliding, at which point every tea is reachable.
+    const useEqual = !!drill && buttons.length <= EQUAL_SLICE_LIMIT;
+    const wedges = (useEqual ? wheelLayout(buttons) : flavourLayout(buttons)) as Wedge<WheelButton>[];
 
     for (const w of wedges) {
       if (w.items.length > 1) {
@@ -320,10 +321,14 @@ export default function TeaExperiencePage() {
               onClick={() => {
                 if (stage === "card") setStage("teas");
                 else if (stage === "log") setStage("steeps");
-                else if (drill) setDrill(null);
+                else if (drill)
+                  setDrill(
+                    drill.parent
+                      ? { label: drill.label, slugs: drill.parent, parent: null }
+                      : null
+                  );
                 else {
                   setActiveType(null);
-                  setPage(0);
                   setStage("types");
                 }
               }}
@@ -342,8 +347,9 @@ export default function TeaExperiencePage() {
           {(stage === "types" || stage === "teas") && (
             <button
               onClick={() => {
+                // switching the pool invalidates any drilled group
                 setShowAll((v) => !v);
-                setPage(0);
+                setDrill(null);
               }}
               aria-pressed={showAll}
               className="flex items-center gap-2 text-[11px] uppercase tracking-wider"
@@ -480,7 +486,11 @@ export default function TeaExperiencePage() {
                 const group = merged.get(key);
                 if (group) {
                   const first = teaBySlug.get(key);
-                  setDrill({ label: first?.name ?? "teas", slugs: group });
+                  setDrill({
+                    label: first?.name ?? "teas",
+                    slugs: group,
+                    parent: drill ? drill.slugs : null,
+                  });
                   return;
                 }
                 const t = teaBySlug.get(key);
@@ -490,7 +500,6 @@ export default function TeaExperiencePage() {
                 }
               } else {
                 setActiveType(key);
-                setPage(0);
                 setDrill(null);
                 setStage("teas");
               }
@@ -505,33 +514,6 @@ export default function TeaExperiencePage() {
                 : "Tea categories"
             }
           />
-        </div>
-      )}
-
-      {stage === "teas" && !drill && pageCount > 1 && (
-        <div className="flex items-center justify-center gap-3 mt-2">
-          <button
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
-            aria-label="Previous teas"
-            className="w-9 h-9 rounded-lg border flex items-center justify-center"
-            style={{ borderColor: "var(--border)", opacity: page === 0 ? 0.4 : 1 }}
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <span className="text-xs tabular-nums" style={{ color: "var(--muted)" }}>
-            {page * slots + 1}–{Math.min(sortedTeas.length, (page + 1) * slots)} of {sortedTeas.length} ·{" "}
-            {pageCount} {pageCount === 1 ? "wheel" : "wheels"}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-            disabled={page >= pageCount - 1}
-            aria-label="More teas"
-            className="w-9 h-9 rounded-lg border flex items-center justify-center"
-            style={{ borderColor: "var(--border)", opacity: page >= pageCount - 1 ? 0.4 : 1 }}
-          >
-            <ChevronLeft size={16} style={{ transform: "rotate(180deg)" }} />
-          </button>
         </div>
       )}
 

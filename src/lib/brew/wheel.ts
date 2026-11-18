@@ -90,6 +90,10 @@ export interface LabelBox {
  */
 export function wedgeLabel(midDeg: number, r0: number, r1: number, spanDeg: number): LabelBox {
   const rMid = (r0 + r1) / 2;
+  // `midDeg` is the centroid of the wedge's ITEMS, which is only the same as the
+  // angular middle when the wedge is a single tea. It is also un-normalised (a mean
+  // of circular values can come back negative), so the flip test below read the wrong
+  // half for wedges near 12 o'clock. Normalise and keep it inside the arc.
   const norm = ((midDeg % 360) + 360) % 360;
   const lower = norm > 180;
   const a = (midDeg * Math.PI) / 180;
@@ -181,11 +185,22 @@ export function flavourLayout<T extends Point>(items: T[], minSpan = MIN_WEDGE):
     }
   }
 
-  // 3. the ring is closed: fold the last wedge into the first when they collide
+  // 3. the ring is closed: fold the last group into the first when they collide
+  //    ACROSS the seam (the last item's angle against the first group's start).
+  //    Comparing desired[0] with desired[last] compared the two extreme items of the
+  //    whole set, which is a different (and usually larger) gap than the one between
+  //    the two groups that actually meet at 12 o'clock — so a colliding pair at the
+  //    seam survived as two overlapping wedges.
   if (groups.length > 1) {
     const firstDeg = desired[0].deg;
-    const lastDeg = desired[desired.length - 1].deg;
-    if (angleGap(firstDeg, lastDeg) < minSpan) {
+    const lastGroupStart = (() => {
+      const last = desired[desired.length - 1];
+      // walk back to the item that started the last group
+      let i = desired.length - 1;
+      while (i > 1 && angleGap(desired[i].deg, desired[i - 1].deg) < minSpan) i--;
+      return angleGap(desired[i].deg, firstDeg);
+    })();
+    if (lastGroupStart < minSpan) {
       groups[0] = [...groups[groups.length - 1], ...groups[0]];
       groups = groups.slice(0, -1);
     }

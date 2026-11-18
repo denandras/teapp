@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { VIEW, RING_R0, RING_R1, wedgePath, wedgeLabel, type Wedge } from "@/lib/brew/wheel";
+import { VIEW, RING_R0, RING_R1, wedgePath, wedgeLabel, wedgeSpan, type Wedge } from "@/lib/brew/wheel";
 
 export interface WheelButton {
   key: string;
@@ -47,12 +47,22 @@ export default function WheelMenu({ wedges, onPick, activeKey, centre, label }: 
     >
       {wedges.map((w, i) => {
         const b = w.items[0];
-        const span = Math.abs(w.startDeg - w.endDeg);
-        const lab = wedgeLabel(w.midDeg, RING_R0, RING_R1, span);
+        // Modular width: a wedge that crosses 12 o'clock has startDeg < endDeg, and
+        // Math.abs() then measured the arc the LONG way round. That made huge wedges
+        // claim a small font (and vice versa) — the labels that visibly sat off-centre.
+        const span = wedgeSpan(w);
+        // Put the label at the ANGULAR MIDDLE of the wedge, not at the centroid of its
+        // items: for a merged wedge those differ, and the label drifted onto the seam.
+        const arcMid = w.startDeg - span / 2;
+        const lab = wedgeLabel(arcMid, RING_R0, RING_R1, span);
         // type size from the room the wedge gives, so text never spills out
         const fontSize = Math.max(8, Math.min(15, Math.min(lab.maxWidth / 9, span * 1.4)));
+        // Only the wedge label goes inside the button: a merged button is named as
+        // "First Tea +N" and its members live in `meta` for the aria-label. Putting the
+        // member list on the wedge is what made dense wheels unreadable.
         const chars = Math.max(4, Math.floor(lab.maxWidth / (fontSize * 0.55)));
         const text = b.label.length > chars ? `${b.label.slice(0, Math.max(3, chars - 1))}…` : b.label;
+        const isMerged = (b.meta ?? "").length > 0;
         const isActive = activeKey === b.key;
         const isHover = hover === b.key;
 
@@ -102,7 +112,7 @@ export default function WheelMenu({ wedges, onPick, activeKey, centre, label }: 
               >
                 {text}
               </text>
-              {b.meta && span > 22 && (
+              {b.meta && span > 22 && !isMerged && (
                 <text
                   y={fontSize + 3}
                   textAnchor={lab.anchor}
