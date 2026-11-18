@@ -96,9 +96,7 @@ export default function BrewPage() {
             (t.origin ?? "").toLowerCase().includes(q)
         )
       : list;
-    return [...filtered].sort(
-      (a, b) => (b.flavor_y ?? 50) - (a.flavor_y ?? 50) || a.name.localeCompare(b.name)
-    );
+    return [...filtered].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
   }, [pool, activeType, query]);
 
   const typeColor = activeType ? TEA_TYPE_COLORS[activeType] ?? "var(--accent)" : "var(--accent)";
