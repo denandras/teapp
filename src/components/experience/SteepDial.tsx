@@ -15,9 +15,11 @@ import {
 interface SteepDialProps {
   /** seconds on the clock for the current steep */
   seconds: number;
-  /** the tea's base steep time — what one lap means */
-  target: number;
-  /** the recommended length of THIS steep (base + 15 s per steep) */
+  /**
+   * The recommended length of THIS steep — base + 15 s for every steep after the
+   * first. One full lap means exactly this, so the second lap begins the moment the
+   * steep is over its recommendation.
+   */
   due: number;
   /** armed = ready but not ticking; running/paused drive the copy */
   mode: "armed" | "running" | "paused" | "done";
@@ -36,8 +38,8 @@ interface SteepDialProps {
  *
  * The dial does not spin and does not glow: a stopwatch should be calm.
  */
-export default function SteepDial({ seconds, target, due, mode, steepNumber, note }: SteepDialProps) {
-  const dial = dialState(seconds, target);
+export default function SteepDial({ seconds, due, mode, steepNumber, note }: SteepDialProps) {
+  const dial = dialState(seconds, due);
 
   return (
     <div className="relative w-full max-w-[320px] mx-auto aspect-square">
@@ -63,9 +65,6 @@ export default function SteepDial({ seconds, target, due, mode, steepNumber, not
         {dial.laps.map((lap) => (
           <Layer key={lap.index} lap={lap} dial={dial} />
         ))}
-
-        {/* the recommended time for THIS steep sits where its clock should stop */}
-        <DueTick target={target} due={due} />
 
         {/* centre disc — solid, so the layers never muddy the clock */}
         <circle r={HUB_R} fill="var(--bg)" stroke="var(--border)" strokeWidth={1} />
@@ -131,36 +130,6 @@ function Layer({ lap, dial }: { lap: ReturnType<typeof dialState>["laps"][number
       }}
       transition={{ duration: 0.35 }}
       style={{ mixBlendMode: "screen" }}
-    />
-  );
-}
-
-/**
- * Where the current steep's recommended time falls on the dial. On steep 1 that is
- * the far side of the base lap; on later steeps it sits further round, which is the
- * cheap visual "each steep gets longer" without a second widget.
- */
-function DueTick({ target, due }: { target: number; due: number }) {
-  if (!target || due <= 0) return null;
-  const laps = due / target;
-  const capped = Math.min(laps, 3.999);
-  const r = BASE_R + Math.floor(capped) * 20;
-  const angle = 90 - 360 * (capped % 1);
-  const a = (angle * Math.PI) / 180;
-  const x1 = (r - 9) * Math.cos(a);
-  const y1 = -(r - 9) * Math.sin(a);
-  const x2 = (r + 9) * Math.cos(a);
-  const y2 = -(r + 9) * Math.sin(a);
-  return (
-    <line
-      x1={x1}
-      y1={y1}
-      x2={x2}
-      y2={y2}
-      stroke="var(--accent)"
-      strokeWidth={2}
-      strokeLinecap="round"
-      opacity={0.85}
     />
   );
 }

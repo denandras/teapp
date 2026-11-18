@@ -448,7 +448,6 @@ export default function BrewPage() {
           <div className="pt-1">
             <SteepDial
               seconds={liveSecs}
-              target={baseSecs ?? 30}
               due={dueNow}
               mode={mode}
               steepNumber={steepNo}
