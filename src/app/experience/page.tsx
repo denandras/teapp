@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, Pause, Play, RotateCcw, Search, Trash2, X } from "lucide-react";
-import { TEA_TYPE_COLORS, TEA_TYPE_LABELS, type Tea } from "@/lib/types";
+import { TEA_TYPE_COLORS, TEA_TYPE_LABELS, type Tea, type TeaLog } from "@/lib/types";
 import { useTeaStore } from "@/lib/store";
 import {
   SESSION_STORAGE_KEY,
@@ -203,30 +203,33 @@ export default function BrewPage() {
   const onReset = () => session && setSession(resetCurrentSteep(session, Date.now()));
 
   /**
-   * Throw away the steep in progress and stay where you are.
+   * The one way out of a running session.
    *
-   * If that was the only steep, there is no session left to show — go back to the
-   * tea's own type so the next cup is one tap away, rather than leaving an empty
-   * list on screen with nothing to pick.
+   * While a steep is on the dial this drops that steep and keeps the ones already
+   * recorded. Between steeps there is nothing to drop, so it ends the whole run
+   * instead — a button must always do what its label says.
    */
-  const onDiscardSteep = () => {
+  const onDiscard = () => {
     if (!session) return;
-    const next = discardCurrentSteep(session, Date.now());
-    setSession(next);
-    if (next.steeps.length === 0) {
-      persist(null);
-      setSession(null);
-      setQuery("");
-      setStage(activeTea?.tea_type ? "teas" : "types");
+    const unfinished = session.steeps.some((s) => s.endedAt === undefined);
+    if (unfinished) {
+      const next = discardCurrentSteep(session, Date.now());
+      if (next.steeps.length > 0) {
+        setSession(next);
+        return;
+      }
     }
-  };
-
-  const toLog = () => session && setSession(endSession(session, Date.now())) && setStage("log");
-  const abandon = () => {
     persist(null);
     setSession(null);
     setSelectedTea(null);
-    setStage("types");
+    setQuery("");
+    setStage(activeTea?.tea_type ? "teas" : "types");
+  };
+
+  const toLog = () => {
+    if (!session) return;
+    setSession(endSession(session, Date.now()));
+    setStage("log");
   };
 
   const saveLog = async (rating: number, note: string) => {
@@ -254,14 +257,20 @@ export default function BrewPage() {
   };
 
   const previousLogs = useMemo(
-    () => (activeTea ? (teaLogs[activeTea.slug] ?? []).slice(0, 4) : []),
+    () => (activeTea ? (teaLogs[activeTea.slug] ?? []).slice(0, 6) : []),
     [teaLogs, activeTea]
   );
 
+  /**
+   * Back exists only while choosing a tea. Once a steep is on the dial the header's
+   * back button disappears: leaving a running session should be a deliberate act —
+   * discarding the steep — not the same gesture you use to browse.
+   */
+  const inSession = stage === "steeps" || stage === "log";
+  const canGoBack = stage !== "types" && !inSession;
+
   const back = () => {
     if (stage === "card") return setStage("teas");
-    if (stage === "log") return setStage("steeps");
-    if (stage === "steeps") return abandon();
     setActiveType(null);
     setQuery("");
     setStage("types");
@@ -279,7 +288,7 @@ export default function BrewPage() {
       {/* ── header ─────────────────────────────────────────────────────── */}
       <header className="flex items-center justify-between gap-3 pt-6 pb-2">
         <div className="flex items-center gap-3 min-w-0">
-          {stage !== "types" && (
+          {canGoBack && (
             <button
               onClick={back}
               aria-label="Back"
@@ -407,7 +416,12 @@ export default function BrewPage() {
       {/* ── body ───────────────────────────────────────────────────────── */}
       <div className="mt-4">
         {stage === "card" && activeTea ? (
-          <TeaCard tea={activeTea} onBrew={() => arm(activeTea, null)} onBack={() => setStage("teas")} />
+          <TeaCard
+            tea={activeTea}
+            previous={previousLogs}
+            onBrew={() => arm(activeTea, null)}
+            onBack={() => setStage("teas")}
+          />
         ) : stage === "steeps" && session ? (
           <div className="pt-1">
             <SteepDial
@@ -648,12 +662,12 @@ export default function BrewPage() {
               </button>
             )}
             <button
-              onClick={onDiscardSteep}
+              onClick={onDiscard}
               className="flex items-center gap-1.5 h-9 text-[12.5px]"
               style={{ color: "var(--muted)" }}
             >
               <Trash2 size={13} />
-              {mode === "armed" ? "cancel" : "discard steep"}
+              {mode === "armed" ? "cancel" : mode === "done" ? "discard session" : "discard steep"}
             </button>
           </div>
         </div>
@@ -677,7 +691,17 @@ export default function BrewPage() {
   );
 }
 
-function TeaCard({ tea, onBrew, onBack }: { tea: Tea; onBrew: () => void; onBack: () => void }) {
+function TeaCard({
+  tea,
+  previous,
+  onBrew,
+  onBack,
+}: {
+  tea: Tea;
+  previous: TeaLog[];
+  onBrew: () => void;
+  onBack: () => void;
+}) {
   const colour = TEA_TYPE_COLORS[tea.tea_type] ?? "var(--accent)";
   const firstSteep = dueSeconds(tea.brewing_time_min ? Math.round(tea.brewing_time_min * 60) : null, 1);
   return (
@@ -753,13 +777,53 @@ function TeaCard({ tea, onBrew, onBack }: { tea: Tea; onBrew: () => void; onBack
         </p>
       )}
 
+      {previous.length > 0 && (
+        <div className="mt-6 pt-5" style={{ borderTop: "1px solid var(--border)" }}>
+          <p className="text-[11px] uppercase tracking-[0.14em] mb-3" style={{ color: "var(--muted)" }}>
+            Previous sessions
+          </p>
+          <ul className="flex flex-col">
+            {previous.map((log) => (
+              <li
+                key={log.id}
+                className="py-2.5 first:pt-0 last:pb-0"
+                style={{ borderTop: "1px solid var(--border)" }}
+              >
+                <div className="flex items-baseline gap-3">
+                  <span className="text-[12.5px] tabular-nums shrink-0" style={{ color: "var(--muted)" }}>
+                    {new Date(log.timestamp).toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <span className="text-[12.5px] tabular-nums shrink-0" style={{ color: colour }}>
+                    {log.rating}/5
+                  </span>
+                  {log.brews ? (
+                    <span className="text-[12.5px] tabular-nums ml-auto shrink-0" style={{ color: "var(--muted)" }}>
+                      {log.brews}× · {formatClock(log.duration_s ?? 0)}
+                    </span>
+                  ) : null}
+                </div>
+                {log.note && (
+                  <p className="text-[13px] mt-1 leading-snug" style={{ color: "var(--text)", opacity: 0.8 }}>
+                    {log.note}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex gap-2.5 mt-7">
         <button
           onClick={onBrew}
           className="flex-1 h-[52px] rounded-full text-[15px] font-semibold"
           style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
         >
-          Brew this
+          {previous.length > 0 ? "Brew again" : "Brew this"}
         </button>
         <button
           onClick={onBack}
