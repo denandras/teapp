@@ -16,6 +16,7 @@ import {
   formatClock,
   liveSeconds,
   newSession,
+  steepSeconds,
   parseSession,
   pauseSteep,
   resetCurrentSteep,
@@ -286,19 +287,41 @@ export default function BrewOverlay({ onClose }: BrewOverlayProps) {
   // ── centre medallion, per stage ─────────────────────────────────────────
   const medallion = (() => {
     if (stage === "steeps" && session) {
+      const doneSteeps = session.steeps.filter((s) => s.endedAt !== undefined);
+      const lastDone = doneSteeps[doneSteeps.length - 1];
+      const nextIndex = doneSteeps.length + 1;
       return (
-        <div className="w-[200px] h-[200px] rounded-full flex flex-col items-center justify-center"
+        <div className="w-[200px] h-[200px] rounded-full flex flex-col items-center justify-center text-center px-4"
           style={{ backgroundColor: "var(--card)", border: "1px solid var(--border)" }}>
-          <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: "var(--muted)" }}>
-            {live ? `Steep ${live.index}` : "Between steeps"}
-          </span>
-          <span className="font-serif tabular-nums mt-1"
-            style={{ fontSize: 40, lineHeight: 1.05, color: liveSecs > expected ? "var(--accent)" : "var(--text)" }}>
-            {formatClock(liveSecs)}
-          </span>
-          <span className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>
-            {selectedTea?.brewing_temp_c ? `${selectedTea.brewing_temp_c} °C` : "—"} · {formatClock(expected)} to aim for
-          </span>
+          {live ? (
+            <>
+              <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: "var(--muted)" }}>
+                Steep {live.index}
+              </span>
+              <span className="font-serif tabular-nums mt-1"
+                style={{ fontSize: 40, lineHeight: 1.05, color: liveSecs > expected ? "var(--accent)" : "var(--text)" }}>
+                {formatClock(liveSecs)}
+              </span>
+              <span className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>
+                {selectedTea?.brewing_temp_c ? `${selectedTea.brewing_temp_c} °C` : "—"} · {formatClock(expected)} to aim for
+              </span>
+            </>
+          ) : (
+            <>
+              {/* Between steeps the clock is deliberately NOT running: you drink
+                  the tea before you pour again. Nothing starts until you say so. */}
+              <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: "var(--muted)" }}>
+                Steep {lastDone?.index ?? 1} done
+              </span>
+              <span className="font-serif tabular-nums mt-1"
+                style={{ fontSize: 38, lineHeight: 1.05, color: "var(--muted)" }}>
+                {formatClock(lastDone ? steepSeconds(lastDone, now) : 0)}
+              </span>
+              <span className="text-[11px] mt-1.5" style={{ color: "var(--text)", opacity: 0.8 }}>
+                Drinking? Steep {nextIndex} starts when you press it.
+              </span>
+            </>
+          )}
         </div>
       );
     }

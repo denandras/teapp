@@ -39,6 +39,30 @@ describe("stopwatch from timestamps", () => {
     expect(liveSeconds(s, T0 + 60_000)).toBe(0);
   });
 
+  it("does NOT start the next steep automatically — you drink first", () => {
+    let s = newSession("genmaicha", T0);
+    s = startSteep(s, T0);
+    s = finishSteep(s, T0 + 45_000);
+    // Walk away for ten minutes between steep 2 and drinking the tea.
+    expect(liveSeconds(s, T0 + 10 * 60_000)).toBe(0);
+    expect(s.state).toBe("idle");
+    expect(s.steeps).toHaveLength(1);
+    // Only an explicit press starts the next one, and it starts at NOW.
+    s = startSteep(s, T0 + 10 * 60_000);
+    expect(s.steeps).toHaveLength(2);
+    expect(s.steeps[1].startedAt).toBe(T0 + 10 * 60_000);
+    expect(liveSeconds(s, T0 + 10 * 60_000)).toBe(0);
+  });
+
+  it("keeps the done steep's time fixed while the session sits idle", () => {
+    let s = newSession("t", T0);
+    s = startSteep(s, T0);
+    s = finishSteep(s, T0 + 40_000);
+    const later = T0 + 3600_000;
+    expect(steepSeconds(s.steeps[0], later)).toBe(40);
+    expect(sessionPayload(s, later).steep_s).toEqual([40]);
+  });
+
   it("excludes paused time from the steep", () => {
     let s = newSession("t", T0);
     s = startSteep(s, T0);
