@@ -200,6 +200,19 @@ export default function BrewPage() {
     setNow(t);
   };
   const onPause = () => session && setSession(pauseSteep(session, Date.now()));
+
+  /**
+   * The next steep starts the moment it is pressed.
+   *
+   * Only the first cup is armed and waits for Start — by the second steep the water
+   * is already hot and the leaf is wet, so pressing "Steep 2" IS the act of steeping.
+   */
+  const onNextSteep = () => {
+    if (!session) return;
+    const t = Date.now();
+    setSession(startSteep(session, t));
+    setNow(t);
+  };
   const onReset = () => session && setSession(resetCurrentSteep(session, Date.now()));
 
   /**
@@ -647,11 +660,11 @@ export default function BrewPage() {
             {mode === "done" && (
               <>
                 <button
-                  onClick={() => activeTea && arm(activeTea, session)}
-                  className="flex items-center gap-2 px-7 h-[52px] rounded-full text-[15px] font-semibold"
+                  onClick={onNextSteep}
+                  className="px-7 h-[52px] rounded-full text-[15px] font-semibold"
                   style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
                 >
-                  <Play size={16} /> Steep {doneCount + 1}
+                  Steep {doneCount + 1}
                 </button>
                 <button
                   onClick={toLog}
