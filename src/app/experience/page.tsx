@@ -219,11 +219,15 @@ export default function BrewPage() {
         return;
       }
     }
+    // land back on the tea's own type, with the type actually set — a teas stage
+    // without a type has no list to draw and would show an empty screen
+    const type = activeTea?.tea_type ?? activeType;
     persist(null);
     setSession(null);
     setSelectedTea(null);
     setQuery("");
-    setStage(activeTea?.tea_type ? "teas" : "types");
+    setActiveType(type ?? null);
+    setStage(type ? "teas" : "types");
   };
 
   const toLog = () => {
@@ -250,10 +254,15 @@ export default function BrewPage() {
     if (teaStates[activeTea.slug] === undefined) {
       useTeaStore.getState().setTeaStatus?.(activeTea.slug, "have");
     }
+    // land where the cup came from — the tea's type, with the new session already
+    // in its history — never on an empty screen
+    const type = activeTea.tea_type ?? activeType;
     persist(null);
     setSession(null);
     setSelectedTea(null);
-    setStage("types");
+    setQuery("");
+    setActiveType(type ?? null);
+    setStage(type ? "teas" : "types");
   };
 
   const previousLogs = useMemo(
@@ -450,7 +459,7 @@ export default function BrewPage() {
               </div>
             )}
           </div>
-        ) : stage === "log" ? null : stage === "types" ? (
+        ) : stage === "log" ? null : stage === "types" || !activeType ? (
           types.length === 0 ? (
             <div
               className="rounded-2xl border p-8 text-center mt-6"
@@ -529,8 +538,13 @@ export default function BrewPage() {
             </div>
 
             {typeTeas.length === 0 ? (
+              /* an empty search and an empty type are different facts */
               <p className="text-[14px] py-12 text-center" style={{ color: "var(--muted)" }}>
-                No tea matches “{query}”.
+                {query.trim()
+                  ? `No tea matches “${query.trim()}”.`
+                  : showAll
+                  ? "No teas of this type yet."
+                  : "None of these are in your collection. Switch All teas on to see the library."}
               </p>
             ) : (
               <ul className="flex flex-col gap-2">
