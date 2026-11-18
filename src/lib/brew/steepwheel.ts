@@ -26,7 +26,14 @@ export const OUTER_R = 318;
 export const MIN_BAND = 22;
 
 /** Fraction of the turn a finished steep is guaranteed, so its time is readable. */
-const MIN_SHARE = 0.04;
+const MIN_SHARE = 0.045;
+
+/**
+ * Gap between neighbouring bands, in user units. Bands are separated by a hairline
+ * of background rather than touching: parallel arcs at different radii with a
+ * visible seam read as separate buttons, which is the point of the ring.
+ */
+export const BAND_GAP = 4;
 
 export interface SteepBand {
   index: number;
@@ -83,35 +90,47 @@ export function steepBands(session: BrewSession, now: number): SteepBand[] {
   const maxBands = Math.max(1, Math.floor(usable / MIN_BAND));
   if (count > maxBands) band = usable / maxBands;
 
-  // Shares. Duration decides the proportion, but two rules keep the ring whole and
-  // readable: every steep gets at least MIN_SHARE (so a 4-second steep next to a
-  // 5-minute one does not collapse to a sliver), and the total is ALWAYS exactly 1
-  // so the turn never shows an empty wedge. Any shortfall is taken proportionally
-  // from the others; any surplus goes to the steep being brewed right now.
-  const rawShare = (i: number) => {
-    const doneCount = steeps.filter((s) => s.endedAt !== undefined).length;
+  // Shares.
+  //
+  // Two rules keep the ring whole and readable:
+  //   1. a steep's share follows its own duration, so a long steep is visibly longer;
+  //   2. no steep shrinks below MIN_SHARE, so a 5-second steep next to a 5-minute one
+  //      still has room for its time.
+  //
+  // The total must be EXACTLY 1 — this is what stops the ring showing an empty wedge.
+  //
+  // Important: the LIVE steep is only given the arc its own elapsed time has earned
+  // so far, not "everything that is left". Giving it the remainder made the ring
+  // perfect but meant a 4-second-old live steep occupied nearly the whole circle,
+  // which reads as a broken ring with a stray sliver.
+  const lived = steeps.map((s, i) => {
+    const isDone = s.endedAt !== undefined;
     if (total > 0) return secs[i] / total;
-    return doneCount > 0 ? 1 / count : 1 / count;
-  };
+    // nothing has elapsed yet: split evenly rather than favouring one steep
+    return 1 / count;
+  });
 
-  let shares = steeps.map((_, i) => Math.max(MIN_SHARE, rawShare(i)));
+  let shares = lived.map((v) => Math.max(MIN_SHARE, v));
+  const sumNow = () => shares.reduce((a, b) => a + b, 0);
 
-  // If the floors overspent the turn, trim every share back proportionally.
-  const sum = shares.reduce((a, b) => a + b, 0);
-  shares = shares.map((s) => (s / sum));
-
-  // A finished steep must never shrink below the floor because of that trim.
-  let spent = shares.reduce((a, b) => a + b, 0);
-  const below = shares.map((s) => s < MIN_SHARE - 1e-9);
-  if (below.some(Boolean)) {
-    const fixed = shares.map((s) => (s < MIN_SHARE ? MIN_SHARE : s));
-    const fixedSum = fixed.reduce((a, b) => a + b, 0);
-    // rescale the ones above the floor so the total is 1 again
-    shares = fixed.map((s) => (s > MIN_SHARE + 1e-9 ? s * ((1 - MIN_SHARE * below.filter(Boolean).length) / (fixedSum - MIN_SHARE * below.filter(Boolean).length)) : s));
-    spent = shares.reduce((a, b) => a + b, 0);
+  // Trim (or grow) proportionally so the total is exactly 1, without ever pushing a
+  // share below the floor. Iterate because trimming can re-break the floor.
+  for (let pass = 0; pass < 8; pass++) {
+    const sum = sumNow();
+    if (Math.abs(sum - 1) < 1e-9) break;
+    const over = shares.filter((s) => s > MIN_SHARE + 1e-9);
+    const room = over.reduce((a, b) => a + b, 0); // total headroom to redistribute
+    if (over.length === 0 || room <= 0) break;
+    const target = 1 - MIN_SHARE * (shares.length - over.length);
+    const k = target / room;
+    shares = shares.map((s) => (s > MIN_SHARE + 1e-9 ? s * k : s));
   }
-  // final normalisation — the ring is never left with a gap
-  shares = shares.map((s) => s / spent);
+  // final guard — floating point must never leave a sliver of uncovered ring
+  const finalSum = sumNow();
+  shares = shares.map((s) => s / finalSum);
+
+  // the shares below are ready: every steep has its own proportional slice and the
+  // turn is exactly covered
 
   // Convert shares into arcs, starting at 12 o'clock and running clockwise.
   const out: SteepBand[] = [];

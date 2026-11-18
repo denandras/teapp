@@ -36,6 +36,20 @@ describe("steep bands — the wheel must always claim the whole turn", () => {
     }
   });
 
+  it("never lets an early live steep swallow the turn", () => {
+    // two finished steeps (6s, 9s) and a live steep that is only 4s old.
+    // The live band used to receive "all the remainder" and covered ~85% of the
+    // circle, which read as a broken ring with a stray sliver.
+    let s = sessionWith([6, 9]).session;
+    const startedAt = T0 + 15_000;
+    s = startSteep(s, startedAt);
+    const bands = steepBands(s, startedAt + 4000);
+    const liveBand = bands.find((b) => b.live)!;
+    const liveShare = Math.abs(liveBand.startDeg - liveBand.endDeg);
+    expect(liveShare).toBeLessThan(110); // 4s of 19s is ~76deg, plus slack
+    expect(totalSpan(bands)).toBeCloseTo(360, 4);
+  });
+
   it("gives a longer steep a bigger share than a shorter one", () => {
     const { session, now } = sessionWith([40, 120]);
     const bands = steepBands(session, now);

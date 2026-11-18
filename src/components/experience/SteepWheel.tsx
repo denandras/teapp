@@ -62,17 +62,20 @@ function SteepBandShape({ band, liveSecs }: { band: SteepBand; liveSecs: number 
         d={g.d}
         initial={false}
         animate={{
-          fill: band.done ? band.color : band.color,
-          fillOpacity: band.done ? 0.30 : band.live ? 0.18 : 0.1,
+          fill: band.color,
+          // bands are solid enough to read as buttons; the live one is dimmer so the
+          // finished ones stay the reference
+          fillOpacity: band.done ? 0.42 : band.live ? 0.2 : 0.12,
           stroke: band.color,
-          strokeWidth: band.live ? 2 : 1,
-          strokeOpacity: band.done ? 0.75 : 1,
+          strokeWidth: band.live ? 2 : 1.25,
+          strokeOpacity: band.done ? 0.9 : 1,
         }}
         transition={{ duration: 0.25 }}
         pointerEvents="none"
       />
 
-      {/* the live band's progress, drawn as a brighter overlay along its own arc */}
+      {/* the live band's progress: a brighter sweep along the SAME arc as the band,
+          so it never introduces a second shape at a different radius */}
       {band.live && (
         <LiveSweep band={band} liveSecs={liveSecs} />
       )}
@@ -117,13 +120,14 @@ function LiveSweep({ band, liveSecs }: { band: SteepBand; liveSecs: number }) {
   const expected = Math.max(20, band.seconds > 0 ? band.seconds : liveSecs);
   const frac = Math.min(1, liveSecs / expected);
   const end = band.startDeg - span * frac;
+  if (frac <= 0.001) return null;
   const probe: SteepBand = { ...band, endDeg: end };
   const d = bandGeometry(probe).d;
   return (
     <motion.path
       d={d}
       initial={false}
-      animate={{ fillOpacity: 0.26 }}
+      animate={{ fillOpacity: band.done ? 0.42 : 0.3 }}
       transition={{ duration: 0.2 }}
       style={{ fill: band.color }}
       pointerEvents="none"
