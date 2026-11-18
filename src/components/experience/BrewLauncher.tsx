@@ -6,9 +6,12 @@ import { Leaf } from "lucide-react";
 import BrewOverlay from "@/components/experience/BrewOverlay";
 
 /**
- * The footer notch: a 4px lip the footer grows around a leaf. Not a floating
- * action button — accent lives on the glyph, never as a filled glow.
- * Opening morphs this node into the dial's centre and closing brings it home.
+ * The footer notch: the footer grows a handle for the brew ritual.
+ *
+ * Deliberately legible rather than "quiet architecture" — the first version used
+ * a --bg disc on a --card footer (~6% contrast, no label) and the owner could not
+ * find it. The accent fill plus the word BREW is the affordance; the notch is
+ * just the frame. Opening morphs this node into the dial's centre.
  */
 export default function BrewLauncher() {
   const [open, setOpen] = useState(false);
@@ -31,6 +34,10 @@ export default function BrewLauncher() {
     };
   }, [open]);
 
+  const disc = (
+    <Leaf size={20} strokeWidth={2} aria-hidden />
+  );
+
   return (
     <>
       <div className="brew-lip">
@@ -41,13 +48,12 @@ export default function BrewLauncher() {
         >
           {mounted ? (
             <motion.span layoutId="brew-medallion" className="brew-lip-disc">
-              <Leaf size={22} strokeWidth={1.75} />
+              {disc}
             </motion.span>
           ) : (
-            <span className="brew-lip-disc">
-              <Leaf size={22} strokeWidth={1.75} />
-            </span>
+            <span className="brew-lip-disc">{disc}</span>
           )}
+          <span className="brew-lip-label">Brew</span>
         </button>
       </div>
 
