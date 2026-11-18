@@ -56,6 +56,12 @@ export default function TeaExperiencePage() {
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [page, setPage] = useState(0);
+  /**
+   * A merged wedge (drawn as "Gyokuro +1") stands for several teas that share an
+   * angle. Tapping it opens those teas as their own ring, the way a weapon wheel's
+   * sub-slot does — so no tea is ever hidden behind a count.
+   */
+  const [drill, setDrill] = useState<{ label: string; slugs: string[] } | null>(null);
 
   const [session, setSession] = useState<BrewSession | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -114,24 +120,45 @@ export default function TeaExperiencePage() {
     [sortedTeas, page, slots]
   );
 
-  const teaWedges: Wedge<WheelButton>[] = useMemo(() => {
-    const buttons: (WheelButton & { y: number; x: number })[] = pageTeas.map((t) => ({
+  /** The teas the wheel is currently showing: the page, or a drilled-in group. */
+  const shownTeas = useMemo(
+    () => (drill ? drill.slugs.map((s) => teaBySlug.get(s)).filter((t): t is Tea => !!t) : pageTeas),
+    [drill, pageTeas, teaBySlug]
+  );
+
+  /**
+   * Wedges for the teas on show, plus the map from a merged button back to the teas
+   * it stands for so tapping it can open them.
+   *
+   * A drilled-in group is laid out in equal slices: its members are together precisely
+   * because their coordinates are close, so re-running the flavour layout would merge
+   * them straight back into one button and the group would never open.
+   */
+  const { wedges: teaWedges, merged } = useMemo(() => {
+    const buttons: (WheelButton & { y: number; x: number })[] = shownTeas.map((t) => ({
       key: t.slug,
       label: t.name,
       y: t.flavor_y ?? 50,
       x: t.flavor_x ?? 50,
-      tone: undefined,
     }));
-    const wedges = flavourLayout(buttons) as Wedge<WheelButton>[];
-    // a merged wedge names how many teas it stands for
+
+    const groups = new Map<string, string[]>();
+    const wedges = (drill ? wheelLayout(buttons) : flavourLayout(buttons)) as Wedge<WheelButton>[];
+
     for (const w of wedges) {
       if (w.items.length > 1) {
         const names = w.items.map((i) => i.label);
-        w.items[0] = { ...w.items[0], label: `${names[0]} +${names.length - 1}` };
+        groups.set(w.items[0].key, w.items.map((i) => i.key));
+        // the label names the first tea and how many more are behind it
+        w.items[0] = {
+          ...w.items[0],
+          label: `${names[0]} +${names.length - 1}`,
+          meta: names.slice(1).join(" · "),
+        };
       }
     }
-    return wedges;
-  }, [pageTeas]);
+    return { wedges, merged: groups };
+  }, [shownTeas, drill]);
 
   // ── clock ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -275,10 +302,10 @@ export default function TeaExperiencePage() {
           {stage === "teas" ? TEA_TYPE_LABELS[activeType ?? ""] ?? activeType : "Brew"}
         </span>
         <span className="font-serif text-xl mt-0.5">
-          {stage === "teas" ? typeTeas.length : pool.length}
+          {stage === "teas" ? shownTeas.length : pool.length}
         </span>
         <span className="text-[10px]" style={{ color: "var(--muted)" }}>
-          {stage === "teas" ? "teas" : "in your collection"}
+          {stage === "teas" ? (drill ? "here" : "teas") : "in your collection"}
         </span>
       </div>
     );
@@ -293,6 +320,7 @@ export default function TeaExperiencePage() {
               onClick={() => {
                 if (stage === "card") setStage("teas");
                 else if (stage === "log") setStage("steeps");
+                else if (drill) setDrill(null);
                 else {
                   setActiveType(null);
                   setPage(0);
@@ -448,6 +476,13 @@ export default function TeaExperiencePage() {
             wedges={stage === "teas" ? teaWedges : typeWedges}
             onPick={(key) => {
               if (stage === "teas") {
+                // a merged button opens its own teas instead of guessing one
+                const group = merged.get(key);
+                if (group) {
+                  const first = teaBySlug.get(key);
+                  setDrill({ label: first?.name ?? "teas", slugs: group });
+                  return;
+                }
                 const t = teaBySlug.get(key);
                 if (t) {
                   setSelectedTea(t);
@@ -456,17 +491,24 @@ export default function TeaExperiencePage() {
               } else {
                 setActiveType(key);
                 setPage(0);
+                setDrill(null);
                 setStage("teas");
               }
             }}
             activeKey={stage === "teas" ? selectedTea?.slug ?? null : activeType}
             centre={medallion}
-            label={stage === "teas" ? `Teas in ${activeType ?? ""}` : "Tea categories"}
+            label={
+              stage === "teas"
+                ? drill
+                  ? `Teas grouped with ${drill.label}`
+                  : `Teas in ${activeType ?? ""}`
+                : "Tea categories"
+            }
           />
         </div>
       )}
 
-      {stage === "teas" && pageCount > 1 && (
+      {stage === "teas" && !drill && pageCount > 1 && (
         <div className="flex items-center justify-center gap-3 mt-2">
           <button
             onClick={() => setPage((p) => Math.max(0, p - 1))}
