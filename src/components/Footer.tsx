@@ -8,8 +8,10 @@ import BrewLauncher from "@/components/experience/BrewLauncher";
 export default function Footer() {
   const pathname = usePathname();
 
-  // Hide footer on onboarding page (full-screen experience)
-  if (pathname === "/onboarding") return null;
+  // Hide the footer where it would duplicate the page's own content: onboarding is
+  // a full-screen flow, and /experience is itself the brew experience (its footer
+  // button would just link back to the page you are on).
+  if (pathname === "/onboarding" || pathname === "/experience") return null;
 
   return (
     <footer
