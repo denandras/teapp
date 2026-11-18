@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronLeft, Leaf, Pause, Play, RotateCcw, X } from "lucide-react";
-import { ALL_TEA_TYPES, TEA_TYPE_LABELS, type Tea } from "@/lib/types";
+import { Check, ChevronLeft, Pause, Play, RotateCcw, Search, X } from "lucide-react";
+import { ALL_TEA_TYPES, TEA_TYPE_COLORS, TEA_TYPE_LABELS, type Tea } from "@/lib/types";
 import { useTeaStore } from "@/lib/store";
-import { wheelLayout, flavourLayout, type Wedge } from "@/lib/brew/wheel";
 import {
   SESSION_STORAGE_KEY,
   capSteep,
@@ -17,7 +16,6 @@ import {
   formatClock,
   liveSeconds,
   newSession,
-  steepSeconds,
   parseSession,
   pauseSteep,
   resetCurrentSteep,
@@ -27,25 +25,19 @@ import {
   startSteep,
   type BrewSession,
 } from "@/lib/brew/session";
-import WheelMenu, { type WheelButton } from "@/components/experience/WheelMenu";
 import SteepWheel from "@/components/experience/SteepWheel";
 import BrewLogSheet from "@/components/experience/BrewLogSheet";
 
 type Stage = "types" | "teas" | "card" | "steeps" | "log";
 
 /**
- * Above this many teas a drilled group is drawn by coordinate instead of in equal
- * slices, because equal slices would be thinner than a clickable button.
- */
-const EQUAL_SLICE_LIMIT = 20;
-
-/**
- * The Tea Experience page.
+ * The Brew page.
  *
- * Layout is a weapon wheel: the ring is made of button wedges, the labels live
- * inside those buttons, and there is no decoration that is not clickable.
+ * Pick a type, pick a tea, steep it. Two plain lists, colour-coded: the type's colour
+ * appears on its category row and is carried through to every tea beneath it, so the
+ * eye follows one line from category to cup. No radial menu.
  */
-export default function TeaExperiencePage() {
+export default function BrewPage() {
   const allTeas = useTeaStore((s) => s.allTeas);
   const teaStates = useTeaStore((s) => s.teaStates);
   const teaLogs = useTeaStore((s) => s.teaLogs);
@@ -56,12 +48,7 @@ export default function TeaExperiencePage() {
   const [activeType, setActiveType] = useState<string | null>(null);
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
   const [showAll, setShowAll] = useState(false);
-  /**
-   * A merged wedge (drawn as "Gyokuro +1") stands for several teas that share an
-   * angle. Tapping it opens those teas as their own ring, the way a weapon wheel's
-   * sub-slot does — so no tea is ever hidden behind a count.
-   */
-  const [drill, setDrill] = useState<{ label: string; slugs: string[]; parent: string[] | null } | null>(null);
+  const [query, setQuery] = useState("");
 
   const [session, setSession] = useState<BrewSession | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -81,85 +68,40 @@ export default function TeaExperiencePage() {
     [allTeas, teaStates, showAll]
   );
 
-  // ── stage 1: the types, one button each ─────────────────────────────────
-  const typeWedges: Wedge<WheelButton>[] = useMemo(() => {
+  /**
+   * The types that actually hold teas right now. Rows are ordered by the canonical
+   * type order, not by count, so a category keeps its place between visits.
+   */
+  const types = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const t of pool) {
       if (!t.tea_type) continue;
       counts[t.tea_type] = (counts[t.tea_type] ?? 0) + 1;
     }
     const ordered = ALL_TEA_TYPES.filter((t) => counts[t]);
-    for (const t of Object.keys(counts)) if (!ordered.includes(t)) ordered.push(t);
-    const buttons: WheelButton[] = ordered.map((t) => ({
-      key: t,
-      label: TEA_TYPE_LABELS[t] ?? t,
-      meta: `${counts[t]} ${counts[t] === 1 ? "tea" : "teas"}`,
-    }));
-    return wheelLayout(buttons) as Wedge<WheelButton>[];
+    for (const k of Object.keys(counts)) if (!ordered.includes(k)) ordered.push(k);
+    return ordered.map((k) => ({ key: k, label: TEA_TYPE_LABELS[k] ?? k, count: counts[k] }));
   }, [pool]);
 
-  // ── stage 2: the teas of one type, placed by their own flavour coordinates ──
-  const typeTeas = useMemo(
-    () => (activeType ? pool.filter((t) => t.tea_type === activeType) : []),
-    [pool, activeType]
-  );
+  /** The chosen type's teas, sweetest first, filtered by the search box. */
+  const typeTeas = useMemo(() => {
+    if (!activeType) return [];
+    const list = pool.filter((t) => t.tea_type === activeType);
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? list.filter(
+          (t) =>
+            t.name.toLowerCase().includes(q) ||
+            (t.original_name ?? "").toLowerCase().includes(q) ||
+            (t.origin ?? "").toLowerCase().includes(q)
+        )
+      : list;
+    return [...filtered].sort(
+      (a, b) => (b.flavor_y ?? 50) - (a.flavor_y ?? 50) || a.name.localeCompare(b.name)
+    );
+  }, [pool, activeType, query]);
 
-  /**
-   * A whole type goes on ONE wheel, however many teas it holds.
-   *
-   * Paging used to split a type into ranges of the flavour axis, which meant the
-   * user scrolled wheels and the coordinates they could compare were only ever the
-   * ones on the current page. Instead, teas whose coordinates collide merge into a
-   * single button and that button opens its own ring (see `drill`), so the top-level
-   * wheel stays one readable instrument at any size.
-   */
-
-  /** The teas the wheel is currently showing: the whole type, or a drilled-in group. */
-  const shownTeas = useMemo(
-    () => (drill ? drill.slugs.map((s) => teaBySlug.get(s)).filter((t): t is Tea => !!t) : typeTeas),
-    [drill, typeTeas, teaBySlug]
-  );
-  // label of the ring the current drill sits inside, for the hub and the back button
-  const drillParent = drill?.parent ?? null;
-
-  /**
-   * Wedges for the teas on show, plus the map from a merged button back to the teas
-   * it stands for so tapping it can open them.
-   *
-   * A drilled-in group is laid out in equal slices: its members are together precisely
-   * because their coordinates are close, so re-running the flavour layout would merge
-   * them straight back into one button and the group would never open.
-   */
-  const { wedges: teaWedges, merged } = useMemo(() => {
-    const buttons: (WheelButton & { y: number; x: number })[] = shownTeas.map((t) => ({
-      key: t.slug,
-      label: t.name,
-      y: t.flavor_y ?? 50,
-      x: t.flavor_x ?? 50,
-    }));
-
-    const groups = new Map<string, string[]>();
-    // A group is laid out in equal slices only while it is small enough that every
-    // member still gets a clickable wedge. A large group keeps the coordinate layout,
-    // so its own collisions become buttons you can drill into again — the stack of
-    // rings ends when the teas stop colliding, at which point every tea is reachable.
-    const useEqual = !!drill && buttons.length <= EQUAL_SLICE_LIMIT;
-    const wedges = (useEqual ? wheelLayout(buttons) : flavourLayout(buttons)) as Wedge<WheelButton>[];
-
-    for (const w of wedges) {
-      if (w.items.length > 1) {
-        const names = w.items.map((i) => i.label);
-        groups.set(w.items[0].key, w.items.map((i) => i.key));
-        // the label names the first tea and how many more are behind it
-        w.items[0] = {
-          ...w.items[0],
-          label: `${names[0]} +${names.length - 1}`,
-          meta: names.slice(1).join(" · "),
-        };
-      }
-    }
-    return { wedges, merged: groups };
-  }, [shownTeas, drill]);
+  const typeColor = activeType ? TEA_TYPE_COLORS[activeType] ?? "var(--accent)" : "var(--accent)";
 
   // ── clock ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -180,7 +122,7 @@ export default function TeaExperiencePage() {
       if (!s) localStorage.removeItem(SESSION_STORAGE_KEY);
       else localStorage.setItem(SESSION_STORAGE_KEY, serializeSession(s));
     } catch {
-      /* storage disabled — in-memory session still works */
+      /* storage disabled — the in-memory session still works */
     }
   }, []);
 
@@ -233,14 +175,10 @@ export default function TeaExperiencePage() {
   const onDone = () => {
     if (!session) return;
     const t = Date.now();
-    const next = finishSteep(session, t);
-    setSession(next);
+    setSession(finishSteep(session, t));
     setNow(t);
   };
-  const onNextSteep = () => {
-    if (!session) return;
-    setSession(startSteep(session, Date.now()));
-  };
+  const onNextSteep = () => session && setSession(startSteep(session, Date.now()));
   const onPause = () => session && setSession(pauseSteep(session, Date.now()));
   const onResume = () => session && setSession(startSteep(session, Date.now()));
   const onReset = () => session && setSession(resetCurrentSteep(session, Date.now()));
@@ -248,8 +186,8 @@ export default function TeaExperiencePage() {
   const abandon = () => {
     persist(null);
     setSession(null);
-    setStage("types");
     setSelectedTea(null);
+    setStage("types");
   };
 
   const saveLog = async (rating: number, note: string) => {
@@ -266,9 +204,9 @@ export default function TeaExperiencePage() {
       setSavedLocally(true);
       return;
     }
-    // a tea that was not in the collection has now been brewed — record that
+    // brewing a tea puts it in the collection — that is what "have" means here
     if (teaStates[selectedTea.slug] === undefined) {
-      useTeaStore.getState().setTeaStatus?.(selectedTea.slug, "tried");
+      useTeaStore.getState().setTeaStatus?.(selectedTea.slug, "have");
     }
     persist(null);
     setSession(null);
@@ -281,75 +219,43 @@ export default function TeaExperiencePage() {
     [teaLogs, selectedTea]
   );
 
-  const medallion =
-    stage === "steeps" ? (
-      <div className="flex flex-col items-center justify-center text-center px-3">
-        <span className="font-serif tabular-nums" style={{ fontSize: 40, lineHeight: 1 }}>
-          {formatClock(liveSecs)}
-        </span>
-        <span className="text-[10px] uppercase tracking-[0.18em] mt-1" style={{ color: "var(--muted)" }}>
-          {live ? `steep ${live.index}` : "paused"}
-        </span>
-        {selectedTea?.brewing_temp_c && (
-          <span className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>
-            {selectedTea.brewing_temp_c} °C
-          </span>
-        )}
-      </div>
-    ) : (
-      <div className="flex flex-col items-center justify-center text-center px-2">
-        <Leaf size={18} style={{ color: "var(--accent)" }} />
-        <span className="text-[10px] uppercase tracking-[0.18em] mt-1" style={{ color: "var(--muted)" }}>
-          {stage === "teas" ? TEA_TYPE_LABELS[activeType ?? ""] ?? activeType : "Brew"}
-        </span>
-        <span className="font-serif text-xl mt-0.5">
-          {stage === "teas" ? shownTeas.length : pool.length}
-        </span>
-        <span className="text-[10px]" style={{ color: "var(--muted)" }}>
-          {stage === "teas" ? (drill ? "here" : "teas") : "in your collection"}
-        </span>
-      </div>
-    );
+  const back = () => {
+    if (stage === "card") return setStage("teas");
+    if (stage === "log") return setStage("steeps");
+    if (stage === "steeps") return abandon();
+    setActiveType(null);
+    setQuery("");
+    setStage("types");
+  };
+
+  const heading =
+    stage === "steeps" || stage === "log"
+      ? selectedTea?.name
+      : stage === "teas"
+      ? TEA_TYPE_LABELS[activeType ?? ""] ?? activeType
+      : "Brew";
 
   return (
-    <main className="mx-auto w-full max-w-[720px] px-4 sm:px-6 pb-16">
-      {/* header */}
-      <div className="flex items-center justify-between pt-5 pb-2">
+    <main className="mx-auto w-full max-w-[720px] px-4 sm:px-6 pb-28">
+      <div className="flex items-center justify-between pt-5 pb-1">
         <div className="flex items-center gap-3 min-w-0">
           {stage !== "types" && (
             <button
-              onClick={() => {
-                if (stage === "card") setStage("teas");
-                else if (stage === "log") setStage("steeps");
-                else if (drill)
-                  setDrill(
-                    drill.parent
-                      ? { label: drill.label, slugs: drill.parent, parent: null }
-                      : null
-                  );
-                else {
-                  setActiveType(null);
-                  setStage("types");
-                }
-              }}
+              onClick={back}
               className="flex items-center gap-1 text-xs shrink-0"
               style={{ color: "var(--muted)" }}
             >
               <ChevronLeft size={14} /> back
             </button>
           )}
-          <h1 className="font-serif text-lg truncate">
-            {stage === "steeps" || stage === "log" ? selectedTea?.name : "Tea experience"}
-          </h1>
+          <h1 className="font-serif text-lg truncate">{heading}</h1>
         </div>
-
         <div className="flex items-center gap-4 shrink-0">
           {(stage === "types" || stage === "teas") && (
             <button
               onClick={() => {
-                // switching the pool invalidates any drilled group
                 setShowAll((v) => !v);
-                setDrill(null);
+                setQuery("");
               }}
               aria-pressed={showAll}
               className="flex items-center gap-2 text-[11px] uppercase tracking-wider"
@@ -378,7 +284,7 @@ export default function TeaExperiencePage() {
               all teas
             </button>
           )}
-          <Link href="/" aria-label="Leave the experience" style={{ color: "var(--muted)" }}>
+          <Link href="/" aria-label="Leave the brew page" style={{ color: "var(--muted)" }}>
             <X size={18} />
           </Link>
         </div>
@@ -448,73 +354,149 @@ export default function TeaExperiencePage() {
         )}
       </AnimatePresence>
 
-      {/* the wheel / card / timer */}
       {stage === "card" && selectedTea ? (
         <TeaCard tea={selectedTea} onBrew={() => begin(selectedTea)} onBack={() => setStage("teas")} />
       ) : stage === "steeps" && session ? (
         <div className="w-full aspect-square max-h-[46vh] mx-auto">
-          <SteepWheel session={session} now={now} centre={medallion} />
-        </div>
-      ) : stage === "log" ? null : typeWedges.length === 0 ? (
-        <div
-          className="rounded-2xl border p-6 text-center mt-8"
-          style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}
-        >
-          <p className="font-serif text-lg">Nothing to brew yet</p>
-          <p className="text-xs mt-2" style={{ color: "var(--muted)" }}>
-            {showAll
-              ? "No teas are loaded yet — the library is still syncing."
-              : "Your collection is empty. Mark teas as owned, or switch to the whole library."}
-          </p>
-          {!showAll && (
-            <button
-              onClick={() => setShowAll(true)}
-              className="mt-4 px-4 h-10 rounded-xl text-sm"
-              style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
-            >
-              Show all teas
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="w-full aspect-square max-h-[54vh] mx-auto">
-          <WheelMenu
-            wedges={stage === "teas" ? teaWedges : typeWedges}
-            onPick={(key) => {
-              if (stage === "teas") {
-                // a merged button opens its own teas instead of guessing one
-                const group = merged.get(key);
-                if (group) {
-                  const first = teaBySlug.get(key);
-                  setDrill({
-                    label: first?.name ?? "teas",
-                    slugs: group,
-                    parent: drill ? drill.slugs : null,
-                  });
-                  return;
-                }
-                const t = teaBySlug.get(key);
-                if (t) {
-                  setSelectedTea(t);
-                  setStage("card");
-                }
-              } else {
-                setActiveType(key);
-                setDrill(null);
-                setStage("teas");
-              }
-            }}
-            activeKey={stage === "teas" ? selectedTea?.slug ?? null : activeType}
-            centre={medallion}
-            label={
-              stage === "teas"
-                ? drill
-                  ? `Teas grouped with ${drill.label}`
-                  : `Teas in ${activeType ?? ""}`
-                : "Tea categories"
+          <SteepWheel
+            session={session}
+            now={now}
+            centre={
+              <div className="flex flex-col items-center justify-center text-center px-3">
+                <span className="font-serif tabular-nums" style={{ fontSize: 40, lineHeight: 1 }}>
+                  {formatClock(liveSecs)}
+                </span>
+                <span className="text-[10px] uppercase tracking-[0.18em] mt-1" style={{ color: "var(--muted)" }}>
+                  {live ? `steep ${live.index}` : running ? "paused" : "steep done"}
+                </span>
+                {selectedTea?.brewing_temp_c && (
+                  <span className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>
+                    {selectedTea.brewing_temp_c} °C
+                  </span>
+                )}
+              </div>
             }
           />
         </div>
+      ) : stage === "log" ? null : stage === "types" ? (
+        types.length === 0 ? (
+          <div
+            className="rounded-2xl border p-6 text-center mt-8"
+            style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}
+          >
+            <p className="font-serif text-lg">Nothing to brew yet</p>
+            <p className="text-xs mt-2" style={{ color: "var(--muted)" }}>
+              {showAll
+                ? "No teas are loaded yet — the library is still syncing."
+                : "Your collection is empty. Mark teas as owned, or browse the whole library."}
+            </p>
+            {!showAll && (
+              <button
+                onClick={() => setShowAll(true)}
+                className="mt-4 px-4 h-10 rounded-xl text-sm"
+                style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
+              >
+                Show all teas
+              </button>
+            )}
+          </div>
+        ) : (
+          <ul className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+            {types.map((t) => (
+              <li key={t.key}>
+                <button
+                  onClick={() => {
+                    setActiveType(t.key);
+                    setQuery("");
+                    setStage("teas");
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-3.5 text-left"
+                  style={{ borderBottom: "1px solid var(--border)" }}
+                >
+                  <span
+                    aria-hidden
+                    className="w-2.5 h-2.5 rounded-sm shrink-0"
+                    style={{ backgroundColor: TEA_TYPE_COLORS[t.key] ?? "var(--accent)" }}
+                  />
+                  <span className="flex-1 min-w-0 text-sm">{t.label}</span>
+                  <span className="text-xs tabular-nums" style={{ color: "var(--muted)" }}>
+                    {t.count}
+                  </span>
+                  <ChevronLeft
+                    size={15}
+                    style={{ transform: "rotate(180deg)", color: "var(--muted)" }}
+                  />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : (
+        <>
+          <div className="relative mb-3">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2"
+              style={{ color: "var(--muted)" }}
+            />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`Search ${TEA_TYPE_LABELS[activeType ?? ""] ?? "teas"}`}
+              aria-label="Search teas in this type"
+              className="w-full h-11 rounded-lg pl-9 pr-3 text-sm outline-none"
+              style={{
+                backgroundColor: "var(--card)",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
+              }}
+            />
+          </div>
+
+          {typeTeas.length === 0 ? (
+            <p className="text-sm py-10 text-center" style={{ color: "var(--muted)" }}>
+              No tea matches “{query}”.
+            </p>
+          ) : (
+            <ul className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
+              {typeTeas.map((t) => (
+                <li key={t.slug}>
+                  <button
+                    onClick={() => {
+                      setSelectedTea(t);
+                      setStage("card");
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-3 text-left"
+                    style={{ borderBottom: "1px solid var(--border)" }}
+                  >
+                    {/* the type's colour, carried down from the category row */}
+                    <span
+                      aria-hidden
+                      className="w-1 self-stretch rounded-full shrink-0"
+                      style={{ backgroundColor: typeColor }}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm truncate">{t.name}</span>
+                      {(t.original_name || t.origin) && (
+                        <span className="block text-[11px] truncate" style={{ color: "var(--muted)" }}>
+                          {[t.original_name, t.origin].filter(Boolean).join(" · ")}
+                        </span>
+                      )}
+                    </span>
+                    {teaStates[t.slug] === "have" && (
+                      <span
+                        className="text-[10px] uppercase tracking-wider shrink-0"
+                        style={{ color: typeColor }}
+                      >
+                        in stock
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
 
       {/* timer controls */}
@@ -554,7 +536,8 @@ export default function TeaExperiencePage() {
                   className="flex items-center gap-2 px-5 h-11 rounded-xl text-sm font-medium"
                   style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
                 >
-                  <Play size={15} /> Steep {session.steeps.filter((s) => s.endedAt !== undefined).length + 1}
+                  <Play size={15} /> Steep{" "}
+                  {session.steeps.filter((s) => s.endedAt !== undefined).length + 1}
                 </button>
                 <button
                   onClick={toLog}
@@ -566,7 +549,11 @@ export default function TeaExperiencePage() {
               </>
             )}
           </div>
-          <button onClick={abandon} className="block mx-auto mt-3 text-[11px]" style={{ color: "var(--muted)" }}>
+          <button
+            onClick={abandon}
+            className="block mx-auto mt-3 text-[11px]"
+            style={{ color: "var(--muted)" }}
+          >
             discard this session
           </button>
         </div>
@@ -591,13 +578,14 @@ export default function TeaExperiencePage() {
 }
 
 function TeaCard({ tea, onBrew, onBack }: { tea: Tea; onBrew: () => void; onBack: () => void }) {
+  const colour = TEA_TYPE_COLORS[tea.tea_type] ?? "var(--accent)";
   return (
-    <div className="rounded-2xl border p-5" style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}>
+    <div
+      className="rounded-2xl border p-5"
+      style={{ backgroundColor: "var(--card)", borderColor: "var(--border)" }}
+    >
       <div className="flex items-start gap-2">
-        <span
-          className="mt-1.5 w-2.5 h-2.5 rounded-full shrink-0"
-          style={{ backgroundColor: tea.color_hex || "var(--accent)" }}
-        />
+        <span className="mt-1.5 w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: colour }} />
         <div className="min-w-0">
           <h2 className="font-serif text-xl leading-tight">{tea.name}</h2>
           {tea.original_name && (
@@ -618,7 +606,9 @@ function TeaCard({ tea, onBrew, onBack }: { tea: Tea; onBrew: () => void; onBack
           <dt className="uppercase tracking-wider" style={{ color: "var(--muted)" }}>
             Type
           </dt>
-          <dd className="mt-0.5">{TEA_TYPE_LABELS[tea.tea_type] ?? tea.tea_type}</dd>
+          <dd className="mt-0.5" style={{ color: colour }}>
+            {TEA_TYPE_LABELS[tea.tea_type] ?? tea.tea_type}
+          </dd>
         </div>
         <div>
           <dt className="uppercase tracking-wider" style={{ color: "var(--muted)" }}>
@@ -637,7 +627,8 @@ function TeaCard({ tea, onBrew, onBack }: { tea: Tea; onBrew: () => void; onBack
             Steep
           </dt>
           <dd className="mt-0.5">
-            {tea.brewing_time_min ? formatClock(tea.brewing_time_min * 60) : "—"} · {tea.brewing_num_brews ?? 1}×
+            {tea.brewing_time_min ? formatClock(tea.brewing_time_min * 60) : "—"} ·{" "}
+            {tea.brewing_num_brews ?? 1}×
           </dd>
         </div>
       </dl>

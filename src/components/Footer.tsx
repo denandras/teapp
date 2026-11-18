@@ -3,15 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Leaf } from "lucide-react";
-import BrewLauncher from "@/components/experience/BrewLauncher";
+
 
 export default function Footer() {
   const pathname = usePathname();
 
-  // Hide the footer where it would duplicate the page's own content: onboarding is
-  // a full-screen flow, and /experience is itself the brew experience (its footer
-  // button would just link back to the page you are on).
-  if (pathname === "/onboarding" || pathname === "/experience") return null;
+  // Hide the footer on full-screen flows only. Brewing is reached from the nav bar.
+  if (pathname === "/onboarding") return null;
 
   return (
     <footer
@@ -20,19 +18,7 @@ export default function Footer() {
         backgroundColor: "var(--card)",
       }}
     >
-      {/* The top rule is two segments so the notch can interrupt it. */}
-      <span
-        aria-hidden
-        className="absolute top-0 h-px"
-        style={{ left: 0, right: "calc(50% + 78px)", backgroundColor: "var(--border)" }}
-      />
-      <span
-        aria-hidden
-        className="absolute top-0 h-px"
-        style={{ left: "calc(50% + 78px)", right: 0, backgroundColor: "var(--border)" }}
-      />
-
-      <BrewLauncher />
+      <span aria-hidden className="absolute top-0 left-0 right-0 h-px" style={{ backgroundColor: "var(--border)" }} />
 
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* desktop: two halves that leave room for the notch */}
