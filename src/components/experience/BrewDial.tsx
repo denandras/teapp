@@ -74,14 +74,19 @@ export default function BrewDial({
 
       {/* selected sector wash */}
       {active && (
-        <motion.path
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.14 }}
-          d={arcPath(active.start, active.end, CENTER_R + 6, RIM_R - 2)}
-          fill="var(--accent)"
-          fillOpacity={0.06}
-        />
+        <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.14 }}>
+          <path
+            d={arcPath(active.start, active.end, CENTER_R + 6, RIM_R - 2)}
+            fill="var(--accent)"
+            fillOpacity={0.09}
+          />
+          {/* a hairline on the rim so the active sector reads at a glance */}
+          <path
+            d={arcPath(active.start + 1.5, active.end - 1.5, RIM_R - 1.5, RIM_R + 1.5)}
+            fill="var(--accent)"
+            fillOpacity={0.9}
+          />
+        </motion.g>
       )}
 
       {/* type labels, tangent to the rim, never upside down */}
