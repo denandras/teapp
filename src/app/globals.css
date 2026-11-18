@@ -245,3 +245,69 @@ input, select, textarea {
     --cal-weekday-label-width: 0px;
   }
 }
+
+/* ── Brew notch: the footer grows a handle, the leaf is a mark not a glow ── */
+.brew-lip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 152px;
+  height: 42px;
+  border-radius: 76px 76px 0 0;
+  background: linear-gradient(180deg, var(--bg), var(--card));
+  border: 1px solid var(--border);
+  border-bottom: none;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  z-index: 1;
+}
+
+.brew-lip-button {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 76px 76px 0 0;
+  cursor: pointer;
+}
+
+.brew-lip-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.brew-lip-disc {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  background-color: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  transition: border-color 0.16s, color 0.16s;
+}
+
+.brew-lip-button:hover .brew-lip-disc,
+.brew-lip-button:focus-visible .brew-lip-disc {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+@media (max-width: 639px) {
+  .brew-lip {
+    width: 128px;
+    height: 38px;
+  }
+  .brew-lip-disc {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brew-lip-disc {
+    transition: none;
+  }
+}

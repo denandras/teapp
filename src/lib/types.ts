@@ -41,6 +41,10 @@ export interface TeaLog {
   rating: number;
   note: string;
   timestamp: string;
+  /** Brew session fields — null/undefined for plain logs written elsewhere. */
+  brews?: number | null;
+  duration_s?: number | null;
+  steep_s?: number[] | null;
 }
 
 export const TEA_TYPE_COLORS: Record<string, string> = {

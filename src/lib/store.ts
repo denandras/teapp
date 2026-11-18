@@ -30,6 +30,60 @@ export function isDemoMode() {
 
 const DEMO_STORAGE_KEY = "teapp-demo-data";
 const ACCENT_STORAGE_KEY = "teapp-accent-color";
+const BREW_OUTBOX_KEY = "teapp-brew-outbox";
+
+/**
+ * Brew logs that could not reach the server (offline, asleep, dropped request).
+ * They keep their client-generated id, so replaying one can never duplicate a
+ * row — a primary-key conflict means "already saved".
+ */
+export interface BrewOutboxEntry {
+  id: string;
+  slug: string;
+  rating: number;
+  note: string;
+  brews?: number;
+  duration_s?: number;
+  steep_s?: number[];
+}
+
+function readBrewOutbox(): BrewOutboxEntry[] {
+  try {
+    const raw = localStorage.getItem(BREW_OUTBOX_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as BrewOutboxEntry[]).filter((e) => e && e.id && e.slug) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeBrewOutbox(entries: BrewOutboxEntry[]) {
+  try {
+    if (entries.length === 0) localStorage.removeItem(BREW_OUTBOX_KEY);
+    else localStorage.setItem(BREW_OUTBOX_KEY, JSON.stringify(entries));
+  } catch {
+    // storage full / disabled — nothing sensible to do, the log is already local
+  }
+}
+
+function queueBrewLog(
+  id: string,
+  slug: string,
+  rating: number,
+  note: string,
+  meta?: { brews?: number; duration_s?: number; steep_s?: number[] }
+) {
+  const entries = readBrewOutbox();
+  if (entries.some((e) => e.id === id)) return;
+  entries.push({ id, slug, rating, note, brews: meta?.brews, duration_s: meta?.duration_s, steep_s: meta?.steep_s });
+  writeBrewOutbox(entries);
+}
+
+/** How many brew logs are still waiting to sync (for the UI to say so honestly). */
+export function pendingBrewLogsCount(): number {
+  return readBrewOutbox().length;
+}
 
 /** Cache accent color in localStorage for instant restore on page reload. */
 function saveAccentCache(color: string) {
@@ -129,7 +183,14 @@ interface TeaStore {
   addCustomTea: (tea: Omit<CustomTea, "id" | "created_at">) => void;
   removeCustomTea: (id: string) => void;
   teaLogs: TeaLogsMap;
-  addTeaLog: (slug: string, rating: number, note: string) => void;
+  addTeaLog: (
+    slug: string,
+    rating: number,
+    note: string,
+    meta?: { id?: string; brews?: number; duration_s?: number; steep_s?: number[] }
+  ) => Promise<boolean>;
+  /** Retry brew logs that failed to reach the server (queued locally). */
+  flushBrewOutbox: () => Promise<number>;
   editTeaLog: (slug: string, logId: string, rating: number, note: string) => void;
   deleteTeaLog: (slug: string, logId: string) => void;
   getAvgRating: (slug: string) => number | null;
@@ -302,12 +363,17 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
   },
 
   teaLogs: {},
-  addTeaLog: (slug, rating, note) => {
+  addTeaLog: async (slug, rating, note, meta) => {
+    // A caller that supplies its own id makes the write retry-safe: a repeat
+    // insert with the same primary key cannot create a second row.
     const log: TeaLog = {
-      id: crypto.randomUUID(),
+      id: meta?.id ?? crypto.randomUUID(),
       rating,
       note,
       timestamp: new Date().toISOString(),
+      ...(meta
+        ? { brews: meta.brews ?? null, duration_s: meta.duration_s ?? null, steep_s: meta.steep_s ?? null }
+        : {}),
     };
     set((state) => ({
       teaLogs: {
@@ -315,20 +381,58 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         [slug]: [log, ...(state.teaLogs[slug] || [])],
       },
     }));
-    if (demoMode) { saveDemoState(get()); return; }
+    if (demoMode) { saveDemoState(get()); return true; }
     const userId = getUserId();
-    if (!userId) return;
-    getTeaIdBySlug(slug).then((teaId) => {
-      if (!teaId) return;
-      supabase
-        .from("tea_logs")
-        .insert(
-          { user_id: userId, tea_id: teaId, rating, note }
-        )
-        .then(({ error }) => {
-          if (error) console.error("Failed to insert tea_logs:", error.message);
-        });
+    if (!userId) { queueBrewLog(log.id, slug, rating, note, meta); return false; }
+    const teaId = await getTeaIdBySlug(slug);
+    if (!teaId) { queueBrewLog(log.id, slug, rating, note, meta); return false; }
+    const { error } = await supabase.from("tea_logs").insert({
+      id: log.id,
+      user_id: userId,
+      tea_id: teaId,
+      rating,
+      note,
+      brews: meta?.brews ?? null,
+      duration_s: meta?.duration_s ?? null,
+      steep_s: meta?.steep_s ?? null,
     });
+    if (error) {
+      console.error("Failed to insert tea_logs:", error.message);
+      queueBrewLog(log.id, slug, rating, note, meta);
+      return false;
+    }
+    return true;
+  },
+  flushBrewOutbox: async () => {
+    const queued = readBrewOutbox();
+    if (queued.length === 0) return 0;
+    const userId = getUserId();
+    if (!userId) return 0;
+    let flushed = 0;
+    const remaining: typeof queued = [];
+    for (const entry of queued) {
+      const teaId = await getTeaIdBySlug(entry.slug);
+      if (!teaId) { remaining.push(entry); continue; }
+      const { error } = await supabase.from("tea_logs").insert({
+        id: entry.id,
+        user_id: userId,
+        tea_id: teaId,
+        rating: entry.rating,
+        note: entry.note,
+        brews: entry.brews ?? null,
+        duration_s: entry.duration_s ?? null,
+        steep_s: entry.steep_s ?? null,
+      });
+      if (error) {
+        // 23505 = unique violation: it already landed on a previous attempt.
+        if ((error as { code?: string }).code === "23505") { flushed++; continue; }
+        remaining.push(entry);
+      } else {
+        flushed++;
+      }
+    }
+    writeBrewOutbox(remaining);
+    return flushed;
   },
   editTeaLog: (slug, logId, rating, note) => {
     set((state) => ({
