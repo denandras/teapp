@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, Leaf, Pause, Play, RotateCcw, X } from "lucide-react";
 import { ALL_TEA_TYPES, TEA_TYPE_LABELS, type Tea } from "@/lib/types";
 import { useTeaStore } from "@/lib/store";
-import { layoutTeas, typeSectors, type PlacedDot } from "@/lib/brew/radial";
+import { layoutRing } from "@/lib/brew/ring";
 import {
   SESSION_STORAGE_KEY,
   capSteep,
@@ -26,7 +26,7 @@ import {
   startSteep,
   type BrewSession,
 } from "@/lib/brew/session";
-import BrewDial, { typeLabel } from "@/components/experience/BrewDial";
+import RadialRing, { type RingItem } from "@/components/experience/RadialRing";
 import SteepRing from "@/components/experience/SteepRing";
 import BrewLogSheet from "@/components/experience/BrewLogSheet";
 
@@ -35,8 +35,6 @@ type Stage = "types" | "teas" | "card" | "steeps" | "log";
 interface BrewOverlayProps {
   onClose: () => void;
 }
-
-const AXIS_LABELS = { fresh: "Green / fresh", roasted: "Roasted" };
 
 export default function BrewOverlay({ onClose }: BrewOverlayProps) {
   const allTeas = useTeaStore((s) => s.allTeas);
@@ -49,8 +47,9 @@ export default function BrewOverlay({ onClose }: BrewOverlayProps) {
   const [stage, setStage] = useState<Stage>("types");
   const [activeType, setActiveType] = useState<string | null>(null);
   const [selectedTea, setSelectedTea] = useState<Tea | null>(null);
-  const [cell, setCell] = useState<PlacedDot | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [teaPage, setTeaPage] = useState(0);
+  const [hovered, setHovered] = useState<RingItem | null>(null);
 
   const [session, setSession] = useState<BrewSession | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -85,16 +84,37 @@ export default function BrewOverlay({ onClose }: BrewOverlayProps) {
     return { types: ordered, counts: c };
   }, [pool]);
 
-  const sectors = useMemo(() => typeSectors(types), [types]);
+  /** Stage 1 of the ring: the categories, each labelled with how many it holds. */
+  const typeItems: RingItem[] = useMemo(
+    () =>
+      types.map((t) => ({
+        key: t,
+        label: TEA_TYPE_LABELS[t] ?? t,
+        meta: String(counts[t] ?? 0),
+      })),
+    [types, counts]
+  );
 
-  const dots = useMemo(() => {
-    if (!activeType || stage === "types") return [];
-    return layoutTeas(
-      pool
-        .filter((t) => t.tea_type === activeType)
-        .map((t) => ({ slug: t.slug, name: t.name, flavor_x: t.flavor_x, flavor_y: t.flavor_y }))
-    );
-  }, [pool, activeType, stage]);
+  /**
+   * Stage 2: the ring is REPLACED by that category's teas — one slice per tea,
+   * ordered sweetest first, so running clockwise from the top walks from sweet
+   * to bitter. Flavour stays encoded, in the only channel a ring has left.
+   */
+  const teaItemsAll: RingItem[] = useMemo(() => {
+    if (!activeType) return [];
+    return pool
+      .filter((t) => t.tea_type === activeType)
+      .sort((a, b) => (b.flavor_y ?? 0) - (a.flavor_y ?? 0) || (b.flavor_x ?? 0) - (a.flavor_x ?? 0))
+      .map((t) => ({ key: t.slug, label: t.name, color: t.color_hex || undefined }));
+  }, [pool, activeType]);
+
+  // capacity comes from the geometry; overflow becomes pages, never a lost tea
+  const teaCapacity = useMemo(() => layoutRing(teaItemsAll, { maxRings: 3 }).capacity, [teaItemsAll]);
+  const teaPageCount = Math.max(1, Math.ceil(teaItemsAll.length / Math.max(1, teaCapacity)));
+  const teaItems = useMemo(
+    () => teaItemsAll.slice(teaPage * teaCapacity, (teaPage + 1) * teaCapacity),
+    [teaItemsAll, teaPage, teaCapacity]
+  );
 
   // ── clock: repaint once a second, derive everything from timestamps ─────
   useEffect(() => {
@@ -258,23 +278,16 @@ export default function BrewOverlay({ onClose }: BrewOverlayProps) {
     onClose();
   };
 
-  const pickDot = (dot: PlacedDot) => {
-    if (dot.teas.length === 1) {
-      const t = teaBySlug.get(dot.teas[0].slug);
-      if (t) {
-        setSelectedTea(t);
-        setStage("card");
-      }
-      return;
-    }
-    setCell(dot);
+  const pickType = (type: string) => {
+    setActiveType(type);
+    setTeaPage(0);
+    setStage("teas");
   };
 
-  const pickCellTea = (slug: string) => {
+  const pickTea = (slug: string) => {
     const t = teaBySlug.get(slug);
     if (!t) return;
     setSelectedTea(t);
-    setCell(null);
     setStage("card");
   };
 
@@ -334,12 +347,23 @@ export default function BrewOverlay({ onClose }: BrewOverlayProps) {
         {activeType ? (
           <>
             <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: "var(--muted)" }}>
-              {typeLabel(activeType)}
+              {TEA_TYPE_LABELS[activeType] ?? activeType}
             </span>
-            <span className="font-serif text-2xl mt-1">{counts[activeType] ?? 0}</span>
-            <span className="text-[11px] mt-0.5" style={{ color: "var(--muted)" }}>
-              {counts[activeType] === 1 ? "tea" : "teas"}
-            </span>
+            {hovered ? (
+              <>
+                <span className="font-serif text-[15px] leading-tight mt-1 px-1">{hovered.label}</span>
+                <span className="text-[10px] mt-1" style={{ color: "var(--muted)" }}>
+                  tap to open
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="font-serif text-2xl mt-1">{counts[activeType] ?? 0}</span>
+                <span className="text-[11px] mt-0.5" style={{ color: "var(--muted)" }}>
+                  {counts[activeType] === 1 ? "tea" : "teas"}
+                </span>
+              </>
+            )}
           </>
         ) : (
           <>
@@ -371,7 +395,7 @@ export default function BrewOverlay({ onClose }: BrewOverlayProps) {
               onClick={() => {
                 if (stage === "card") setStage("teas");
                 else if (stage === "log") setStage("steeps");
-                else { setActiveType(null); setStage("types"); }
+                else { setActiveType(null); setTeaPage(0); setStage("types"); }
               }}
               className="flex items-center gap-1 text-xs"
               style={{ color: "var(--muted)" }}
@@ -386,7 +410,7 @@ export default function BrewOverlay({ onClose }: BrewOverlayProps) {
         <div className="flex items-center gap-4">
           {(stage === "types" || stage === "teas") && (
             <button
-              onClick={() => setShowAll((v) => !v)}
+              onClick={() => { setShowAll((v) => !v); setTeaPage(0); }}
               aria-pressed={showAll}
               className="flex items-center gap-2 text-[11px] uppercase tracking-wider"
               style={{ color: showAll ? "var(--accent)" : "var(--muted)" }}
@@ -504,57 +528,63 @@ export default function BrewOverlay({ onClose }: BrewOverlayProps) {
             </div>
           ) : stage === "log" ? null : (
             <div className="w-full aspect-square max-h-[62vh] mx-auto">
-              <BrewDial
-                sectors={sectors}
-                activeType={activeType}
-                dots={dots}
-                stage={stage}
+              <RadialRing
+                items={stage === "teas" ? teaItems : typeItems}
+                onPick={stage === "teas" ? pickTea : pickType}
+                activeKey={stage === "teas" ? selectedTea?.slug ?? null : activeType}
+                onHoverItem={setHovered}
                 centre={medallion}
-                counts={counts}
-                onPickType={(t) => { setActiveType(t); setStage("teas"); }}
-                onPickDot={pickDot}
+                maxRings={stage === "teas" ? 3 : 1}
+                label={stage === "teas" ? `Teas in ${activeType ?? ""}` : "Tea categories"}
               />
             </div>
           )}
 
-          {/* axis key — the dial is the chart, so say which way is which */}
+          {/* what the ring is encoding, said plainly */}
           {(stage === "types" || stage === "teas") && (
-            <p className="text-center text-[10px] mt-1" style={{ color: "var(--muted)" }}>
-              {AXIS_LABELS.fresh} ◀ roast ▶ {AXIS_LABELS.roasted} · centre bitter → rim sweet
+            <p className="text-center text-[10px] mt-1 px-4" style={{ color: "var(--muted)" }}>
+              {stage === "types"
+                ? "Pick a category · the ring has one slice per type"
+                : "Sweetest at the top, walking clockwise to bitter"}
             </p>
           )}
 
-          {/* cell sheet: several teas share one spot on the map */}
-          <AnimatePresence>
-            {cell && (
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 12 }}
-                className="mt-3 rounded-xl border"
-                style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}
+          {/* paging — computed from how many slices fit on the rings */}
+          {stage === "teas" && teaPageCount > 1 && (
+            <div className="flex items-center justify-center gap-3 mt-3">
+              <button
+                onClick={() => setTeaPage((p) => Math.max(0, p - 1))}
+                disabled={teaPage === 0}
+                aria-label="Previous teas"
+                className="w-9 h-9 rounded-lg border flex items-center justify-center"
+                style={{
+                  borderColor: "var(--border)",
+                  color: teaPage === 0 ? "var(--muted)" : "var(--text)",
+                  opacity: teaPage === 0 ? 0.4 : 1,
+                }}
               >
-                <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
-                  <span className="text-[11px] uppercase tracking-wider" style={{ color: "var(--muted)" }}>
-                    {cell.teas.length} teas here · sweetest first
-                  </span>
-                  <button onClick={() => setCell(null)} aria-label="Close list" style={{ color: "var(--muted)" }}>
-                    <X size={14} />
-                  </button>
-                </div>
-                {cell.teas.map((t) => (
-                  <button
-                    key={t.slug}
-                    onClick={() => pickCellTea(t.slug)}
-                    className="w-full text-left px-3 py-2.5 text-sm border-b last:border-b-0 transition-colors"
-                    style={{ borderColor: "var(--border)" }}
-                  >
-                    {t.name}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-xs tabular-nums" style={{ color: "var(--muted)" }}>
+                {teaPage * teaCapacity + 1}–
+                {Math.min(teaItemsAll.length, (teaPage + 1) * teaCapacity)} of {teaItemsAll.length}
+                <span style={{ opacity: 0.7 }}> · sweetest first</span>
+              </span>
+              <button
+                onClick={() => setTeaPage((p) => Math.min(teaPageCount - 1, p + 1))}
+                disabled={teaPage >= teaPageCount - 1}
+                aria-label="More teas"
+                className="w-9 h-9 rounded-lg border flex items-center justify-center"
+                style={{
+                  borderColor: "var(--border)",
+                  color: teaPage >= teaPageCount - 1 ? "var(--muted)" : "var(--text)",
+                  opacity: teaPage >= teaPageCount - 1 ? 0.4 : 1,
+                }}
+              >
+                <ChevronLeft size={16} style={{ transform: "rotate(180deg)" }} />
+              </button>
+            </div>
+          )}
 
           {/* controls */}
           {stage === "steeps" && session && (
