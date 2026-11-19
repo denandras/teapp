@@ -33,6 +33,18 @@ describe("arming and starting are not the same act", () => {
     expect(liveSeconds(later, T0 + 9 * 60 * 60 * 1000)).toBe(9 * 60 * 60);
   });
 
+  it("keeps the real elapsed time when a run resumes after an overnight gap", () => {
+    // nine hours on the clock, app closed the whole time: choosing to keep it must
+    // leave nine hours on the clock, not restart it
+    let s = startSteep(newSession("sencha", T0, undefined, 120), T0);
+    const nine = 9 * 60 * 60 * 1000;
+    s = { ...s, lastSeen: T0 }; // last seen when it started
+    const resumed = startSteep(s, T0 + nine);
+    expect(resumed.steeps).toHaveLength(1);
+    expect(resumed.steeps[0].startedAt).toBe(T0);
+    expect(liveSeconds(resumed, T0 + nine)).toBe(9 * 60 * 60);
+  });
+
   it("still resumes a paused steep and still adds a genuinely new one", () => {
     let s = startSteep(newSession("sencha", T0, undefined, 120), T0);
     s = pauseSteep(s, T0 + 30_000);

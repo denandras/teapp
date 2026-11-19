@@ -44,6 +44,11 @@ export type RestoreWarning = "long-gap" | "clock-skew";
 export const LONG_GAP_MS = 2 * 60 * 60 * 1000;
 /** Tolerance for second-granularity clock jitter on restore. */
 export const SKEW_TOLERANCE_MS = 60 * 1000;
+/**
+ * The longest pause we will credit back to the clock. Beyond it the app may simply
+ * have been closed, and subtracting that time would silently shorten a real steep.
+ */
+export const PAUSE_GAP_CAP_MS = 2 * 60 * 1000;
 
 export function newSession(slug: string, now: number, id?: string, baseSeconds?: number | null): BrewSession {
   return {
@@ -94,9 +99,12 @@ export function startSteep(session: BrewSession, now: number): BrewSession {
     steeps.push({ index: steeps.length + 1, startedAt: now });
   } else if (session.state === "paused") {
     // Resume: shift startedAt forward by the paused duration so the elapsed
-    // time does not include the pause.
-    const pausedFor = now - session.lastSeen;
-    steeps[steeps.length - 1] = { ...last, startedAt: last.startedAt + Math.max(0, pausedFor) };
+    // time does not include the pause — but only the time actually spent paused.
+    // A pause that outlived the tab is capped by PAUSE_GAP_CAP_MS: beyond that we
+    // cannot tell a pause from a closed app, and crediting hours of "pause" would
+    // erase genuine steeping time.
+    const pausedFor = Math.min(Math.max(0, now - session.lastSeen), PAUSE_GAP_CAP_MS);
+    steeps[steeps.length - 1] = { ...last, startedAt: last.startedAt + pausedFor };
   } else if (session.state === "armed") {
     // First press of Start: the clock begins now, not when the steep was armed.
     steeps[steeps.length - 1] = { ...last, startedAt: now };
