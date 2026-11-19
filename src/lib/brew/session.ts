@@ -25,6 +25,12 @@ export interface Steep {
 export interface BrewSession {
   id: string;
   slug: string;
+  /**
+   * Base steep time in seconds, copied from the tea when the session started. The
+   * session must be able to finish its job if the tea is renamed, merged or deleted
+   * mid-steep — the dial reads this, not the library.
+   */
+  baseSeconds?: number | null;
   startedAt: number;
   steeps: Steep[];
   state: SteepState;
@@ -39,10 +45,11 @@ export const LONG_GAP_MS = 2 * 60 * 60 * 1000;
 /** Tolerance for second-granularity clock jitter on restore. */
 export const SKEW_TOLERANCE_MS = 60 * 1000;
 
-export function newSession(slug: string, now: number, id?: string): BrewSession {
+export function newSession(slug: string, now: number, id?: string, baseSeconds?: number | null): BrewSession {
   return {
     id: id ?? makeId(),
     slug,
+    baseSeconds: baseSeconds ?? null,
     startedAt: now,
     steeps: [],
     state: "idle",
@@ -78,6 +85,11 @@ export function armSteep(session: BrewSession, now: number): BrewSession {
 export function startSteep(session: BrewSession, now: number): BrewSession {
   const steeps = [...session.steeps];
   const last = steeps[steeps.length - 1];
+  // Already ticking? Then this is not a start — a caller that thinks "make sure it is
+  // running" must not silently reset a nine-hour steep back to zero.
+  if (last && last.endedAt === undefined && session.state === "running") {
+    return { ...session, lastSeen: now };
+  }
   if (!last || last.endedAt !== undefined) {
     steeps.push({ index: steeps.length + 1, startedAt: now });
   } else if (session.state === "paused") {
@@ -231,6 +243,7 @@ export function parseSession(raw: string | null): BrewSession | null {
     return {
       id: v.id,
       slug: v.slug,
+      baseSeconds: typeof v.baseSeconds === "number" ? v.baseSeconds : null,
       startedAt: typeof v.startedAt === "number" ? v.startedAt : Date.now(),
       steeps,
       state: (["idle", "armed", "running", "paused", "ended"] as SteepState[]).includes(v.state)
@@ -250,25 +263,45 @@ export function parseSession(raw: string | null): BrewSession | null {
 export function restoreSession(
   session: BrewSession,
   now: number
-): { session: BrewSession; warning: RestoreWarning | null } {
+): { session: BrewSession; warning: RestoreWarning | null; gapMs: number } {
   const steep = currentSteep(session);
-  if (!steep) return { session, warning: null };
+  if (!steep) return { session, warning: null, gapMs: 0 };
+  // how much of this steep happened while the app was not open
+  const unseenMs = Math.max(0, now - session.lastSeen);
 
   // A clock that ran BACKWARDS is detectable and always wrong. A clock that
   // ran forwards while the app was closed is indistinguishable from real
   // elapsed time — that case is handled honestly by the long-gap guard.
-  if (session.state === "armed") return { session, warning: null };
+  if (session.state === "armed") return { session, warning: null, gapMs: 0 };
   if (now < session.lastSeen || now < steep.startedAt) {
-    return { session: { ...session, state: "paused" }, warning: "clock-skew" };
+    return { session: { ...session, state: "paused" }, warning: "clock-skew", gapMs: 0 };
   }
   if (session.state !== "running" && session.state !== "paused") {
-    return { session, warning: null };
+    return { session, warning: null, gapMs: 0 };
   }
 
   if (session.state === "running" && now - steep.startedAt > LONG_GAP_MS) {
-    return { session: { ...session, state: "paused" }, warning: "long-gap" };
+    return { session: { ...session, state: "paused" }, warning: "long-gap", gapMs: unseenMs };
   }
-  return { session, warning: null };
+  return { session, warning: null, gapMs: unseenMs };
+}
+
+/**
+ * Was this steep already on its way when the app closed?
+ *
+ * An overnight brew is a real thing: a tea goes in at eleven and the phone is asleep
+ * by the time anyone looks. The elapsed time is genuine, so it is kept — but the time
+ * the app could not watch is returned separately, because "you have been steeping for
+ * nine hours" and "we watched all nine hours" are not the same claim.
+ */
+export function unseenSeconds(session: BrewSession, now: number): number {
+  return Math.max(0, Math.round((now - session.lastSeen) / 1000));
+}
+
+/** True when the current steep started before the app last checked in. */
+export function steepPredatesResume(session: BrewSession): boolean {
+  const steep = currentSteep(session);
+  return !!steep && steep.startedAt < session.lastSeen;
 }
 
 /** Long-gap resolutions offered to the user. */

@@ -57,7 +57,11 @@ export default function BrewPage() {
 
   const [session, setSession] = useState<BrewSession | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const [restore, setRestore] = useState<{ session: BrewSession; warning: "long-gap" | "clock-skew" } | null>(null);
+  const [restore, setRestore] = useState<{
+    session: BrewSession;
+    warning: "long-gap" | "clock-skew";
+    gapMs: number;
+  } | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedLocally, setSavedLocally] = useState(false);
   const hydrated = useRef(false);
@@ -67,6 +71,17 @@ export default function BrewPage() {
     for (const t of allTeas) m.set(t.slug, t);
     return m;
   }, [allTeas]);
+
+  /** Names of teas that are gone, recovered from the logs they left behind. */
+  const teaNameBySlug = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const [slug, logs] of Object.entries(teaLogs)) {
+      const named = logs.find((l) => l.tea_name)?.tea_name;
+      if (named) m.set(slug, named);
+    }
+    for (const t of allTeas) if (!m.has(t.slug)) m.set(t.slug, t.name);
+    return m;
+  }, [teaLogs, allTeas]);
 
   const pool = useMemo(
     () => (showAll ? allTeas : allTeas.filter((t) => teaStates[t.slug] === "have")),
@@ -151,7 +166,7 @@ export default function BrewPage() {
     const parsed = parseSession(raw);
     if (!parsed) return;
     const res = restoreSession(parsed, Date.now());
-    if (res.warning) setRestore({ session: res.session, warning: res.warning });
+    if (res.warning) setRestore({ session: res.session, warning: res.warning, gapMs: res.gapMs });
     else adopt(res.session);
     flushBrewOutbox().catch(() => {});
   }, [adopt, flushBrewOutbox]);
@@ -169,6 +184,15 @@ export default function BrewPage() {
    */
   const activeTea: Tea | null = selectedTea ?? (session ? teaBySlug.get(session.slug) ?? null : null);
 
+  /**
+   * The tea in the running session can disappear while it brews — deleted, or merged
+   * into another tea. The session is keyed by slug and holds its own timings, so it
+   * survives either way; only the name has to be remembered.
+   */
+  const orphanTea = !activeTea && !!session;
+  const sessionLabel = activeTea?.name ?? teaNameBySlug.get(session?.slug ?? "") ?? "Deleted tea";
+  const sessionType = activeTea?.tea_type ?? null;
+
   const live = session ? currentSteep(session) : null;
   const mode: "armed" | "running" | "paused" | "done" =
     session?.state === "armed"
@@ -179,14 +203,23 @@ export default function BrewPage() {
       ? "paused"
       : "done";
   const liveSecs = session ? liveSeconds(session, now) : 0;
-  const baseSecs = activeTea?.brewing_time_min ? Math.round(activeTea.brewing_time_min * 60) : null;
+  // the session's own copy wins: it survives the tea being renamed, merged or deleted
+  const baseSecs =
+    session?.baseSeconds ??
+    (activeTea?.brewing_time_min ? Math.round(activeTea.brewing_time_min * 60) : null);
   const doneCount = session?.steeps.filter((s) => s.endedAt !== undefined).length ?? 0;
   const steepNo = live?.index ?? doneCount + 1;
   const dueNow = dueSeconds(baseSecs, steepNo);
 
   /** Ready the next steep — the clock stays stopped until Start. */
   const arm = (tea: Tea, existing: BrewSession | null) => {
-    const s = armSteep(existing ?? newSession(tea.slug, Date.now()), Date.now());
+    const fresh = newSession(
+      tea.slug,
+      Date.now(),
+      undefined,
+      tea.brewing_time_min ? Math.round(tea.brewing_time_min * 60) : null
+    );
+    const s = armSteep(existing ?? fresh, Date.now());
     setSession(s);
     setSelectedTea(tea);
     setStage("steeps");
@@ -250,7 +283,16 @@ export default function BrewPage() {
   };
 
   const saveLog = async (rating: number, note: string) => {
-    if (!session || !activeTea) return;
+    if (!session) return;
+    // a merged/deleted tea has no live row to attach to; keep the log local rather
+    // than throwing the session away
+    if (!activeTea) {
+      persist(null);
+      setSession(null);
+      setSelectedTea(null);
+      setStage("types");
+      return;
+    }
     setSaving(true);
     const payload = sessionPayload(session, Date.now());
     const ok = await addTeaLog(activeTea.slug, rating, note, {
@@ -300,7 +342,7 @@ export default function BrewPage() {
 
   const heading =
     stage === "steeps" || stage === "log"
-      ? activeTea?.name
+      ? sessionLabel
       : stage === "teas"
       ? TEA_TYPE_LABELS[activeType ?? ""] ?? activeType
       : "Brew";
@@ -383,24 +425,32 @@ export default function BrewPage() {
           >
             <p className="text-[15px] leading-relaxed">
               {restore.warning === "long-gap"
-                ? `A steep of ${teaBySlug.get(restore.session.slug)?.name ?? "this tea"} has been running since you closed the app.`
+                ? `A steep of ${teaBySlug.get(restore.session.slug)?.name ?? "this tea"} has kept running — ${formatClock(
+                    Math.round(restore.gapMs / 1000)
+                  )} of it with the app closed.`
                 : "The device clock moved while this steep was open."}
             </p>
             <p className="text-[13px] mt-1.5 leading-relaxed" style={{ color: "var(--muted)" }}>
               {restore.warning === "long-gap"
-                ? "Tea does not keep steeping while you sleep. Choose what to record."
+                ? "Nothing ticks in the background on a phone — the clock is reconstructed from timestamps. The steep really is that long: keep it and log it, or cut it to a believable length."
                 : "Nothing is trusted from that gap — resume when you are ready."}
             </p>
             <div className="flex flex-wrap gap-2 mt-4">
               <button
                 onClick={() => {
-                  adopt(restore.session);
+                  // An overnight steep is a real steep. If the clock was mid-steep it
+                  // resumes ticking from where it stands; a steep that had already been
+                  // ended simply comes back as it was.
+                  const s = restore.session;
+                  const mid = s.steeps.length > 0 && s.steeps[s.steeps.length - 1].endedAt === undefined;
+                  const next = mid && s.state !== "armed" ? startSteep(s, Date.now()) : { ...s, lastSeen: Date.now() };
+                  adopt(next);
                   setRestore(null);
                 }}
                 className="px-4 h-10 rounded-full text-[13px] font-medium"
                 style={{ backgroundColor: "var(--accent)", color: "var(--bg)" }}
               >
-                Keep as it is
+                Keep and continue
               </button>
               {restore.warning === "long-gap" && (
                 <button
@@ -411,7 +461,7 @@ export default function BrewPage() {
                   className="px-4 h-10 rounded-full text-[13px] border"
                   style={{ borderColor: "var(--border)" }}
                 >
-                  Cap at 20:00
+                  Cut to 20:00
                 </button>
               )}
               <button
@@ -446,6 +496,15 @@ export default function BrewPage() {
           />
         ) : stage === "steeps" && session ? (
           <div className="pt-1">
+            {orphanTea && (
+              <p
+                className="text-[12.5px] leading-snug rounded-xl px-3.5 py-3 mb-4"
+                style={{ border: "1px solid var(--border)", color: "var(--muted)" }}
+              >
+                “{sessionLabel}” is no longer in your library. This session is kept as it is
+                and can still be logged — it will stay attached to the tea it was brewed from.
+              </p>
+            )}
             <SteepDial
               seconds={liveSecs}
               due={dueNow}

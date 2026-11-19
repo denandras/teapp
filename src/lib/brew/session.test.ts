@@ -15,10 +15,87 @@ import {
   restoreSession,
   capSteep,
   discardCurrentSteep,
+  unseenSeconds,
+  steepPredatesResume,
   LONG_GAP_MS,
 } from "@/lib/brew/session";
 
 const T0 = 1_700_000_000_000;
+
+describe("arming and starting are not the same act", () => {
+  it("does not restart a steep that is already running", () => {
+    let s = newSession("sencha", T0, undefined, 120);
+    s = startSteep(s, T0);
+    // nine hours later something calls startSteep believing it is a fresh start
+    const later = startSteep(s, T0 + 9 * 60 * 60 * 1000);
+    expect(later.steeps).toHaveLength(1);
+    expect(later.steeps[0].startedAt).toBe(T0);
+    expect(liveSeconds(later, T0 + 9 * 60 * 60 * 1000)).toBe(9 * 60 * 60);
+  });
+
+  it("still resumes a paused steep and still adds a genuinely new one", () => {
+    let s = startSteep(newSession("sencha", T0, undefined, 120), T0);
+    s = pauseSteep(s, T0 + 30_000);
+    s = startSteep(s, T0 + 90_000); // 60 s of pause removed
+    expect(liveSeconds(s, T0 + 120_000)).toBe(60);
+    const next = startSteep(finishSteep(s, T0 + 120_000), T0 + 200_000);
+    expect(next.steeps).toHaveLength(2);
+  });
+});
+
+describe("a session outliving its tea", () => {
+  it("carries its own steep time, so it still works when the tea is gone", () => {
+    const s = newSession("sencha", T0, undefined, 120);
+    expect(s.baseSeconds).toBe(120);
+    expect(parseSession(serializeSession(s))?.baseSeconds).toBe(120);
+  });
+
+  it("survives a round trip with no stored base time", () => {
+    const s = newSession("sencha", T0);
+    expect(s.baseSeconds).toBeNull();
+    expect(parseSession(serializeSession(s))?.baseSeconds).toBeNull();
+  });
+
+  it("keeps its slug through storage, so a renamed tea can be matched by cup", () => {
+    let s = newSession("sencha", T0, undefined, 120);
+    s = startSteep(s, T0);
+    expect(parseSession(serializeSession(s))?.slug).toBe("sencha");
+  });
+});
+
+describe("a steep that spans the night", () => {
+  it("reports how long the app was closed instead of inventing a limit", () => {
+    let s = newSession("sencha", T0, undefined, 120);
+    s = startSteep(s, T0);
+    const morning = T0 + 9 * 60 * 60 * 1000; // nine hours later
+    const res = restoreSession(s, morning);
+    expect(res.warning).toBe("long-gap");
+    expect(res.gapMs).toBe(9 * 60 * 60 * 1000);
+    // the elapsed time is genuine and is NOT truncated by the restore
+    expect(res.session.steeps[0].endedAt).toBeUndefined();
+  });
+
+  it("measures unseen time from the last heartbeat, not from the steep's start", () => {
+    let s = newSession("sencha", T0, undefined, 120);
+    s = startSteep(s, T0);
+    // five minutes of watching, then the phone sleeps for an hour
+    s = { ...s, lastSeen: T0 + 5 * 60 * 1000 };
+    const now = T0 + 65 * 60 * 1000;
+    expect(unseenSeconds(s, now)).toBe(60 * 60);
+  });
+
+  it("treats a steep started before the last check-in as resumed, not new", () => {
+    // started at T0, app last seen two minutes later: the steep predates the resume
+    let s = newSession("sencha", T0, undefined, 120);
+    s = startSteep(s, T0);
+    expect(steepPredatesResume({ ...s, lastSeen: T0 + 120_000 })).toBe(true);
+    // finishing steep 1 and starting steep 2 makes the new steep a fresh one
+    const done = finishSteep({ ...s, lastSeen: T0 + 120_000 }, T0 + 120_000);
+    const fresh = startSteep(done, T0 + 130_000);
+    expect(fresh.steeps[fresh.steeps.length - 1].startedAt).toBe(T0 + 130_000);
+    expect(steepPredatesResume(fresh)).toBe(false);
+  });
+});
 
 describe("stopwatch from timestamps", () => {
   it("derives elapsed from startedAt, so a late render is still correct", () => {

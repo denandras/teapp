@@ -386,6 +386,9 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
     if (!userId) { queueBrewLog(log.id, slug, rating, note, meta); return false; }
     const teaId = await getTeaIdBySlug(slug);
     if (!teaId) { queueBrewLog(log.id, slug, rating, note, meta); return false; }
+    // Record what the tea looked like at the moment of brewing. A tea can be renamed
+    // or merged into another later; the log must still say what was actually in the cup.
+    const snapshot = get().allTeas.find((t) => t.slug === slug);
     const { error } = await supabase.from("tea_logs").insert({
       id: log.id,
       user_id: userId,
@@ -395,6 +398,8 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       brews: meta?.brews ?? null,
       duration_s: meta?.duration_s ?? null,
       steep_s: meta?.steep_s ?? null,
+      tea_slug: snapshot?.slug ?? slug,
+      tea_name: snapshot?.name ?? null,
     });
     if (error) {
       console.error("Failed to insert tea_logs:", error.message);
@@ -413,6 +418,7 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
     for (const entry of queued) {
       const teaId = await getTeaIdBySlug(entry.slug);
       if (!teaId) { remaining.push(entry); continue; }
+      const snapshot = get().allTeas.find((t) => t.slug === entry.slug);
       const { error } = await supabase.from("tea_logs").insert({
         id: entry.id,
         user_id: userId,
@@ -422,6 +428,8 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         brews: entry.brews ?? null,
         duration_s: entry.duration_s ?? null,
         steep_s: entry.steep_s ?? null,
+        tea_slug: entry.slug,
+        tea_name: snapshot?.name ?? null,
       });
       if (error) {
         // 23505 = unique violation: it already landed on a previous attempt.
@@ -738,8 +746,15 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
         rating: number | null;
         note: string | null;
         created_at: string;
+        brews?: number | null;
+        duration_s?: number | null;
+        steep_s?: number[] | null;
+        tea_slug?: string | null;
+        tea_name?: string | null;
       }>("tea_logs", {
-        select: "id, tea_id, rating, note, created_at",
+        // brews/duration/steep are returned too — the session history on the tea card
+        // reads them — and tea_slug/tea_name let a log survive its tea being merged.
+        select: "id, tea_id, rating, note, created_at, brews, duration_s, steep_s, tea_slug, tea_name",
         filters: (q) => q.eq("user_id", userId),
         orderBy: "created_at",
         ascending: false,
@@ -749,13 +764,26 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
       const teaLogs: TeaLogsMap = {};
       if (logs) {
         for (const row of logs) {
-          const slug = teaIdToSlug[row.tea_id];
-          if (!slug) continue;
+          // The tea may have been renamed (slug changed) or merged into another (its id
+          // now points at a tea that IS something else). The row remembers the slug it
+          // was brewed under, so the session stays attached to that cup instead of
+          // being dropped on the floor.
+          const slug = row.tea_slug || teaIdToSlug[row.tea_id];
+          if (!slug) {
+            console.warn(
+              `syncFromSupabase: dropping brew log ${row.id} — tea ${row.tea_id} is gone and the log predates slug snapshots`
+            );
+            continue;
+          }
           const log: TeaLog = {
             id: String(row.id),
             rating: row.rating ?? 0,
             note: row.note || "",
             timestamp: row.created_at,
+            ...(row.brews != null ? { brews: row.brews } : {}),
+            ...(row.duration_s != null ? { duration_s: row.duration_s } : {}),
+            ...(row.steep_s != null ? { steep_s: row.steep_s } : {}),
+            ...(row.tea_name ? { tea_name: row.tea_name } : {}),
           };
           if (!teaLogs[slug]) teaLogs[slug] = [];
           teaLogs[slug].push(log);

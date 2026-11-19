@@ -45,6 +45,11 @@ export interface TeaLog {
   brews?: number | null;
   duration_s?: number | null;
   steep_s?: number[] | null;
+  /**
+   * The tea's name when it was brewed. A tea can be renamed or merged into another
+   * afterwards; this is what was actually in the cup.
+   */
+  tea_name?: string | null;
 }
 
 export const TEA_TYPE_COLORS: Record<string, string> = {
