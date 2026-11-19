@@ -17,6 +17,7 @@ import {
   discardCurrentSteep,
   unseenSeconds,
   steepPredatesResume,
+  sessionOrigin,
   LONG_GAP_MS,
 } from "@/lib/brew/session";
 
@@ -52,6 +53,28 @@ describe("arming and starting are not the same act", () => {
     expect(liveSeconds(s, T0 + 120_000)).toBe(60);
     const next = startSteep(finishSteep(s, T0 + 120_000), T0 + 200_000);
     expect(next.steeps).toHaveLength(2);
+  });
+});
+
+describe("a session picked up later", () => {
+  const at = (day: number, hour: number, min = 0) =>
+    new Date(2026, 10, day, hour, min, 0, 0).getTime();
+
+  it("says 'today' for a session begun the same day", () => {
+    expect(sessionOrigin(at(18, 9, 5), at(18, 21, 0))).toBe("started today at 9:05");
+  });
+
+  it("says 'yesterday' when a night falls between the steeps", () => {
+    expect(sessionOrigin(at(17, 23, 0), at(18, 8, 0))).toBe("started yesterday at 23:00");
+  });
+
+  it("counts days, then falls back to a date", () => {
+    expect(sessionOrigin(at(15, 23, 0), at(18, 8, 0))).toBe("started 3 days ago");
+    expect(sessionOrigin(at(1, 23, 0), at(18, 8, 0))).toMatch(/^started \w+ \d+$/);
+  });
+
+  it("does not turn a late-evening start into 'yesterday' at one minute past midnight", () => {
+    expect(sessionOrigin(at(17, 23, 50), at(18, 0, 1))).toBe("started yesterday at 23:50");
   });
 });
 

@@ -215,6 +215,25 @@ export function sessionPayload(session: BrewSession, now: number): {
   };
 }
 
+/**
+ * Where a session began, said the way a person would.
+ *
+ * A session can be left between steeps and picked up the next morning — the leaf does
+ * not care, but the drinker should know whether they are continuing last night's cup
+ * or this afternoon's.
+ */
+export function sessionOrigin(startedAt: number, now: number): string {
+  const start = new Date(startedAt);
+  const today = new Date(now);
+  const hm = `${start.getHours()}:${String(start.getMinutes()).padStart(2, "0")}`;
+  const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((midnight(today) - midnight(start)) / 86_400_000);
+  if (days <= 0) return `started today at ${hm}`;
+  if (days === 1) return `started yesterday at ${hm}`;
+  if (days < 7) return `started ${days} days ago`;
+  return `started ${start.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`;
+}
+
 /** m:ss up to an hour, then h:mm:ss. */
 export function formatClock(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds));

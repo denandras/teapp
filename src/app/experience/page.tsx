@@ -23,6 +23,7 @@ import {
   restoreSession,
   serializeSession,
   sessionPayload,
+  sessionOrigin,
   startSteep,
   type BrewSession,
 } from "@/lib/brew/session";
@@ -505,6 +506,13 @@ export default function BrewPage() {
                 and can still be logged — it will stay attached to the tea it was brewed from.
               </p>
             )}
+            <p
+              className="text-[12px] text-center -mb-3"
+              style={{ color: "var(--muted)", opacity: 0.75 }}
+            >
+              {sessionOrigin(session.startedAt, now)}
+              {session.steeps.length > 1 && ` · ${doneCount} steep${doneCount === 1 ? "" : "s"} in`}
+            </p>
             <SteepDial
               seconds={liveSecs}
               due={dueNow}
