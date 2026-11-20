@@ -192,6 +192,14 @@ interface TeaStore {
   /** Retry brew logs that failed to reach the server (queued locally). */
   flushBrewOutbox: () => Promise<number>;
   editTeaLog: (slug: string, logId: string, rating: number, note: string) => void;
+  /**
+   * Re-point a finished session at the tea that was actually in the cup.
+   *
+   * The commonest data error is logging the right brew against the wrong tea — a black
+   * tea mistaken for a yellow one. Everything about the session stays; only the tea it
+   * belongs to changes.
+   */
+  moveTeaLog: (fromSlug: string, logId: string, toSlug: string) => Promise<boolean>;
   deleteTeaLog: (slug: string, logId: string) => void;
   getAvgRating: (slug: string) => number | null;
   hiddenTeas: string[];
@@ -441,6 +449,36 @@ export const useTeaStore = create<TeaStore>()((set, get) => ({
     }
     writeBrewOutbox(remaining);
     return flushed;
+  },
+  moveTeaLog: async (fromSlug, logId, toSlug) => {
+    if (fromSlug === toSlug) return true;
+    const moving = (get().teaLogs[fromSlug] || []).find((l) => l.id === logId);
+    if (!moving) return false;
+    const target = get().allTeas.find((t) => t.slug === toSlug);
+    const moved: TeaLog = { ...moving, tea_name: target?.name ?? moving.tea_name ?? null };
+    // move it in memory first so the UI never shows it in two places
+    set((state) => {
+      const from = (state.teaLogs[fromSlug] || []).filter((l) => l.id !== logId);
+      const to = [moved, ...(state.teaLogs[toSlug] || [])].sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      return { teaLogs: { ...state.teaLogs, [fromSlug]: from, [toSlug]: to } };
+    });
+    if (demoMode) { saveDemoState(get()); return true; }
+    const userId = getUserId();
+    if (!userId) return false;
+    const teaId = await getTeaIdBySlug(toSlug);
+    if (!teaId) return false;
+    const { error } = await supabase
+      .from("tea_logs")
+      .update({ tea_id: teaId, tea_slug: toSlug, tea_name: moved.tea_name ?? null })
+      .eq("user_id", userId)
+      .eq("id", logId);
+    if (error) {
+      console.error("Failed to move tea_logs:", error.message);
+      return false;
+    }
+    return true;
   },
   editTeaLog: (slug, logId, rating, note) => {
     set((state) => ({

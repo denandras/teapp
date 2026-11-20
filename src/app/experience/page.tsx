@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronLeft, Pause, Play, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { ArrowLeftRight, Check, ChevronLeft, Pause, Play, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { TEA_TYPE_COLORS, TEA_TYPE_LABELS, type Tea, type TeaLog } from "@/lib/types";
 import { useTeaStore } from "@/lib/store";
 import {
@@ -48,6 +48,7 @@ export default function BrewPage() {
   const teaStates = useTeaStore((s) => s.teaStates);
   const teaLogs = useTeaStore((s) => s.teaLogs);
   const addTeaLog = useTeaStore((s) => s.addTeaLog);
+  const moveTeaLog = useTeaStore((s) => s.moveTeaLog);
   const flushBrewOutbox = useTeaStore((s) => s.flushBrewOutbox);
 
   const [stage, setStage] = useState<Stage>("types");
@@ -58,6 +59,16 @@ export default function BrewPage() {
 
   const [session, setSession] = useState<BrewSession | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  /**
+   * Which tea to re-point, and at what:
+   *   { kind: "session" }            — the brew in progress / finished but unsaved
+   *   { kind: "log", log }           — a session already saved under the wrong tea
+   */
+  const [repoint, setRepoint] = useState<
+    | { kind: "session" }
+    | { kind: "log"; log: TeaLog; fromSlug: string }
+    | null
+  >(null);
   const [restore, setRestore] = useState<{
     session: BrewSession;
     warning: "long-gap" | "clock-skew";
@@ -277,6 +288,31 @@ export default function BrewPage() {
     setStage(type ? "teas" : "types");
   };
 
+  /**
+   * Apply a re-point choice. A running session keeps every steep time and only changes
+   * which tea it belongs to; a saved log is moved between two teas in one write.
+   */
+  const onRepoint = async (slug: string) => {
+    const choice = repoint;
+    setRepoint(null);
+    if (!choice) return;
+
+    if (choice.kind === "log") {
+      await moveTeaLog(choice.fromSlug, choice.log.id, slug);
+      return;
+    }
+
+    if (!session) return;
+    const tea = teaBySlug.get(slug);
+    const base = tea?.brewing_time_min ? Math.round(tea.brewing_time_min * 60) : session.baseSeconds ?? null;
+    const next: BrewSession = { ...session, slug, baseSeconds: base };
+    setSession(next);
+    persist(next);
+    if (tea) setSelectedTea(tea);
+    // the tea the session was brewing under is not the tea that was drunk — no status
+    setActiveType(tea?.tea_type ?? activeType ?? null);
+  };
+
   const toLog = () => {
     if (!session) return;
     setSession(endSession(session, Date.now()));
@@ -350,6 +386,20 @@ export default function BrewPage() {
 
   return (
     <main className="mx-auto w-full max-w-[680px] px-5 sm:px-8 pb-32">
+      {repoint && (
+        <TeaPicker
+          title={repoint.kind === "log" ? "Which tea was this?" : "Which tea are you brewing?"}
+          hint={
+            repoint.kind === "log"
+              ? "The session moves to that tea with its times and note intact."
+              : "The steep times you already have are kept."
+          }
+          teas={allTeas}
+          onPick={onRepoint}
+          onClose={() => setRepoint(null)}
+        />
+      )}
+
       {/* ── header ─────────────────────────────────────────────────────── */}
       <header className="flex items-center justify-between gap-3 pt-6 pb-2">
         <div className="flex items-center gap-3 min-w-0">
@@ -494,6 +544,9 @@ export default function BrewPage() {
             previous={previousLogs}
             onBrew={() => arm(activeTea, null)}
             onBack={() => setStage("teas")}
+            onMoveLog={(log) =>
+              setRepoint({ kind: "log", log, fromSlug: activeTea.slug })
+            }
           />
         ) : stage === "steeps" && session ? (
           <div className="pt-1">
@@ -755,6 +808,14 @@ export default function BrewPage() {
               </button>
             )}
             <button
+              onClick={() => setRepoint({ kind: "session" })}
+              className="flex items-center gap-1.5 h-9 text-[12.5px]"
+              style={{ color: "var(--muted)" }}
+            >
+              <ArrowLeftRight size={13} />
+              wrong tea
+            </button>
+            <button
               onClick={onDiscard}
               className="flex items-center gap-1.5 h-9 text-[12.5px]"
               style={{ color: "var(--muted)" }}
@@ -784,16 +845,111 @@ export default function BrewPage() {
   );
 }
 
+/**
+ * Pick the tea that was actually in the cup.
+ *
+ * Reached two ways: from a finished session before it is saved, and from a session in
+ * a tea's history when it was logged against the wrong tea. Brewed a black tea believing
+ * it was a yellow one is not a rare mistake — being stuck with it should be.
+ */
+function TeaPicker({
+  title,
+  hint,
+  teas,
+  onPick,
+  onClose,
+}: {
+  title: string;
+  hint?: string;
+  teas: Tea[];
+  onPick: (slug: string) => void;
+  onClose: () => void;
+}) {
+  const [q, setQ] = useState("");
+  const needle = q.trim().toLowerCase();
+  const shown = (
+    needle
+      ? teas.filter((t) => t.name.toLowerCase().includes(needle) || t.original_name?.toLowerCase().includes(needle))
+      : teas
+  )
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: "var(--bg)" }}>
+      <div className="flex items-center gap-3 px-5 pt-5 pb-3">
+        <div className="min-w-0">
+          <p className="text-[17px] font-semibold truncate">{title}</p>
+          {hint && (
+            <p className="text-[12.5px] mt-0.5 leading-snug" style={{ color: "var(--muted)" }}>
+              {hint}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="ml-auto shrink-0 h-10 w-10 grid place-items-center rounded-full"
+          style={{ border: "1px solid var(--border)" }}
+        >
+          <X size={16} />
+        </button>
+      </div>
+      <div className="px-5 pb-3">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search teas"
+          className="w-full h-11 rounded-2xl px-4 text-[15px] outline-none"
+          style={{ backgroundColor: "var(--card)", border: "1px solid var(--border)", color: "var(--text)" }}
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto px-5 pb-8">
+        <ul className="flex flex-col gap-2">
+          {shown.map((t) => (
+            <li key={t.slug}>
+              <button
+                onClick={() => onPick(t.slug)}
+                className="w-full text-left rounded-2xl px-4 py-3.5 flex items-center gap-3"
+                style={{ backgroundColor: "var(--card)", border: "1px solid var(--border)" }}
+              >
+                <span
+                  className="h-9 w-[3px] rounded-full shrink-0"
+                  style={{ backgroundColor: TEA_TYPE_COLORS[t.tea_type] ?? "var(--accent)" }}
+                />
+                <span className="min-w-0">
+                  <span className="block text-[15px] truncate">{t.name}</span>
+                  <span className="block text-[12px] truncate" style={{ color: "var(--muted)" }}>
+                    {TEA_TYPE_LABELS[t.tea_type] ?? t.tea_type}
+                    {t.origin ? ` · ${t.origin}` : ""}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {shown.length === 0 && (
+          <p className="text-[14px] py-10 text-center" style={{ color: "var(--muted)" }}>
+            No tea matches “{q.trim()}”.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TeaCard({
   tea,
   previous,
   onBrew,
   onBack,
+  onMoveLog,
 }: {
   tea: Tea;
   previous: TeaLog[];
   onBrew: () => void;
   onBack: () => void;
+  onMoveLog?: (log: TeaLog) => void;
 }) {
   const colour = TEA_TYPE_COLORS[tea.tea_type] ?? "var(--accent)";
   const firstSteep = dueSeconds(tea.brewing_time_min ? Math.round(tea.brewing_time_min * 60) : null, 1);
@@ -898,6 +1054,17 @@ function TeaCard({
                       {log.brews}× · {formatClock(log.duration_s ?? 0)}
                     </span>
                   ) : null}
+                  {onMoveLog && (
+                    <button
+                      onClick={() => onMoveLog(log)}
+                      aria-label="This was a different tea"
+                      title="This was a different tea"
+                      className="shrink-0 -my-1 -mr-1 h-8 w-8 grid place-items-center rounded-full"
+                      style={{ color: "var(--muted)" }}
+                    >
+                      <ArrowLeftRight size={13} />
+                    </button>
+                  )}
                 </div>
                 {log.note && (
                   <p className="text-[13px] mt-1 leading-snug" style={{ color: "var(--text)", opacity: 0.8 }}>
